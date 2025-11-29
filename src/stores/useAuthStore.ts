@@ -91,24 +91,52 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function signInWithMagicLink(email: string) {
+    async function sendOtpCode(email: string) {
         loading.value = true
         error.value = null
         try {
             const { error: signInError } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/`
+                    shouldCreateUser: true
                 }
             })
 
             if (signInError) throw signInError
 
-            // Success - magic link sent
+            // Success - OTP sent
             return { success: true }
         } catch (e) {
-            error.value = e instanceof Error ? e.message : 'Failed to send magic link'
-            console.error('Error sending magic link:', e)
+            error.value = e instanceof Error ? e.message : 'Failed to send verification code'
+            console.error('Error sending OTP:', e)
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    async function verifyOtpCode(email: string, token: string) {
+        loading.value = true
+        error.value = null
+        try {
+            const { data, error: verifyError } = await supabase.auth.verifyOtp({
+                email,
+                token,
+                type: 'email'
+            })
+
+            if (verifyError) throw verifyError
+
+            if (data.user) {
+                user.value = data.user
+                session.value = data.session
+                await fetchCustomerProfile()
+            }
+
+            return { success: true }
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Invalid verification code'
+            console.error('Error verifying OTP:', e)
             throw e
         } finally {
             loading.value = false
@@ -166,7 +194,8 @@ export const useAuthStore = defineStore('auth', () => {
         error,
         isAuthenticated,
         initialize,
-        signInWithMagicLink,
+        sendOtpCode,
+        verifyOtpCode,
         signOut,
         updateProfile,
         fetchCustomerProfile

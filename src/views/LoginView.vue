@@ -7,7 +7,8 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const email = ref('')
-const linkSent = ref(false)
+const otpCode = ref('')
+const codeSent = ref(false)
 
 onMounted(async () => {
   // If already authenticated, redirect to home
@@ -16,15 +17,32 @@ onMounted(async () => {
   }
 })
 
-async function handleMagicLinkLogin() {
+async function sendCode() {
   if (!email.value) return
   
   try {
-    await authStore.signInWithMagicLink(email.value)
-    linkSent.value = true
+    await authStore.sendOtpCode(email.value)
+    codeSent.value = true
   } catch (error) {
-    console.error('Login failed:', error)
+    console.error('Failed to send code:', error)
   }
+}
+
+async function verifyCode() {
+  if (!email.value || !otpCode.value) return
+  
+  try {
+    await authStore.verifyOtpCode(email.value, otpCode.value)
+    // Success - router guard will redirect to profile or booking
+    router.push('/')
+  } catch (error) {
+    console.error('Verification failed:', error)
+  }
+}
+
+function goBack() {
+  codeSent.value = false
+  otpCode.value = ''
 }
 </script>
 
@@ -39,26 +57,8 @@ async function handleMagicLinkLogin() {
 
       <!-- Login Card -->
       <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-8">
-        <!-- Success Message - Link Sent -->
-        <div v-if="linkSent" class="text-center">
-          <div class="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-green-600" style="width: 32px; height: 32px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-            </svg>
-          </div>
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
-          <p class="text-gray-600 mb-6">We've sent a magic link to <span class="font-semibold">{{ email }}</span></p>
-          <p class="text-sm text-gray-500 mb-6">Click the link in your email to sign in. You can close this page.</p>
-          <button
-            @click="linkSent = false; email = ''"
-            class="text-primary-600 hover:text-primary-700 font-medium"
-          >
-            ← Use a different email
-          </button>
-        </div>
-
-        <!-- Login Form -->
-        <div v-else>
+        <!-- Step 1: Email Input -->
+        <div v-if="!codeSent">
           <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Log In</h2>
 
           <!-- Error Message -->
@@ -66,14 +66,14 @@ async function handleMagicLinkLogin() {
             {{ authStore.error }}
           </div>
 
-          <form @submit.prevent="handleMagicLinkLogin" class="space-y-6">
+          <form @submit.prevent="sendCode" class="space-y-6">
             <div>
               <div class="relative">
                 <input
                   v-model="email"
                   type="email"
                   required
-                  placeholder="Username or Email"
+                  placeholder="Email Address"
                   class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400"
                   :disabled="authStore.loading"
                 />
@@ -91,7 +91,7 @@ async function handleMagicLinkLogin() {
               class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               <div v-if="authStore.loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>{{ authStore.loading ? 'Sending...' : 'Login' }}</span>
+              <span>{{ authStore.loading ? 'Sending...' : 'Send Code' }}</span>
             </button>
           </form>
 
@@ -101,8 +101,62 @@ async function handleMagicLinkLogin() {
               <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-center text-sm">
-              <span class="px-4 bg-white text-gray-500">We'll email you a magic link to sign in</span>
+              <span class="px-4 bg-white text-gray-500">We'll email you a verification code</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Code Input -->
+        <div v-else>
+          <button
+            @click="goBack"
+            class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center text-sm"
+          >
+            ← Change Email
+          </button>
+
+          <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Enter Code</h2>
+          <p class="text-gray-600 mb-6 text-center">We sent a code to <span class="font-semibold">{{ email }}</span></p>
+
+          <!-- Error Message -->
+          <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+            {{ authStore.error }}
+          </div>
+
+          <form @submit.prevent="verifyCode" class="space-y-6">
+            <div>
+              <input
+                v-model="otpCode"
+                type="text"
+                required
+                placeholder="Enter 6-digit code"
+                maxlength="6"
+                pattern="[0-9]{6}"
+                class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400 text-center text-2xl tracking-widest font-mono"
+                :disabled="authStore.loading"
+                autofocus
+              />
+            </div>
+
+            <button
+              type="submit"
+              :disabled="authStore.loading || otpCode.length !== 6"
+              class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              <div v-if="authStore.loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>{{ authStore.loading ? 'Verifying...' : 'Verify Code' }}</span>
+            </button>
+          </form>
+
+          <!-- Resend Code -->
+          <div class="mt-6 text-center">
+            <button
+              @click="sendCode"
+              :disabled="authStore.loading"
+              class="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
+            >
+              Didn't receive it? Resend code
+            </button>
           </div>
         </div>
       </div>

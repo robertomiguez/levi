@@ -1,3 +1,9 @@
+export interface Category {
+    id: string
+    name: string
+    created_at?: string
+}
+
 export interface Service {
     id: string
     name: string
@@ -5,10 +11,15 @@ export interface Service {
     price?: number
     buffer_before: number
     buffer_after: number
-    category?: string
+    category_id?: string // References categories table
+    categories?: Category // Joined data
+    description?: string
+    image_url?: string
     active: boolean
+    provider_id?: string // References providers table
     created_at?: string
     updated_at?: string
+    provider?: Provider // Joined data
 }
 
 export interface Customer {
@@ -22,12 +33,31 @@ export interface Customer {
     updated_at?: string
 }
 
+export type ProviderStatus = 'pending' | 'approved' | 'rejected' | 'suspended'
+
+export interface Provider {
+    id: string
+    auth_user_id?: string
+    business_name: string
+    email: string
+    phone?: string
+    description?: string
+    avatar_url?: string
+    status: ProviderStatus
+    approved_by?: string // References staff table
+    approved_at?: string
+    rejection_reason?: string
+    created_at?: string
+    updated_at?: string
+}
+
 export interface Staff {
     id: string
     name: string
     email: string
     role: 'admin' | 'staff'
     active: boolean
+    provider_id?: string // References providers table
     created_at?: string
     updated_at?: string
 }
@@ -35,6 +65,7 @@ export interface Staff {
 export interface Availability {
     id: string
     staff_id: string
+    provider_id?: string // References providers table
     day_of_week: number // 0-6 (Sunday-Saturday)
     start_time: string // HH:mm format
     end_time: string // HH:mm format
@@ -44,6 +75,7 @@ export interface Availability {
 export interface BlockedDate {
     id: string
     staff_id: string
+    provider_id?: string // References providers table
     start_date: string // YYYY-MM-DD
     end_date: string // YYYY-MM-DD
     reason?: string
@@ -71,3 +103,5 @@ export interface TimeSlot {
     available: boolean
     reason?: string // Why it's not available
 }
+
+export type UserRole = 'customer' | 'provider' | 'admin'

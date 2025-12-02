@@ -29,6 +29,11 @@ const confirmedAppointmentId = ref<string>('')
 onMounted(async () => {
   await serviceStore.fetchServices()
   await staffStore.fetchStaff()
+
+  // Ensure customer profile exists if authenticated
+  if (authStore.isAuthenticated && !authStore.customer) {
+    await authStore.createCustomerProfile()
+  }
 })
 
 const selectedService = computed(() => 
@@ -99,8 +104,13 @@ async function submitBooking() {
   }
 
   if (!authStore.customer) {
-    alert('Please log in to book an appointment')
-    return
+    // Try to create profile if it doesn't exist
+    await authStore.createCustomerProfile()
+    
+    if (!authStore.customer) {
+      alert('Please log in to book an appointment')
+      return
+    }
   }
 
   try {

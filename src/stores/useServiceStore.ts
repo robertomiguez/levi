@@ -11,33 +11,44 @@ export const useServiceStore = defineStore('service', () => {
     async function fetchServices() {
         loading.value = true
         error.value = null
+        console.log('[ServiceStore] Fetching services...')
         try {
             const { data, error: fetchError } = await supabase
                 .from('services')
-                .select('*')
+                .select('*, categories(id, name)')
                 .eq('active', true)
-                .order('category', { ascending: true })
+                .order('name', { foreignTable: 'categories', ascending: true })
                 .order('name', { ascending: true })
 
-            if (fetchError) throw fetchError
+            console.log('[ServiceStore] Supabase response:', { data, error: fetchError })
+
+            if (fetchError) {
+                console.error('[ServiceStore] Fetch error:', fetchError)
+                throw fetchError
+            }
+
             services.value = data || []
+            console.log('[ServiceStore] Services loaded:', services.value.length, 'services')
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to fetch services'
-            console.error('Error fetching services:', e)
+            console.error('[ServiceStore] Error fetching services:', e)
         } finally {
             loading.value = false
         }
     }
 
-    async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) {
+    async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories'>) {
         loading.value = true
         error.value = null
+        console.log('[ServiceStore] createService called with:', service)
         try {
             const { data, error: createError } = await supabase
                 .from('services')
                 .insert([service])
                 .select()
                 .single()
+
+            console.log('[ServiceStore] createService response:', { data, error: createError })
 
             if (createError) throw createError
             if (data) {
@@ -46,7 +57,7 @@ export const useServiceStore = defineStore('service', () => {
             return data
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to create service'
-            console.error('Error creating service:', e)
+            console.error('[ServiceStore] Error creating service:', e)
             throw e
         } finally {
             loading.value = false
@@ -57,9 +68,12 @@ export const useServiceStore = defineStore('service', () => {
         loading.value = true
         error.value = null
         try {
+            // Remove joined data from updates if present
+            const { categories, ...cleanUpdates } = updates
+
             const { data, error: updateError } = await supabase
                 .from('services')
-                .update(updates)
+                .update(cleanUpdates)
                 .eq('id', id)
                 .select()
                 .single()

@@ -13,6 +13,15 @@ app.use(router)
 
 // Initialize auth before mounting
 const authStore = useAuthStore()
-authStore.initialize().then(() => {
-    app.mount('#app')
-})
+console.log('[Main] Initializing auth store...')
+authStore.initialize()
+    .then(() => {
+        console.log('[Main] Auth initialized successfully, mounting app...')
+        app.mount('#app')
+        console.log('[Main] App mounted successfully')
+    })
+    .catch((error) => {
+        console.error('[Main] Error during auth initialization:', error)
+        // Mount app anyway to prevent blank screen
+        app.mount('#app')
+    })

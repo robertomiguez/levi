@@ -5,14 +5,15 @@ const router = createRouter({
     history: createWebHistory(),
     routes: [
         {
+            path: '/',
+            name: 'Landing',
+            component: () => import('../views/LandingView.vue')
+        },
+        {
             path: '/login',
             name: 'Login',
             component: () => import('../views/LoginView.vue'),
             meta: { requiresGuest: true }
-        },
-        {
-            path: '/',
-            redirect: '/booking'
         },
         {
             path: '/booking',
@@ -26,6 +27,48 @@ const router = createRouter({
             component: () => import('../views/ProfileView.vue'),
             meta: { requiresAuth: true }
         },
+        // Provider routes
+        {
+            path: '/provider',
+            redirect: '/provider/dashboard'
+        },
+        {
+            path: '/provider/register',
+            name: 'ProviderRegister',
+            component: () => import('../views/provider/ProviderRegisterView.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/provider/dashboard',
+            name: 'ProviderDashboard',
+            component: () => import('../views/provider/ProviderDashboardView.vue'),
+            meta: { requiresAuth: true, requiresProvider: true }
+        },
+        {
+            path: '/provider/services',
+            name: 'ProviderServices',
+            component: () => import('../views/provider/ProviderServicesView.vue'),
+            meta: { requiresAuth: true, requiresProvider: true }
+        },
+        {
+            path: '/provider/staff',
+            name: 'ProviderStaff',
+            component: () => import('../views/provider/ProviderStaffView.vue'),
+            meta: { requiresAuth: true, requiresProvider: true }
+        },
+        {
+            path: '/provider/availability',
+            name: 'ProviderAvailability',
+            component: () => import('../views/provider/ProviderAvailabilityView.vue'),
+            meta: { requiresAuth: true, requiresProvider: true }
+        },
+        {
+            path: '/provider/calendar',
+            name: 'ProviderCalendar',
+            component: () => import('../views/provider/ProviderCalendarView.vue'),
+            meta: { requiresAuth: true, requiresProvider: true }
+        },
+        // Admin routes
         {
             path: '/admin',
             name: 'Admin',
@@ -52,24 +95,48 @@ const router = createRouter({
 // Navigation guards
 router.beforeEach((to, _from, next) => {
     const authStore = useAuthStore()
+    const role = authStore.userRole
 
-    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-        // Redirect to login if not authenticated
-        next('/login')
-    } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-        // Redirect to home if already authenticated
-        next('/')
-    } else if (authStore.isAuthenticated && to.path !== '/profile' && (!authStore.customer?.name || !authStore.customer?.phone)) {
-        // Redirect to profile if authenticated but profile is incomplete
-        // But allow admin routes or if specifically navigating to profile
-        if (to.path.startsWith('/admin')) {
-            next()
-        } else {
-            next('/profile')
+    // Login page - redirect if already authenticated based on role
+    if (to.meta.requiresGuest && authStore.isAuthenticated) {
+        if (role === 'provider') {
+            return next('/provider/dashboard')
         }
-    } else {
-        next()
+        return next('/booking')
     }
+
+    // Protected routes - require authentication
+    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+        return next({
+            path: '/login',
+            query: { redirect: to.fullPath }
+        })
+    }
+
+    // Provider routes - only for providers
+    if (to.meta.requiresProvider) {
+        if (!authStore.isAuthenticated) {
+            return next({
+                path: '/login',
+                query: { redirect: to.fullPath }
+            })
+        }
+        if (role !== 'provider') {
+            // Not a provider yet? Redirect to registration
+            return next('/provider/register')
+        }
+    }
+
+    // Profile completion check
+    if (authStore.isAuthenticated && to.path !== '/profile' && to.path !== '/provider/register' && (!authStore.customer?.name || !authStore.customer?.phone)) {
+        // Skip for admin routes, provider routes, or if already heading to profile
+        if (to.path.startsWith('/admin') || to.path.startsWith('/provider')) {
+            return next()
+        }
+        return next('/profile')
+    }
+
+    next()
 })
 
 export default router

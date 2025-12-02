@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 const email = ref('')
 const otpCode = ref('')
@@ -13,7 +14,8 @@ const codeSent = ref(false)
 onMounted(async () => {
   // If already authenticated, redirect to home
   if (authStore.isAuthenticated) {
-    router.push('/')
+    const redirect = route.query.redirect as string
+    router.push(redirect || '/')
   }
 })
 
@@ -33,8 +35,9 @@ async function verifyCode() {
   
   try {
     await authStore.verifyOtpCode(email.value, otpCode.value)
-    // Success - router guard will redirect to profile or booking
-    router.push('/')
+    // Success - redirect to intended page or home
+    const redirect = route.query.redirect as string
+    router.push(redirect || '/')
   } catch (error) {
     console.error('Verification failed:', error)
   }

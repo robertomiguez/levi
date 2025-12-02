@@ -2,16 +2,33 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
-import type { Customer } from '../types'
+import type { Customer, Provider, UserRole } from '../types'
 
 export const useAuthStore = defineStore('auth', () => {
     const user = ref<User | null>(null)
     const session = ref<Session | null>(null)
     const customer = ref<Customer | null>(null)
+    const provider = ref<Provider | null>(null)
     const loading = ref(false)
     const error = ref<string | null>(null)
 
     const isAuthenticated = computed(() => !!user.value)
+
+    // Compute user role based on provider and staff status
+    const userRole = computed<UserRole>(() => {
+        if (!user.value) return 'customer'
+
+        // Check if user is an approved provider
+        if (provider.value?.status === 'approved') {
+            return 'provider'
+        }
+
+        // Default to customer
+        return 'customer'
+    })
+
+    const isProvider = computed(() => userRole.value === 'provider')
+    const isAdmin = computed(() => userRole.value === 'admin')
 
     async function initialize() {
         loading.value = true
@@ -23,6 +40,7 @@ export const useAuthStore = defineStore('auth', () => {
                 session.value = currentSession
                 user.value = currentSession.user
                 await fetchCustomerProfile()
+                await fetchProviderProfile()
             }
 
             // Listen for auth changes
@@ -32,8 +50,10 @@ export const useAuthStore = defineStore('auth', () => {
 
                 if (newSession?.user) {
                     await fetchCustomerProfile()
+                    await fetchProviderProfile()
                 } else {
                     customer.value = null
+                    provider.value = null
                 }
             })
         } catch (e) {
@@ -52,15 +72,16 @@ export const useAuthStore = defineStore('auth', () => {
                 .from('customers')
                 .select('*')
                 .eq('auth_user_id', user.value.id)
-                .single()
+                .maybeSingle()
 
             if (fetchError) {
-                // Customer profile doesn't exist yet, create it
-                if (fetchError.code === 'PGRST116') {
-                    await createCustomerProfile()
-                } else {
-                    throw fetchError
-                }
+                throw fetchError
+            }
+
+            if (!data) {
+                // Customer profile doesn't exist
+                console.log('No customer profile found')
+                customer.value = null
             } else {
                 customer.value = data
             }
@@ -88,6 +109,27 @@ export const useAuthStore = defineStore('auth', () => {
             customer.value = data
         } catch (e) {
             console.error('Error creating customer profile:', e)
+        }
+    }
+
+    async function fetchProviderProfile() {
+        if (!user.value) return
+
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('providers')
+                .select('*')
+                .eq('auth_user_id', user.value.id)
+                .maybeSingle()
+
+            if (fetchError) {
+                throw fetchError
+            }
+
+            provider.value = data
+        } catch (e) {
+            console.error('Error fetching provider profile:', e)
+            provider.value = null
         }
     }
 
@@ -190,14 +232,20 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         session,
         customer,
+        provider,
         loading,
         error,
         isAuthenticated,
+        userRole,
+        isProvider,
+        isAdmin,
         initialize,
         sendOtpCode,
         verifyOtpCode,
         signOut,
         updateProfile,
-        fetchCustomerProfile
+        fetchCustomerProfile,
+        fetchProviderProfile,
+        createCustomerProfile
     }
 })

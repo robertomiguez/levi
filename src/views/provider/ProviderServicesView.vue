@@ -85,13 +85,13 @@ async function handleDeactivate(service: Service) {
   const action = service.active ? 'deactivate' : 'activate'
   if (confirm(`Are you sure you want to ${action} this service?`)) {
     await serviceStore.updateService(service.id, { active: !service.active })
-    await serviceStore.fetchAllServices(authStore.provider?.id)
+    // No need to refetch - updateService already updates local state
   }
 }
 
 async function toggleActive(service: Service) {
   await serviceStore.updateService(service.id, { active: !service.active })
-  await serviceStore.fetchAllServices(authStore.provider?.id)
+  // No need to refetch - updateService already updates local state
 }
 
 function formatCurrency(amount: number) {

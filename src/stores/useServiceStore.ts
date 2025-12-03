@@ -37,6 +37,39 @@ export const useServiceStore = defineStore('service', () => {
         }
     }
 
+    async function fetchAllServices(providerId?: string) {
+        loading.value = true
+        error.value = null
+        console.log('[ServiceStore] Fetching all services for provider:', providerId)
+        try {
+            let query = supabase
+                .from('services')
+                .select('*, categories(id, name)')
+                .order('active', { ascending: false })
+                .order('name', { foreignTable: 'categories', ascending: true })
+                .order('name', { ascending: true })
+
+            if (providerId) {
+                query = query.eq('provider_id', providerId)
+            }
+
+            const { data, error: fetchError } = await query
+
+            if (fetchError) {
+                console.error('[ServiceStore] Fetch error:', fetchError)
+                throw fetchError
+            }
+
+            services.value = data || []
+            console.log('[ServiceStore] All services loaded:', services.value.length, 'services')
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Failed to fetch services'
+            console.error('[ServiceStore] Error fetching services:', e)
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories'>) {
         loading.value = true
         error.value = null
@@ -106,7 +139,11 @@ export const useServiceStore = defineStore('service', () => {
                 .eq('id', id)
 
             if (deleteError) throw deleteError
-            services.value = services.value.filter(s => s.id !== id)
+            // Don't remove from array anymore, just update it
+            const index = services.value.findIndex(s => s.id === id)
+            if (index !== -1) {
+                services.value[index].active = false
+            }
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to delete service'
             console.error('Error deleting service:', e)
@@ -121,6 +158,7 @@ export const useServiceStore = defineStore('service', () => {
         loading,
         error,
         fetchServices,
+        fetchAllServices,
         createService,
         updateService,
         deleteService

@@ -40,7 +40,7 @@ onMounted(async () => {
     return
   }
   await Promise.all([
-    serviceStore.fetchServices(),
+    serviceStore.fetchAllServices(authStore.provider.id),
     categoryStore.fetchCategories()
   ])
 })
@@ -74,21 +74,24 @@ async function handleSave(serviceData: any) {
     }
     console.log('Service saved successfully')
     showModal.value = false
-    await serviceStore.fetchServices() // Refresh list
+    await serviceStore.fetchAllServices(authStore.provider?.id)
   } catch (err) {
     console.error('Error in handleSave:', err)
     alert('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))
   }
 }
 
-async function handleDelete(id: string) {
-  if (confirm('Are you sure you want to delete this service?')) {
-    await serviceStore.deleteService(id)
+async function handleDeactivate(service: Service) {
+  const action = service.active ? 'deactivate' : 'activate'
+  if (confirm(`Are you sure you want to ${action} this service?`)) {
+    await serviceStore.updateService(service.id, { active: !service.active })
+    await serviceStore.fetchAllServices(authStore.provider?.id)
   }
 }
 
 async function toggleActive(service: Service) {
   await serviceStore.updateService(service.id, { active: !service.active })
+  await serviceStore.fetchAllServices(authStore.provider?.id)
 }
 
 function formatCurrency(amount: number) {
@@ -178,53 +181,68 @@ function formatCurrency(amount: number) {
         <div
           v-for="service in filteredServices"
           :key="service.id"
-          class="bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 overflow-hidden"
+          class="bg-white rounded-lg shadow hover:shadow-md transition-shadow border overflow-hidden"
+          :class="service.active ? 'border-gray-200' : 'border-gray-300 bg-gray-50 opacity-75'"
         >
           <div class="p-6">
+            <!-- Inactive banner -->
+            <div v-if="!service.active" class="mb-3 -mx-6 -mt-6 px-6 py-2 bg-gray-200 border-b border-gray-300">
+              <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                ⚠️ Inactive Service
+              </span>
+            </div>
+            
             <div class="flex justify-between items-start mb-4">
               <div>
-                <span class="inline-block px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full mb-2">
+                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full mb-2"
+                  :class="service.active ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-500'">
                   {{ service.categories?.name || 'Uncategorized' }}
                 </span>
-                <h3 class="text-xl font-bold text-gray-900">{{ service.name }}</h3>
+                <h3 class="text-xl font-bold" :class="service.active ? 'text-gray-900' : 'text-gray-600'">
+                  {{ service.name }}
+                </h3>
               </div>
               <div class="flex flex-col items-end">
-                <span class="text-lg font-bold text-primary-600">{{ formatCurrency(service.price || 0) }}</span>
-                <span class="text-sm text-gray-500">{{ service.duration }} min</span>
+                <span class="text-lg font-bold" :class="service.active ? 'text-primary-600' : 'text-gray-500'">
+                  {{ formatCurrency(service.price || 0) }}
+                </span>
+                <span class="text-sm" :class="service.active ? 'text-gray-500' : 'text-gray-400'">
+                  {{ service.duration }} min
+                </span>
               </div>
             </div>
             
-            <p class="text-gray-600 text-sm mb-4 line-clamp-2">
+            <p class="text-sm mb-4 line-clamp-2" :class="service.active ? 'text-gray-600' : 'text-gray-500'">
               {{ service.description || 'No description provided.' }}
             </p>
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-              <button
-                @click="toggleActive(service)"
-                class="flex items-center gap-2 text-sm font-medium"
-                :class="service.active ? 'text-green-600' : 'text-gray-400'"
-              >
-                <span class="w-2 h-2 rounded-full" :class="service.active ? 'bg-green-600' : 'bg-gray-400'"></span>
-                {{ service.active ? 'Active' : 'Inactive' }}
-              </button>
+              <!-- Toggle Switch -->
+              <div class="flex items-center gap-3">
+                <button
+                  @click="toggleActive(service)"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  :class="service.active ? 'bg-green-600' : 'bg-gray-300'"
+                  :title="service.active ? 'Click to deactivate' : 'Click to activate'"
+                >
+                  <span
+                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                    :class="service.active ? 'translate-x-6' : 'translate-x-1'"
+                  ></span>
+                </button>
+                <span class="text-sm font-medium" :class="service.active ? 'text-green-600' : 'text-gray-500'">
+                  {{ service.active ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
               
               <div class="flex gap-2">
                 <button
                   @click="openEditModal(service)"
                   class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit"
+                  title="Edit service"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                  </svg>
-                </button>
-                <button
-                  @click="handleDelete(service.id)"
-                  class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                  title="Delete"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                   </svg>
                 </button>
               </div>

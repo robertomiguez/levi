@@ -23,18 +23,24 @@ async function updateProfile() {
   successMessage.value = ''
   
   try {
+    // If no customer profile exists, create one first
+    if (!authStore.customer) {
+      await authStore.createCustomerProfile()
+    }
+    
     await authStore.updateProfile({
       name: name.value,
       phone: phone.value
     })
     successMessage.value = 'Profile updated successfully!'
     
-    // Optional: Redirect to booking after successful update if coming from login
+    // Redirect to booking after successful update
     setTimeout(() => {
       router.push('/booking')
     }, 1500)
   } catch (error) {
     console.error('Failed to update profile:', error)
+    alert('Failed to update profile: ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     loading.value = false
   }

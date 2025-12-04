@@ -62,6 +62,23 @@ export interface Staff {
     updated_at?: string
 }
 
+export interface ProviderAddress {
+    id: string
+    provider_id: string
+    label?: string // e.g., "Main Location", "Downtown Branch"
+    street_address: string
+    street_address_2?: string // Apt, Suite, etc.
+    city: string
+    state?: string
+    postal_code: string
+    country: string
+    is_primary: boolean
+    latitude?: number
+    longitude?: number
+    created_at?: string
+    updated_at?: string
+}
+
 export interface Availability {
     id: string
     staff_id: string

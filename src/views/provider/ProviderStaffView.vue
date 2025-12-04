@@ -21,23 +21,16 @@ const form = ref({
 })
 
 onMounted(async () => {
-  console.log('[ProviderStaffView] Component mounted')
-  console.log('[ProviderStaffView] Provider:', authStore.provider)
-  
   if (!authStore.provider) {
-    console.log('[ProviderStaffView] No provider found, redirecting to booking')
     router.push('/booking')
     return
   }
-  
-  console.log('[ProviderStaffView] Fetching staff for provider:', authStore.provider.id)
   await fetchStaff()
 })
 
 async function fetchStaff() {
   loading.value = true
   try {
-    console.log('[ProviderStaffView] Querying staff table...')
     const { data, error } = await supabase
       .from('staff')
       .select('*')
@@ -45,13 +38,10 @@ async function fetchStaff() {
       .order('active', { ascending: false })
       .order('name')
 
-    console.log('[ProviderStaffView] Query result:', { data, error })
-    
     if (error) throw error
     staff.value = data || []
-    console.log('[ProviderStaffView] Staff loaded:', staff.value.length, 'members')
   } catch (e) {
-    console.error('[ProviderStaffView] Error fetching staff:', e)
+    console.error('Error fetching staff:', e)
   } finally {
     loading.value = false
   }

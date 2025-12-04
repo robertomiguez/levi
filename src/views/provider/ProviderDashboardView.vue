@@ -32,6 +32,10 @@ function goToStaff() {
   router.push('/provider/staff')
 }
 
+function goToAddresses() {
+  router.push('/provider/addresses')
+}
+
 function goToCalendar() {
   router.push('/provider/calendar')
 }
@@ -166,6 +170,22 @@ function goToAvailability() {
             <div class="text-left">
               <p class="font-semibold text-gray-900">Manage Staff</p>
               <p class="text-sm text-gray-600">Add or edit team members</p>
+            </div>
+          </button>
+
+          <button
+            @click="goToAddresses"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all"
+          >
+            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </div>
+            <div class="text-left">
+              <p class="font-semibold text-gray-900">Manage Locations</p>
+              <p class="text-sm text-gray-600">Add service addresses</p>
             </div>
           </button>
 

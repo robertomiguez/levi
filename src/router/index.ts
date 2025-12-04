@@ -93,7 +93,7 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
     const authStore = useAuthStore()
     const role = authStore.userRole
 
@@ -121,6 +121,12 @@ router.beforeEach((to, _from, next) => {
                 query: { redirect: to.fullPath }
             })
         }
+
+        // Ensure provider profile is loaded
+        if (!authStore.provider) {
+            await authStore.fetchProviderProfile()
+        }
+
         if (role !== 'provider') {
             // Not a provider yet? Redirect to registration
             return next('/provider/register')

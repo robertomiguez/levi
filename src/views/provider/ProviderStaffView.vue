@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useProviderStore } from '../../stores/useProviderStore'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import type { Staff } from '../../types'
 
-const providerStore = useProviderStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
@@ -23,26 +21,37 @@ const form = ref({
 })
 
 onMounted(async () => {
+  console.log('[ProviderStaffView] Component mounted')
+  console.log('[ProviderStaffView] Provider:', authStore.provider)
+  
   if (!authStore.provider) {
+    console.log('[ProviderStaffView] No provider found, redirecting to booking')
     router.push('/booking')
     return
   }
+  
+  console.log('[ProviderStaffView] Fetching staff for provider:', authStore.provider.id)
   await fetchStaff()
 })
 
 async function fetchStaff() {
   loading.value = true
   try {
+    console.log('[ProviderStaffView] Querying staff table...')
     const { data, error } = await supabase
       .from('staff')
       .select('*')
       .eq('provider_id', authStore.provider?.id)
+      .order('active', { ascending: false })
       .order('name')
 
+    console.log('[ProviderStaffView] Query result:', { data, error })
+    
     if (error) throw error
     staff.value = data || []
+    console.log('[ProviderStaffView] Staff loaded:', staff.value.length, 'members')
   } catch (e) {
-    console.error('Error fetching staff:', e)
+    console.error('[ProviderStaffView] Error fetching staff:', e)
   } finally {
     loading.value = false
   }
@@ -76,7 +85,7 @@ async function handleSave() {
   try {
     if (editingStaff.value) {
       // Update existing staff
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('staff')
         .update({
           name: form.value.name,
@@ -85,11 +94,21 @@ async function handleSave() {
           active: form.value.active
         })
         .eq('id', editingStaff.value.id)
+        .select()
+        .single()
 
       if (error) throw error
+      
+      // Update local state
+      if (data) {
+        const index = staff.value.findIndex(s => s.id === editingStaff.value!.id)
+        if (index !== -1) {
+          staff.value[index] = data
+        }
+      }
     } else {
       // Create new staff
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('staff')
         .insert([{
           name: form.value.name,
@@ -98,27 +117,42 @@ async function handleSave() {
           active: form.value.active,
           provider_id: authStore.provider.id
         }])
+        .select()
+        .single()
 
       if (error) throw error
+      
+      // Add to local state
+      if (data) {
+        staff.value.push(data)
+      }
     }
 
     showModal.value = false
-    await fetchStaff()
   } catch (e) {
     console.error('Error saving staff:', e)
-    alert('Failed to save staff member')
+    alert('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
   }
 }
 
 async function toggleActive(staffMember: Staff) {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('staff')
       .update({ active: !staffMember.active })
       .eq('id', staffMember.id)
+      .select()
+      .single()
 
     if (error) throw error
-    await fetchStaff()
+    
+    // Update local state
+    if (data) {
+      const index = staff.value.findIndex(s => s.id === staffMember.id)
+      if (index !== -1) {
+        staff.value[index] = data
+      }
+    }
   } catch (e) {
     console.error('Error updating staff status:', e)
   }
@@ -180,44 +214,68 @@ async function toggleActive(staffMember: Staff) {
         <div
           v-for="member in staff"
           :key="member.id"
-          class="bg-white rounded-lg shadow hover:shadow-md transition-shadow border border-gray-200 overflow-hidden"
+          class="bg-white rounded-lg shadow hover:shadow-md transition-shadow border overflow-hidden"
+          :class="member.active ? 'border-gray-200' : 'border-gray-300 bg-gray-50 opacity-75'"
         >
           <div class="p-6">
+            <!-- Inactive banner -->
+            <div v-if="!member.active" class="mb-3 -mx-6 -mt-6 px-6 py-2 bg-gray-200 border-b border-gray-300">
+              <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                ⚠️ Inactive Staff
+              </span>
+            </div>
+
             <div class="flex items-center gap-4 mb-4">
-              <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold text-xl">
+              <div 
+                class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-xl"
+                :class="member.active ? 'bg-primary-100 text-primary-700' : 'bg-gray-200 text-gray-500'"
+              >
                 {{ member.name.charAt(0).toUpperCase() }}
               </div>
-              <div>
-                <h3 class="text-lg font-bold text-gray-900">{{ member.name }}</h3>
-                <p class="text-sm text-gray-500">{{ member.email }}</p>
+              <div class="flex-1">
+                <h3 class="text-lg font-bold" :class="member.active ? 'text-gray-900' : 'text-gray-600'">
+                  {{ member.name }}
+                </h3>
+                <p class="text-sm" :class="member.active ? 'text-gray-500' : 'text-gray-400'">
+                  {{ member.email }}
+                </p>
               </div>
             </div>
 
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2 mb-4">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                 :class="member.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'">
                 {{ member.role === 'admin' ? 'Admin' : 'Staff' }}
               </span>
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                :class="member.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
-                {{ member.active ? 'Active' : 'Inactive' }}
-              </span>
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-              <button
-                @click="toggleActive(member)"
-                class="text-sm font-medium"
-                :class="member.active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'"
-              >
-                {{ member.active ? 'Deactivate' : 'Activate' }}
-              </button>
+              <!-- Toggle Switch -->
+              <div class="flex items-center gap-3">
+                <button
+                  @click="toggleActive(member)"
+                  class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  :class="member.active ? 'bg-green-600' : 'bg-gray-300'"
+                  :title="member.active ? 'Click to deactivate' : 'Click to activate'"
+                >
+                  <span
+                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                    :class="member.active ? 'translate-x-6' : 'translate-x-1'"
+                  ></span>
+                </button>
+                <span class="text-sm font-medium" :class="member.active ? 'text-green-600' : 'text-gray-500'">
+                  {{ member.active ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
               
               <button
                 @click="openEditModal(member)"
-                class="text-sm font-medium text-primary-600 hover:text-primary-700"
+                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                title="Edit staff member"
               >
-                Edit Details
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
               </button>
             </div>
           </div>
@@ -231,7 +289,7 @@ async function toggleActive(staffMember: Staff) {
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showModal = false"></div>
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div class="relative z-50 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
               {{ editingStaff ? 'Edit Staff Member' : 'Add Staff Member' }}

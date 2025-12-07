@@ -10,6 +10,11 @@ const router = createRouter({
             component: () => import('../views/LandingView.vue')
         },
         {
+            path: '/for-business',
+            name: 'ForBusiness',
+            component: () => import('../views/ForBusinessView.vue')
+        },
+        {
             path: '/login',
             name: 'Login',
             component: () => import('../views/LoginView.vue'),

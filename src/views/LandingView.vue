@@ -1,135 +1,237 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import SearchBar from '../components/SearchBar.vue'
+import CategoryPills from '../components/CategoryPills.vue'
+import ProviderCard from '../components/ProviderCard.vue'
+import { supabase } from '../lib/supabase'
+import type { Provider, ProviderAddress, Category } from '../types'
 
 const router = useRouter()
 
-function goToBooking() {
-  router.push('/booking')
+const providers = ref<(Provider & { provider_addresses?: ProviderAddress[]; categories?: string[] })[]>([])
+const categories = ref<Category[]>([])
+const selectedCategory = ref<string | null>(null)
+const searchParams = ref({ location: '', service: '', time: 'Anytime' })
+const loading = ref(false)
+
+// Rotating hero content
+const heroOptions = [
+  {
+    service: 'manicure',
+    image: '/src/assets/images/hero_background_manicure_1765115664380.png'
+  },
+  {
+    service: 'haircut',
+    image: '/src/assets/images/hero_barber_service_1765116285430.png'
+  },
+  {
+    service: 'massage',
+    image: '/src/assets/images/hero_massage_service_1765116300777.png'
+  },
+  {
+    service: 'spa treatment',
+    image: '/src/assets/images/hero_spa_service_1765116318055.png'
+  }
+]
+
+const currentHeroIndex = ref(0)
+let rotationInterval: number | null = null
+
+const currentHero = computed(() => (heroOptions[currentHeroIndex.value] ?? heroOptions[0])!)
+
+function rotateHero() {
+  // Get random index different from current
+  let newIndex = currentHeroIndex.value
+  while (newIndex === currentHeroIndex.value) {
+    newIndex = Math.floor(Math.random() * heroOptions.length)
+  }
+  currentHeroIndex.value = newIndex
 }
 
-function goToProviderDashboard() {
-  router.push('/provider/dashboard')
+onMounted(async () => {
+  await Promise.all([
+    fetchCategories(),
+    fetchProviders()
+  ])
+  
+  // Start rotation
+  rotationInterval = window.setInterval(rotateHero, 3000)
+})
+
+onUnmounted(() => {
+  if (rotationInterval) {
+    clearInterval(rotationInterval)
+  }
+})
+
+async function fetchCategories() {
+  try {
+    const { data } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name')
+    
+    categories.value = data || []
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+  }
+}
+
+async function fetchProviders() {
+  loading.value = true
+  try {
+    // Fetch approved providers with their addresses
+    const { data } = await supabase
+      .from('providers')
+      .select(`
+        *,
+        provider_addresses (*),
+        services (
+          categories (name)
+        )
+      `)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(12)
+    
+    // Process providers to extract unique categories
+    providers.value = (data || []).map(provider => ({
+      ...provider,
+      categories: Array.from(new Set(
+        provider.services
+          ?.map((s: any) => s.categories?.name)
+          .filter(Boolean) || []
+      ))
+    }))
+  } catch (error) {
+    console.error('Error fetching providers:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const filteredProviders = computed(() => {
+  let result = providers.value
+
+  // Filter by selected category
+  if (selectedCategory.value) {
+    result = result.filter(p => 
+      p.categories?.includes(
+        categories.value.find(c => c.id === selectedCategory.value)?.name || ''
+      )
+    )
+  }
+
+  // Filter by search params
+  if (searchParams.value.location) {
+    result = result.filter(p => 
+      p.business_name.toLowerCase().includes(searchParams.value.location.toLowerCase()) ||
+      p.provider_addresses?.some(a => 
+        a.city.toLowerCase().includes(searchParams.value.location.toLowerCase()) ||
+        a.state?.toLowerCase().includes(searchParams.value.location.toLowerCase())
+      )
+    )
+  }
+
+  if (searchParams.value.service) {
+    result = result.filter(p =>
+      p.categories?.some(c => 
+        c.toLowerCase().includes(searchParams.value.service.toLowerCase())
+      )
+    )
+  }
+
+  return result
+})
+
+function handleSearch(params: { location: string; service: string; time: string }) {
+  searchParams.value = params
+}
+
+function handleCategorySelect(categoryId: string | null) {
+  selectedCategory.value = categoryId
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-white via-primary-50 to-primary-100">
-    <!-- Hero Section -->
-    <div class="container mx-auto px-6 py-16">
-      <!-- Header/Logo -->
-      <div class="text-center mb-16">
-        <h1 class="text-6xl font-bold text-primary-600 mb-4 tracking-tight">Levi</h1>
-        <p class="text-2xl text-gray-700 font-light">Effortless Appointment Scheduling</p>
-        <p class="text-lg text-gray-600 mt-2">Connect with providers or grow your business</p>
-      </div>
-
-      <!-- Main Cards -->
-      <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-        <!-- Customer Card -->
-        <div 
-          @click="goToBooking"
-          class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-1 border-2 border-transparent hover:border-primary-500"
-        >
-          <div class="text-center">
-            <!-- Icon -->
-            <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg class="w-10 h-10 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-              </svg>
-            </div>
-            
-            <h2 class="text-3xl font-bold text-gray-900 mb-4">Book an Appointment</h2>
-            <p class="text-gray-600 mb-6 text-lg">
-              Discover and book appointments with local service providers. From haircuts to massages, find what you need.
-            </p>
-            
-            <!-- Features -->
-            <ul class="text-left space-y-3 mb-8">
-              <li class="flex items-start">
-                <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-700">Browse services and providers</span>
-              </li>
-              <li class="flex items-start">
-                <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-700">Real-time availability</span>
-              </li>
-              <li class="flex items-start">
-                <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-700">Instant confirmation</span>
-              </li>
-            </ul>
-            
-            <button class="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
-              <span>Get Started</span>
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Provider Card -->
-        <div 
-          @click="goToProviderDashboard"
-          class="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-1 border-2 border-transparent hover:border-primary-500"
-        >
-          <div class="text-center">
-            <!-- Icon -->
-            <div class="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg class="w-10 h-10 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-              </svg>
-            </div>
-            
-            <h2 class="text-3xl font-bold text-gray-900 mb-4">Provider Dashboard</h2>
-            <p class="text-gray-600 mb-6 text-lg">
-              Manage your business with powerful tools. Services, staff, schedules, and appointments—all in one place.
-            </p>
-            
-            <!-- Features -->
-            <ul class="text-left space-y-3 mb-8">
-              <li class="flex items-start">
-                <svg class="w-5 h-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-700">Service & pricing control</span>
-              </li>
-              <li class="flex items-start">
-                <svg class="w-5 h-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-700">Staff & availability management</span>
-              </li>
-              <li class="flex items-start">
-                <svg class="w-5 h-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                </svg>
-                <span class="text-gray-700">Real-time calendar & bookings</span>
-              </li>
-            </ul>
-            
-            <button class="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
-              <span>Go to Dashboard</span>
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
-              </svg>
-            </button>
+  <div class="min-h-screen bg-white">
+    <!-- Hero Section with Background Image -->
+    <div 
+      class="relative bg-cover bg-center h-[500px] flex items-center transition-all duration-1000"
+      :style="`background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('${currentHero.image}')`"
+    >
+      <div class="max-w-7xl mx-auto px-6 w-full">
+        <div class="max-w-3xl">
+          <h1 class="text-5xl lg:text-6xl font-bold text-white mb-6">
+            Discover your perfect 
+            <span class="inline-block transition-all duration-500">{{ currentHero.service }}</span>
+          </h1>
+          
+          <!-- Search Bar -->
+          <SearchBar @search="handleSearch" />
+          
+          <!-- Category Pills -->
+          <div class="mt-6">
+            <CategoryPills 
+              :categories="categories"
+              :selected-category="selectedCategory"
+              @select="handleCategorySelect"
+            />
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- How It Works Section -->
-      <div class="max-w-4xl mx-auto mb-16">
-        <h2 class="text-4xl font-bold text-center text-gray-900 mb-12">How It Works</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <!-- Step 1 -->
+    <!-- Popular Providers Section -->
+    <div class="max-w-7xl mx-auto px-6 py-12">
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-900 mb-2">
+          Popular in San Francisco, CA
+          <a href="#" class="text-base font-normal text-primary-600 hover:text-primary-700 ml-4">
+            See all →
+          </a>
+        </h2>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+        <p class="text-gray-500 mt-4">Loading providers...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="filteredProviders.length === 0" class="text-center py-12">
+        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No providers found</h3>
+        <p class="text-gray-600">Try adjusting your search or filters</p>
+      </div>
+
+      <!-- Provider Grid -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <ProviderCard
+          v-for="provider in filteredProviders"
+          :key="provider.id"
+          :provider="provider"
+          :rating="5.0"
+          :review-count="Math.floor(Math.random() * 100) + 10"
+          :categories="provider.categories"
+          @click="router.push(`/booking?provider=${provider.id}`)"
+        />
+      </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <div class="bg-gray-50 py-20">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+          <h2 class="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
+          <p class="text-xl text-gray-600">Book appointments in three easy steps</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               1
@@ -137,8 +239,7 @@ function goToProviderDashboard() {
             <h3 class="text-xl font-semibold text-gray-900 mb-2">Browse Services</h3>
             <p class="text-gray-600">Explore services from verified local providers in your area</p>
           </div>
-          
-          <!-- Step 2 -->
+
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               2
@@ -146,8 +247,7 @@ function goToProviderDashboard() {
             <h3 class="text-xl font-semibold text-gray-900 mb-2">Pick Your Time</h3>
             <p class="text-gray-600">Select a date and time that works best for your schedule</p>
           </div>
-          
-          <!-- Step 3 -->
+
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               3
@@ -157,14 +257,19 @@ function goToProviderDashboard() {
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Footer -->
-      <div class="text-center text-gray-600">
-        <p class="mb-2">&copy; 2025 Levi. All rights reserved.</p>
-        <div class="flex justify-center gap-6 text-sm">
-          <a href="#" class="hover:text-primary-600 transition-colors">About</a>
-          <a href="#" class="hover:text-primary-600 transition-colors">Privacy</a>
-          <a href="#" class="hover:text-primary-600 transition-colors">Terms</a>
+    <!-- Footer -->
+    <div class="bg-gray-900 text-gray-400 py-12">
+      <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center">
+          <p class="mb-4">&copy; 2025 Levi. All rights reserved.</p>
+          <div class="flex justify-center gap-6 text-sm">
+            <a href="#" class="hover:text-white transition-colors">About</a>
+            <a href="#" class="hover:text-white transition-colors">Privacy</a>
+            <a href="#" class="hover:text-white transition-colors">Terms</a>
+            <a href="#" class="hover:text-white transition-colors">Contact</a>
+          </div>
         </div>
       </div>
     </div>

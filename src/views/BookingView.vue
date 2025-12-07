@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useServiceStore } from '../stores/useServiceStore'
 import { useStaffStore } from '../stores/useStaffStore'
 import { useAppointmentStore } from '../stores/useAppointmentStore'
 import { useAuthStore } from '../stores/useAuthStore'
+import { supabase } from '../lib/supabase'
 import { addDays, format, startOfDay } from 'date-fns'
-import type { TimeSlot } from '../types'
+import type { TimeSlot, Provider } from '../types'
 
+const route = useRoute()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
 const appointmentStore = useAppointmentStore()
 const authStore = useAuthStore()
+
+// Provider filtering
+const selectedProviderId = ref<string | null>(null)
+const providerInfo = ref<Provider | null>(null)
 
 // Booking flow state
 const currentStep = ref(1)
@@ -27,6 +34,13 @@ const bookingConfirmed = ref(false)
 const confirmedAppointmentId = ref<string>('')
 
 onMounted(async () => {
+  // Check for provider ID in URL
+  const providerId = route.query.provider as string
+  if (providerId) {
+    selectedProviderId.value = providerId
+    await fetchProviderInfo(providerId)
+  }
+  
   await serviceStore.fetchServices()
   await staffStore.fetchStaff()
 
@@ -36,8 +50,31 @@ onMounted(async () => {
   }
 })
 
+async function fetchProviderInfo(providerId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('providers')
+      .select('*')
+      .eq('id', providerId)
+      .single()
+    
+    if (error) throw error
+    providerInfo.value = data
+  } catch (error) {
+    console.error('Error fetching provider:', error)
+  }
+}
+
+// Filter services by selected provider
+const filteredServices = computed(() => {
+  if (!selectedProviderId.value) {
+    return serviceStore.services
+  }
+  return serviceStore.services.filter(s => s.provider_id === selectedProviderId.value)
+})
+
 const selectedService = computed(() => 
-  serviceStore.services.find(s => s.id === selectedServiceId.value)
+  filteredServices.value.find(s => s.id === selectedServiceId.value)
 )
 
 // Removed unused selectedStaff computed property
@@ -120,8 +157,8 @@ async function submitBooking() {
       throw new Error('Invalid time format')
     }
 
-    const hoursStr = timeParts[0]
-    const minutesStr = timeParts[1]
+    const hoursStr = timeParts[0]!
+    const minutesStr = timeParts[1]!
     
     const hours = parseInt(hoursStr)
     const minutes = parseInt(minutesStr)
@@ -182,8 +219,21 @@ function resetBooking() {
 <template>
   <div class="min-h-screen bg-gradient-to-br from-primary-50 to-blue-50">
     <div class="max-w-4xl mx-auto p-6">
+      <!-- Provider Info Banner -->
+      <div v-if="providerInfo" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 mt-8">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+            {{ providerInfo.business_name.charAt(0) }}
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Booking with</p>
+            <h2 class="text-lg font-bold text-gray-900">{{ providerInfo.business_name }}</h2>
+          </div>
+        </div>
+      </div>
+
       <!-- Header -->
-      <div class="text-center mb-8 pt-8">
+      <div class="text-center mb-8" :class="providerInfo ? '' : 'pt-8'">
         <h1 class="text-4xl font-bold text-gray-900 mb-2">Book Your Appointment</h1>
         <p class="text-gray-600">Choose a service and pick your preferred time</p>
       </div>
@@ -254,9 +304,13 @@ function resetBooking() {
           <div v-if="currentStep === 1">
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Choose a Service</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-if="filteredServices.length === 0" class="text-center py-12">
+              <p class="text-gray-500">No services available from this provider.</p>
+            </div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
-                v-for="service in serviceStore.services"
+                v-for="service in filteredServices"
                 :key="service.id"
                 @click="selectService(service.id)"
                 class="text-left p-6 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all"
@@ -265,7 +319,7 @@ function resetBooking() {
                   <h3 class="text-lg font-semibold text-gray-900">{{ service.name }}</h3>
                   <span class="text-lg font-bold text-primary-600">{{ formatPrice(service.price) }}</span>
                 </div>
-                <p v-if="service.category" class="text-sm text-gray-500 mb-2">{{ service.category }}</p>
+                <p v-if="service.categories" class="text-sm text-gray-500 mb-2">{{ service.categories.name }}</p>
                 <p class="text-sm text-gray-600">{{ service.duration }} minutes</p>
               </button>
             </div>

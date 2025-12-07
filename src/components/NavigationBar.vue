@@ -45,7 +45,13 @@ const roleBadgeColor = computed(() => {
 })
 
 function navigateToForBusiness() {
-  router.push('/for-business')
+  // If user is already a provider, go to dashboard
+  if (authStore.provider) {
+    router.push('/provider/dashboard')
+  } else {
+    // Otherwise, show the For Business landing page
+    router.push('/for-business')
+  }
 }
 
 function navigateToLogin() {

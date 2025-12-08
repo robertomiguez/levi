@@ -23,6 +23,21 @@ async function handleRegister() {
   error.value = null
 
   try {
+    // First, check if provider already exists
+    const { data: existingProvider } = await supabase
+      .from('providers')
+      .select('*')
+      .eq('auth_user_id', authStore.user.id)
+      .maybeSingle()
+
+    if (existingProvider) {
+      // Provider already exists, just redirect to dashboard
+      await authStore.fetchProviderProfile()
+      router.push('/provider/dashboard')
+      return
+    }
+
+    // Provider doesn't exist, create new one
     const { error: insertError } = await supabase
       .from('providers')
       .insert([{

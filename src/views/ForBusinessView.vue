@@ -6,14 +6,24 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 function goToRegister() {
-  router.push('/provider/register')
+  if (authStore.isAuthenticated) {
+    if (authStore.provider) {
+      router.push('/provider/dashboard')
+    } else {
+      router.push('/provider/register')
+    }
+  } else {
+    // Not authenticated - go to login with provider redirect
+    router.push('/login?redirect=/provider')
+  }
 }
 
 function goToDashboard() {
   if (authStore.provider) {
     router.push('/provider/dashboard')
   } else {
-    router.push('/provider/register')
+    // Redirect to login with simpler /provider redirect
+    router.push('/login?redirect=/provider')
   }
 }
 </script>

@@ -138,19 +138,25 @@ router.beforeEach(async (to, _from, next) => {
             await authStore.fetchProviderProfile()
         }
 
-        if (role !== 'provider') {
-            // Not a provider yet? Redirect to registration
-            return next('/provider/register')
+        // If no provider profile exists after fetching, redirect to login with provider context
+        if (!authStore.provider) {
+            return next({
+                path: '/login',
+                query: { redirect: '/provider' }
+            })
         }
     }
 
-    // Profile completion check
-    if (authStore.isAuthenticated && to.path !== '/profile' && to.path !== '/provider/register' && (!authStore.customer?.name || !authStore.customer?.phone)) {
-        // Skip for admin routes, provider routes, or if already heading to profile
-        if (to.path.startsWith('/admin') || to.path.startsWith('/provider')) {
-            return next()
+    // Profile completion check (only for customers, not providers)
+    if (authStore.isAuthenticated && !authStore.provider && to.path !== '/profile' && to.path !== '/provider/register') {
+        // Check if customer profile is incomplete
+        if (authStore.customer && (!authStore.customer.name || !authStore.customer.phone)) {
+            // Skip for admin routes or provider routes
+            if (to.path.startsWith('/admin') || to.path.startsWith('/provider')) {
+                return next()
+            }
+            return next('/profile')
         }
-        return next('/profile')
     }
 
     next()

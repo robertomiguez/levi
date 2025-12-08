@@ -79,8 +79,6 @@ export const useAuthStore = defineStore('auth', () => {
             }
 
             if (!data) {
-                // Customer profile doesn't exist
-                console.log('No customer profile found')
                 customer.value = null
             } else {
                 customer.value = data
@@ -113,7 +111,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     async function fetchProviderProfile() {
-        if (!user.value) return
+        if (!user.value) {
+            return
+        }
 
         try {
             const { data, error: fetchError } = await supabase
@@ -172,7 +172,9 @@ export const useAuthStore = defineStore('auth', () => {
             if (data.user) {
                 user.value = data.user
                 session.value = data.session
+                // Fetch both customer and provider profiles
                 await fetchCustomerProfile()
+                await fetchProviderProfile()
             }
 
             return { success: true }
@@ -184,7 +186,6 @@ export const useAuthStore = defineStore('auth', () => {
             loading.value = false
         }
     }
-
     async function signOut() {
         loading.value = true
         error.value = null
@@ -195,6 +196,7 @@ export const useAuthStore = defineStore('auth', () => {
             user.value = null
             session.value = null
             customer.value = null
+            provider.value = null
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to sign out'
             console.error('Error signing out:', e)
@@ -203,7 +205,6 @@ export const useAuthStore = defineStore('auth', () => {
             loading.value = false
         }
     }
-
     async function updateProfile(updates: Partial<Customer>) {
         if (!customer.value) return
 

@@ -11,7 +11,7 @@ export const useServiceStore = defineStore('service', () => {
     async function fetchServices() {
         loading.value = true
         error.value = null
-        console.log('[ServiceStore] Fetching services...')
+
         try {
             const { data, error: fetchError } = await supabase
                 .from('services')
@@ -20,7 +20,7 @@ export const useServiceStore = defineStore('service', () => {
                 .order('name', { foreignTable: 'categories', ascending: true })
                 .order('name', { ascending: true })
 
-            console.log('[ServiceStore] Supabase response:', { data, error: fetchError })
+
 
             if (fetchError) {
                 console.error('[ServiceStore] Fetch error:', fetchError)
@@ -28,7 +28,7 @@ export const useServiceStore = defineStore('service', () => {
             }
 
             services.value = data || []
-            console.log('[ServiceStore] Services loaded:', services.value.length, 'services')
+
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to fetch services'
             console.error('[ServiceStore] Error fetching services:', e)
@@ -40,7 +40,6 @@ export const useServiceStore = defineStore('service', () => {
     async function fetchAllServices(providerId?: string) {
         loading.value = true
         error.value = null
-        console.log('[ServiceStore] Fetching all services for provider:', providerId)
         try {
             let query = supabase
                 .from('services')
@@ -55,13 +54,9 @@ export const useServiceStore = defineStore('service', () => {
 
             const { data, error: fetchError } = await query
 
-            if (fetchError) {
-                console.error('[ServiceStore] Fetch error:', fetchError)
-                throw fetchError
-            }
+            if (fetchError) throw fetchError
 
             services.value = data || []
-            console.log('[ServiceStore] All services loaded:', services.value.length, 'services')
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to fetch services'
             console.error('[ServiceStore] Error fetching services:', e)
@@ -73,7 +68,6 @@ export const useServiceStore = defineStore('service', () => {
     async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories'>) {
         loading.value = true
         error.value = null
-        console.log('[ServiceStore] createService called with:', service)
         try {
             const { data, error: createError } = await supabase
                 .from('services')
@@ -81,9 +75,8 @@ export const useServiceStore = defineStore('service', () => {
                 .select()
                 .single()
 
-            console.log('[ServiceStore] createService response:', { data, error: createError })
-
             if (createError) throw createError
+
             if (data) {
                 services.value.push(data)
             }
@@ -98,7 +91,7 @@ export const useServiceStore = defineStore('service', () => {
     }
 
     async function updateService(id: string, updates: Partial<Service>) {
-        loading.value = true
+        // loading.value = true // Removed to prevent UI flash
         error.value = null
         try {
             // Remove joined data from updates if present
@@ -108,7 +101,7 @@ export const useServiceStore = defineStore('service', () => {
                 .from('services')
                 .update(cleanUpdates)
                 .eq('id', id)
-                .select()
+                .select('*, categories(id, name)')
                 .single()
 
             if (updateError) throw updateError
@@ -124,7 +117,7 @@ export const useServiceStore = defineStore('service', () => {
             console.error('Error updating service:', e)
             throw e
         } finally {
-            loading.value = false
+            // loading.value = false // Removed to prevent UI flash
         }
     }
 
@@ -141,7 +134,7 @@ export const useServiceStore = defineStore('service', () => {
             if (deleteError) throw deleteError
             // Don't remove from array anymore, just update it
             const index = services.value.findIndex(s => s.id === id)
-            if (index !== -1) {
+            if (index !== -1 && services.value[index]) {
                 services.value[index].active = false
             }
         } catch (e) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { supabase } from '../../lib/supabase'
@@ -15,51 +15,96 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref<string | null>(null)
+const successMessage = ref<string | null>(null)
 
-async function handleRegister() {
+const isEditing = computed(() => !!authStore.provider)
+
+// Populate form when data is available
+function populateForm() {
+  if (authStore.provider) {
+    form.value = {
+      business_name: authStore.provider.business_name || '',
+      phone: authStore.provider.phone || '',
+      description: authStore.provider.description || ''
+    }
+  }
+}
+
+onMounted(() => {
+  populateForm()
+})
+
+// Watch for store changes (in case of page reload)
+watch(
+  () => authStore.provider,
+  (newProvider) => {
+    if (newProvider) {
+      populateForm()
+    }
+  },
+  { immediate: true }
+)
+
+async function handleSubmit() {
   if (!authStore.user) return
 
   loading.value = true
   error.value = null
+  successMessage.value = null
 
   try {
-    // First, check if provider already exists
-    const { data: existingProvider } = await supabase
-      .from('providers')
-      .select('*')
-      .eq('auth_user_id', authStore.user.id)
-      .maybeSingle()
+    if (isEditing.value && authStore.provider) {
+      // Update existing provider
+      const { error: updateError } = await supabase
+        .from('providers')
+        .update({
+          business_name: form.value.business_name,
+          phone: form.value.phone,
+          description: form.value.description
+        })
+        .eq('id', authStore.provider.id)
 
-    if (existingProvider) {
-      // Provider already exists, just redirect to dashboard
+      if (updateError) throw updateError
+
+      successMessage.value = 'Profile updated successfully'
       await authStore.fetchProviderProfile()
-      router.push('/provider/dashboard')
-      return
+    } else {
+      // Create new provider
+      // First, check if provider already exists (safety check)
+      const { data: existingProvider } = await supabase
+        .from('providers')
+        .select('*')
+        .eq('auth_user_id', authStore.user.id)
+        .maybeSingle()
+
+      if (existingProvider) {
+        // Should not happen if logic is correct, but handle it
+        await authStore.fetchProviderProfile()
+        // If it exists, we treat this as an update request on retry
+        return
+      }
+
+      const { error: insertError } = await supabase
+        .from('providers')
+        .insert([{
+          auth_user_id: authStore.user.id,
+          email: authStore.user.email,
+          business_name: form.value.business_name,
+          phone: form.value.phone,
+          description: form.value.description,
+          status: 'approved', // Auto-approve for now
+          approved_at: new Date().toISOString()
+        }])
+
+      if (insertError) throw insertError
+
+      successMessage.value = 'Profile created successfully'
+      await authStore.fetchProviderProfile()
+      // router.push('/provider/dashboard') // Removed auto-redirect
     }
-
-    // Provider doesn't exist, create new one
-    const { error: insertError } = await supabase
-      .from('providers')
-      .insert([{
-        auth_user_id: authStore.user.id,
-        email: authStore.user.email,
-        business_name: form.value.business_name,
-        phone: form.value.phone,
-        description: form.value.description,
-        status: 'approved', // Auto-approve for now for better UX
-        approved_at: new Date().toISOString()
-      }])
-
-    if (insertError) throw insertError
-
-    // Refresh profile to update role
-    await authStore.fetchProviderProfile()
-    
-    // Redirect to dashboard
-    router.push('/provider/dashboard')
   } catch (e) {
-    console.error('Error registering provider:', e)
-    error.value = e instanceof Error ? e.message : 'Failed to register'
+    console.error('Error saving provider:', e)
+    error.value = e instanceof Error ? e.message : 'Failed to save changes'
   } finally {
     loading.value = false
   }
@@ -77,16 +122,24 @@ async function handleRegister() {
         </div>
       </div>
       <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-        Become a Provider
+        {{ isEditing ? 'Business Profile' : 'Become a Provider' }}
       </h2>
       <p class="mt-2 text-center text-sm text-gray-600">
-        Start managing your business with Levi today.
+        {{ isEditing ? 'Manage your business details' : 'Start managing your business with Levi today.' }}
       </p>
     </div>
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-        <form class="space-y-6" @submit.prevent="handleRegister">
+        <form class="space-y-6" @submit.prevent="handleSubmit">
+          <div v-if="successMessage" class="rounded-md bg-green-50 p-4 mb-4">
+             <div class="flex">
+               <div class="ml-3">
+                 <h3 class="text-sm font-medium text-green-800">{{ successMessage }}</h3>
+               </div>
+             </div>
+           </div>
+
           <div>
             <label for="business_name" class="block text-sm font-medium text-gray-700">
               Business Name
@@ -160,7 +213,16 @@ async function handleRegister() {
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {{ loading ? 'Registering...' : 'Register as Provider' }}
+              {{ loading ? 'Saving...' : 'Save' }}
+            </button>
+            
+            <button
+              type="button"
+              :disabled="!isEditing"
+              @click="router.push('/provider/dashboard')"
+              class="mt-3 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Close
             </button>
           </div>
         </form>

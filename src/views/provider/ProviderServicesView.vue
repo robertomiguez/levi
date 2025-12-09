@@ -16,6 +16,7 @@ const showModal = ref(false)
 const editingService = ref<Service | null>(null)
 const searchQuery = ref('')
 const categoryFilter = ref('All')
+const saving = ref(false)
 
 // Categories from store
 const categories = computed(() => {
@@ -56,12 +57,9 @@ function openEditModal(service: Service) {
 }
 
 async function handleSave(serviceData: any) {
-  console.log('handleSave called with:', serviceData)
-  console.log('Current provider:', authStore.provider)
-  
+  saving.value = true
   try {
     if (editingService.value) {
-      console.log('Updating service:', editingService.value.id)
       await serviceStore.updateService(editingService.value.id, serviceData)
     } else {
       const newService = {
@@ -69,23 +67,15 @@ async function handleSave(serviceData: any) {
         provider_id: authStore.provider?.id,
         active: true
       }
-      console.log('Creating new service with payload:', newService)
       await serviceStore.createService(newService)
     }
-    console.log('Service saved successfully')
     showModal.value = false
     await serviceStore.fetchAllServices(authStore.provider?.id)
   } catch (err) {
     console.error('Error in handleSave:', err)
     alert('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))
-  }
-}
-
-async function handleDeactivate(service: Service) {
-  const action = service.active ? 'deactivate' : 'activate'
-  if (confirm(`Are you sure you want to ${action} this service?`)) {
-    await serviceStore.updateService(service.id, { active: !service.active })
-    // No need to refetch - updateService already updates local state
+  } finally {
+    saving.value = false
   }
 }
 
@@ -256,6 +246,7 @@ function formatCurrency(amount: number) {
     <ServiceFormModal
       v-if="showModal"
       :service="editingService"
+      :loading="saving"
       @close="showModal = false"
       @save="handleSave"
     />

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 
@@ -11,33 +11,49 @@ const phone = ref('')
 const loading = ref(false)
 const successMessage = ref('')
 
-onMounted(() => {
+function populateForm() {
   if (authStore.customer) {
     name.value = authStore.customer.name || ''
     phone.value = authStore.customer.phone || ''
   }
+}
+
+onMounted(() => {
+  populateForm()
 })
+
+watch(
+  () => authStore.customer,
+  (newCustomer) => {
+    if (newCustomer) {
+      populateForm()
+    }
+  },
+  { immediate: true }
+)
 
 async function updateProfile() {
   loading.value = true
   successMessage.value = ''
   
   try {
-    // If no customer profile exists, create one first
+    // If no customer profile exists, create one with the current form data
     if (!authStore.customer) {
-      await authStore.createCustomerProfile()
+      await authStore.createCustomerProfile({
+        name: name.value,
+        phone: phone.value
+      })
+    } else {
+      // Otherwise update existing profile
+      await authStore.updateProfile({
+        name: name.value,
+        phone: phone.value
+      })
     }
     
-    await authStore.updateProfile({
-      name: name.value,
-      phone: phone.value
-    })
     successMessage.value = 'Profile updated successfully!'
     
-    // Redirect to booking after successful update
-    setTimeout(() => {
-      router.push('/booking')
-    }, 1500)
+
   } catch (error) {
     console.error('Failed to update profile:', error)
     alert('Failed to update profile: ' + (error instanceof Error ? error.message : String(error)))
@@ -86,14 +102,25 @@ async function updateProfile() {
           />
         </div>
 
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-        >
-          <div v-if="loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          <span>{{ loading ? 'Saving...' : 'Save & Continue' }}</span>
-        </button>
+        <div class="space-y-3">
+          <button
+            type="submit"
+            :disabled="loading"
+            class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            <div v-if="loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span>{{ loading ? 'Saving...' : 'Save' }}</span>
+          </button>
+
+          <button
+            type="button"
+            :disabled="!authStore.customer"
+            @click="router.push('/booking')"
+            class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-md border border-gray-300 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Close
+          </button>
+        </div>
       </form>
     </div>
   </div>

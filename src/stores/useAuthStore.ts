@@ -88,7 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function createCustomerProfile() {
+    async function createCustomerProfile(initialData?: { name?: string; phone?: string }) {
         if (!user.value) return
 
         try {
@@ -97,7 +97,8 @@ export const useAuthStore = defineStore('auth', () => {
                 .insert([{
                     auth_user_id: user.value.id,
                     email: user.value.email!,
-                    name: user.value.user_metadata?.name || user.value.user_metadata?.full_name,
+                    name: initialData?.name || user.value.user_metadata?.name || user.value.user_metadata?.full_name,
+                    phone: initialData?.phone,
                     avatar_url: user.value.user_metadata?.avatar_url || user.value.user_metadata?.picture
                 }])
                 .select()

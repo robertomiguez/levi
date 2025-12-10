@@ -7,7 +7,7 @@ const route = useRoute()
 
 // Hide navigation on certain pages
 const hideNavigation = computed(() => {
-  const hiddenRoutes = ['/login', '/provider/register']
+  const hiddenRoutes = ['/login', '/provider/profile']
   return hiddenRoutes.includes(route.path)
 })
 </script>

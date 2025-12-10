@@ -29,7 +29,7 @@ const router = createRouter({
         {
             path: '/profile',
             name: 'Profile',
-            component: () => import('../views/ProfileView.vue'),
+            component: () => import('../views/ProfileCustomerView.vue'),
             meta: { requiresAuth: true }
         },
         // Provider routes
@@ -38,9 +38,9 @@ const router = createRouter({
             redirect: '/provider/dashboard'
         },
         {
-            path: '/provider/register',
-            name: 'ProviderRegister',
-            component: () => import('../views/provider/ProviderRegisterView.vue'),
+            path: '/provider/profile',
+            name: 'ProviderProfile',
+            component: () => import('../views/provider/ProfileProviderView.vue'),
             meta: { requiresAuth: true }
         },
         {
@@ -148,7 +148,7 @@ router.beforeEach(async (to, _from, next) => {
     }
 
     // Profile completion check (only for customers, not providers)
-    if (authStore.isAuthenticated && !authStore.provider && to.path !== '/profile' && to.path !== '/provider/register') {
+    if (authStore.isAuthenticated && !authStore.provider && to.path !== '/profile' && to.path !== '/provider/profile') {
         // Check if customer profile is incomplete
         if (authStore.customer && (!authStore.customer.name || !authStore.customer.phone)) {
             // Skip for admin routes or provider routes

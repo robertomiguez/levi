@@ -68,7 +68,7 @@ function navigateToDashboard() {
 
 function navigateToProfile() {
   if (authStore.provider) {
-    router.push('/provider/register')
+    router.push('/provider/profile')
   } else {
     router.push('/profile')
   }

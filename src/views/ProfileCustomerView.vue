@@ -33,12 +33,13 @@ watch(
 )
 
 async function updateProfile() {
+  const isNewUser = !authStore.customer
   loading.value = true
   successMessage.value = ''
   
   try {
     // If no customer profile exists, create one with the current form data
-    if (!authStore.customer) {
+    if (isNewUser) {
       await authStore.createCustomerProfile({
         name: name.value,
         phone: phone.value
@@ -53,6 +54,9 @@ async function updateProfile() {
     
     successMessage.value = 'Profile updated successfully!'
     
+    if (isNewUser) {
+      router.push('/booking')
+    }
 
   } catch (error) {
     console.error('Failed to update profile:', error)
@@ -103,23 +107,36 @@ async function updateProfile() {
         </div>
 
         <div class="space-y-3">
+          <!-- New User: Save and Continue -->
           <button
+            v-if="!authStore.customer"
             type="submit"
             :disabled="loading"
             class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             <div v-if="loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>{{ loading ? 'Saving...' : 'Save' }}</span>
+            <span>{{ loading ? 'Saving...' : 'Save and Continue' }}</span>
           </button>
 
-          <button
-            type="button"
-            :disabled="!authStore.customer"
-            @click="router.push('/booking')"
-            class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-md border border-gray-300 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Close
-          </button>
+          <!-- Existing User: Save & Close -->
+          <template v-else>
+            <button
+              type="submit"
+              :disabled="loading"
+              class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              <div v-if="loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>{{ loading ? 'Saving...' : 'Save' }}</span>
+            </button>
+
+            <button
+              type="button"
+              @click="router.push('/booking')"
+              class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-md border border-gray-300 transition-all shadow-sm"
+            >
+              Close
+            </button>
+          </template>
         </div>
       </form>
     </div>

@@ -63,7 +63,7 @@ async function verifyCode() {
       if (authStore.provider) {
         router.push('/provider/dashboard')
       } else {
-        router.push('/provider/register')
+        router.push('/provider/profile')
       }
     } else if (redirect === '/customer') {
       // Customer redirect - check profile completion
@@ -74,7 +74,7 @@ async function verifyCode() {
         // Incomplete or no profile - go to profile
         router.push('/profile')
       }
-    } else if (authStore.provider && redirect === '/provider/register') {
+    } else if (authStore.provider && redirect === '/provider/profile') {
       // Existing provider trying to register - go to dashboard
       router.push('/provider/dashboard')
     } else if (redirect) {

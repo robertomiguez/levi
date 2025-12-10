@@ -66,10 +66,11 @@ export const useServiceStore = defineStore('service', () => {
     }
 
     async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories'>) {
-        loading.value = true
+        // loading.value = true // Removed
         error.value = null
         try {
-            const { data, error: createError } = await supabase
+            // 1. Insert the service
+            const { data: insertedData, error: createError } = await supabase
                 .from('services')
                 .insert([service])
                 .select()
@@ -77,16 +78,28 @@ export const useServiceStore = defineStore('service', () => {
 
             if (createError) throw createError
 
-            if (data) {
-                services.value.push(data)
+            // 2. Fetch the complete service with relations
+            if (insertedData) {
+                const { data: completeData, error: fetchError } = await supabase
+                    .from('services')
+                    .select('*, categories(id, name)')
+                    .eq('id', insertedData.id)
+                    .single()
+
+                if (fetchError) throw fetchError
+
+                if (completeData) {
+                    services.value.push(completeData)
+                    return completeData
+                }
             }
-            return data
+            return insertedData
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to create service'
             console.error('[ServiceStore] Error creating service:', e)
             throw e
         } finally {
-            loading.value = false
+            // loading.value = false // Removed
         }
     }
 
@@ -122,7 +135,7 @@ export const useServiceStore = defineStore('service', () => {
     }
 
     async function deleteService(id: string) {
-        loading.value = true
+        // loading.value = true // Removed
         error.value = null
         try {
             // Soft delete by setting active to false
@@ -142,7 +155,7 @@ export const useServiceStore = defineStore('service', () => {
             console.error('Error deleting service:', e)
             throw e
         } finally {
-            loading.value = false
+            // loading.value = false // Removed
         }
     }
 

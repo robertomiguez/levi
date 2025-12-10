@@ -23,7 +23,10 @@ const form = ref({
 })
 
 onMounted(async () => {
-  await categoryStore.fetchCategories()
+  // Only fetch if we don't have categories yet
+  if (categoryStore.categories.length === 0) {
+    await categoryStore.fetchCategories()
+  }
   
   if (props.service) {
     form.value = {
@@ -35,9 +38,12 @@ onMounted(async () => {
       buffer_before: props.service.buffer_before || 0,
       buffer_after: props.service.buffer_after || 0
     }
-  } else if (categoryStore.categories.length > 0) {
-    // Default to first category
-    form.value.category_id = categoryStore.categories[0]?.id || ''
+  } else {
+    // For new services, verify we have a valid initial state
+    if (categoryStore.categories.length > 0) {
+      // Default to first category
+      form.value.category_id = categoryStore.categories[0]?.id || ''
+    }
   }
 })
 

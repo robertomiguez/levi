@@ -64,13 +64,16 @@ async function handleSave(serviceData: any) {
     } else {
       const newService = {
         ...serviceData,
+        // Sanitize: Postgres might complain if category_id is empty string for UUID column
+        category_id: serviceData.category_id || null, 
+        price: parseFloat(serviceData.price), // Ensure number
         provider_id: authStore.provider?.id,
         active: true
       }
       await serviceStore.createService(newService)
     }
     showModal.value = false
-    await serviceStore.fetchAllServices(authStore.provider?.id)
+    // await serviceStore.fetchAllServices(authStore.provider?.id) // Removed: Store handles local updates now
   } catch (err) {
     console.error('Error in handleSave:', err)
     alert('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))

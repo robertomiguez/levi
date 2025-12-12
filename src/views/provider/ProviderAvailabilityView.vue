@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useProviderStore } from '../../stores/useProviderStore'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import type { Availability, BlockedDate, Staff } from '../../types'
 
-const providerStore = useProviderStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
@@ -15,6 +13,8 @@ const selectedStaffId = ref<string>('')
 const weeklySchedule = ref<Availability[]>([])
 const blockedDates = ref<BlockedDate[]>([])
 const loading = ref(false)
+const successMessage = ref<string | null>(null)
+const errorMessage = ref<string | null>(null)
 
 const daysOfWeek = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -46,7 +46,8 @@ async function fetchStaff() {
 async function fetchSchedule() {
   if (!selectedStaffId.value) return
   loading.value = true
-
+  // Don't clear messages here, as it may be called after a save operation
+  
   try {
     // Fetch weekly availability
     const { data: availData } = await supabase
@@ -93,13 +94,23 @@ async function fetchSchedule() {
     blockedDates.value = blockedData || []
   } catch (e) {
     console.error('Error fetching schedule:', e)
+    errorMessage.value = 'Failed to load schedule'
   } finally {
     loading.value = false
   }
 }
 
+function onStaffChange() {
+  successMessage.value = null
+  errorMessage.value = null
+  fetchSchedule()
+}
+
 async function saveSchedule() {
   loading.value = true
+  successMessage.value = null
+  errorMessage.value = null
+  
   try {
     // Upsert availability
     const updates = weeklySchedule.value.map(slot => {
@@ -113,11 +124,11 @@ async function saveSchedule() {
       .upsert(updates)
 
     if (error) throw error
-    alert('Schedule saved successfully!')
+    successMessage.value = 'Schedule saved successfully!'
     await fetchSchedule()
   } catch (e) {
     console.error('Error saving schedule:', e)
-    alert('Failed to save schedule')
+    errorMessage.value = 'Failed to save schedule'
   } finally {
     loading.value = false
   }
@@ -132,6 +143,9 @@ const blockForm = ref({
 })
 
 async function addBlockedDate() {
+  successMessage.value = null
+  errorMessage.value = null
+  
   try {
     const { error } = await supabase
       .from('blocked_dates')
@@ -146,15 +160,18 @@ async function addBlockedDate() {
     if (error) throw error
     showBlockModal.value = false
     blockForm.value = { start_date: '', end_date: '', reason: '' }
+    successMessage.value = 'Time off added successfully'
     await fetchSchedule()
   } catch (e) {
     console.error('Error adding blocked date:', e)
-    alert('Failed to add blocked date')
+    errorMessage.value = 'Failed to add blocked date'
   }
 }
 
 async function deleteBlockedDate(id: string) {
   if (!confirm('Are you sure you want to remove this blocked date?')) return
+  successMessage.value = null
+  errorMessage.value = null
   
   try {
     const { error } = await supabase
@@ -163,9 +180,11 @@ async function deleteBlockedDate(id: string) {
       .eq('id', id)
 
     if (error) throw error
+    successMessage.value = 'Time off removed successfully'
     await fetchSchedule()
   } catch (e) {
     console.error('Error deleting blocked date:', e)
+    errorMessage.value = 'Failed to remove blocked date'
   }
 }
 </script>
@@ -175,8 +194,8 @@ async function deleteBlockedDate(id: string) {
     <!-- Header -->
     <div class="bg-white border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-6 py-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-4">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-4 w-full sm:w-auto">
             <button @click="router.push('/provider/dashboard')" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -184,10 +203,10 @@ async function deleteBlockedDate(id: string) {
             </button>
             <h1 class="text-2xl font-bold text-gray-900">Availability & Hours</h1>
           </div>
-          <div class="flex items-center gap-4">
+          <div class="flex flex-wrap justify-end items-center gap-4 w-full sm:w-auto">
             <select 
               v-model="selectedStaffId" 
-              @change="fetchSchedule"
+              @change="onStaffChange"
               class="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             >
               <option v-for="member in staff" :key="member.id" :value="member.id">
@@ -209,6 +228,34 @@ async function deleteBlockedDate(id: string) {
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-6 py-8">
+      
+      <!-- Status Messages -->
+      <div v-if="successMessage" class="rounded-md bg-green-50 p-4 mb-6">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-green-800">{{ successMessage }}</h3>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="errorMessage" class="rounded-md bg-red-50 p-4 mb-6">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">{{ errorMessage }}</h3>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Weekly Schedule -->
         <div class="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
@@ -218,8 +265,8 @@ async function deleteBlockedDate(id: string) {
           </div>
           
           <div class="divide-y divide-gray-200">
-            <div v-for="(day, index) in weeklySchedule" :key="index" class="p-4 flex items-center justify-between hover:bg-gray-50">
-              <div class="flex items-center gap-4 w-1/3">
+            <div v-for="(day, index) in weeklySchedule" :key="index" class="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-gray-50 gap-4">
+              <div class="flex items-center gap-4 w-full sm:w-1/3">
                 <input 
                   type="checkbox" 
                   v-model="day.is_available"
@@ -230,17 +277,17 @@ async function deleteBlockedDate(id: string) {
                 </span>
               </div>
 
-              <div class="flex items-center gap-4" v-if="day.is_available">
+              <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto" v-if="day.is_available">
                 <input 
                   type="time" 
                   v-model="day.start_time"
-                  class="border border-gray-300 rounded-md px-2 py-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="border border-gray-300 rounded-md px-2 py-1 focus:ring-primary-500 focus:border-primary-500 w-32"
                 >
                 <span class="text-gray-500">to</span>
                 <input 
                   type="time" 
                   v-model="day.end_time"
-                  class="border border-gray-300 rounded-md px-2 py-1 focus:ring-primary-500 focus:border-primary-500"
+                  class="border border-gray-300 rounded-md px-2 py-1 focus:ring-primary-500 focus:border-primary-500 w-32"
                 >
               </div>
               <div v-else class="text-gray-400 italic text-sm">

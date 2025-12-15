@@ -137,3 +137,23 @@ CREATE POLICY "Providers can delete their own staff" ON public.staff FOR DELETE 
 CREATE POLICY "Providers can insert their own staff" ON public.staff FOR INSERT TO authenticated WITH CHECK (user_owns_provider(provider_id));
 CREATE POLICY "Providers can select their own staff" ON public.staff FOR SELECT TO authenticated USING (user_owns_provider(provider_id));
 CREATE POLICY "Providers can update their own staff" ON public.staff FOR UPDATE TO authenticated USING (user_owns_provider(provider_id)) WITH CHECK (user_owns_provider(provider_id));
+      
+-- Storage: provider-logos
+-- Note: These policies depend on the storage schema which might not be fully represented here, but added for reference.
+-- Check migration file for full bucket creation details.
+
+-- Policy: Public can view any logo
+DROP POLICY IF EXISTS "Public Access Logo" ON "storage"."objects";
+CREATE POLICY "Public Access Logo" ON "storage"."objects" FOR SELECT TO public USING ( bucket_id = 'provider-logos' );
+
+-- Policy: Providers can upload their own logo (enforced by folder structure {uid}/*)
+DROP POLICY IF EXISTS "Provider Upload Logo" ON "storage"."objects";
+CREATE POLICY "Provider Upload Logo" ON "storage"."objects" FOR INSERT TO authenticated WITH CHECK ( bucket_id = 'provider-logos' AND (storage.foldername(name))[1] = auth.uid()::text );
+
+-- Policy: Providers can update their own logo
+DROP POLICY IF EXISTS "Provider Update Logo" ON "storage"."objects";
+CREATE POLICY "Provider Update Logo" ON "storage"."objects" FOR UPDATE TO authenticated USING ( bucket_id = 'provider-logos' AND (storage.foldername(name))[1] = auth.uid()::text );
+
+-- Policy: Providers can delete their own logo
+DROP POLICY IF EXISTS "Provider Delete Logo" ON "storage"."objects";
+CREATE POLICY "Provider Delete Logo" ON "storage"."objects" FOR DELETE TO authenticated USING ( bucket_id = 'provider-logos' AND (storage.foldername(name))[1] = auth.uid()::text );

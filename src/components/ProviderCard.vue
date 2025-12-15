@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineProps } from 'vue'
+import { computed } from 'vue'
 import type { Provider, ProviderAddress } from '../types'
 
 const props = defineProps<{
@@ -40,8 +40,9 @@ const ratingStars = computed(() => {
   <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden cursor-pointer">
     <!-- Provider Avatar/Logo -->
     <div class="flex items-center gap-4 p-6 border-b border-gray-100">
-      <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0">
-        {{ initials }}
+      <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 overflow-hidden">
+        <img v-if="provider.logo_url" :src="provider.logo_url" :alt="provider.business_name" class="w-full h-full object-cover" />
+        <span v-else>{{ initials }}</span>
       </div>
       <div class="flex-1 min-w-0">
         <h3 class="font-bold text-lg text-gray-900 truncate">{{ provider.business_name }}</h3>

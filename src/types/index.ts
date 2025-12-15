@@ -42,6 +42,8 @@ export interface Provider {
     email: string
     phone?: string
     description?: string
+    logo_url?: string
+    logo_path?: string
     avatar_url?: string
     status: ProviderStatus
     approved_by?: string // References staff table

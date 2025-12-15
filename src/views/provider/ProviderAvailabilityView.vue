@@ -38,8 +38,11 @@ async function fetchStaff() {
   
   staff.value = data || []
   if (staff.value.length > 0) {
-    selectedStaffId.value = staff.value[0].id
-    await fetchSchedule()
+    const firstStaff = staff.value[0]
+    if (firstStaff) {
+      selectedStaffId.value = firstStaff.id
+      await fetchSchedule()
+    }
   }
 }
 

@@ -2,16 +2,20 @@
 import { ref, watch, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/useAuthStore'
-import { supabase } from '../../lib/supabase'
+import ImageUpload from '../../components/ImageUpload.vue'
+import { saveProvider } from '../../services/providerService'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const form = ref({
   business_name: '',
+  description: '',
   phone: '',
-  description: ''
+  logo_url: null as string | null
 })
+
+const logoFile = ref<File | null>(null)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -25,7 +29,8 @@ function populateForm() {
     form.value = {
       business_name: authStore.provider.business_name || '',
       phone: authStore.provider.phone || '',
-      description: authStore.provider.description || ''
+      description: authStore.provider.description || '',
+      logo_url: authStore.provider.logo_url || null
     }
   }
 }
@@ -50,66 +55,31 @@ async function handleSubmit() {
 
   loading.value = true
   error.value = null
-  successMessage.value = null
 
   try {
-    if (isEditing.value && authStore.provider) {
-      // Update existing provider
-      const { error: updateError } = await supabase
-        .from('providers')
-        .update({
-          business_name: form.value.business_name,
-          phone: form.value.phone,
-          description: form.value.description
-        })
-        .eq('id', authStore.provider.id)
+    await saveProvider({
+      user: authStore.user,
+      provider: authStore.provider,
+      form: form.value,
+      logoFile: logoFile.value
+    })
 
-      if (updateError) throw updateError
+    successMessage.value = isEditing.value
+      ? 'Profile updated successfully'
+      : 'Profile created successfully'
 
-      successMessage.value = 'Profile updated successfully'
-      await authStore.fetchProviderProfile()
-    } else {
-      // Create new provider
-      // First, check if provider already exists (safety check)
-      const { data: existingProvider } = await supabase
-        .from('providers')
-        .select('*')
-        .eq('auth_user_id', authStore.user.id)
-        .maybeSingle()
+    await authStore.fetchProviderProfile()
 
-      if (existingProvider) {
-        // Should not happen if logic is correct, but handle it
-        await authStore.fetchProviderProfile()
-        // If it exists, we treat this as an update request on retry
-        return
-      }
-
-      const { error: insertError } = await supabase
-        .from('providers')
-        .insert([{
-          auth_user_id: authStore.user.id,
-          email: authStore.user.email,
-          business_name: form.value.business_name,
-          phone: form.value.phone,
-          description: form.value.description,
-          status: 'approved', // Auto-approve for now
-          approved_at: new Date().toISOString()
-        }])
-
-      if (insertError) throw insertError
-
-      successMessage.value = 'Profile created successfully'
-      await authStore.fetchProviderProfile()
-      // Redirect new providers to dashboard
+    if (!isEditing.value) {
       router.push('/provider/dashboard')
     }
   } catch (e) {
-    console.error('Error saving provider:', e)
     error.value = e instanceof Error ? e.message : 'Failed to save changes'
   } finally {
     loading.value = false
   }
 }
+
 </script>
 
 <template>
@@ -133,13 +103,23 @@ async function handleSubmit() {
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
         <form class="space-y-6" @submit.prevent="handleSubmit">
-          <div v-if="successMessage" class="rounded-md bg-green-50 p-4 mb-4">
-             <div class="flex">
-               <div class="ml-3">
-                 <h3 class="text-sm font-medium text-green-800">{{ successMessage }}</h3>
-               </div>
-             </div>
-           </div>
+           <div v-if="successMessage" class="rounded-md bg-green-50 p-4 mb-4">
+              <div class="flex">
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-green-800">{{ successMessage }}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <ImageUpload
+                v-model="form.logo_url"
+                label="Business Logo"
+                help-text="Upload a logo for your business (optional)"
+                :processing="loading"
+                @change="file => logoFile = file"
+              />
+            </div>
 
           <div>
             <label for="business_name" class="block text-sm font-medium text-gray-700">

@@ -35,6 +35,12 @@ const userInitials = computed(() => {
     .slice(0, 2)
 })
 
+const userLogo = computed(() => {
+  if (authStore.provider) return authStore.provider.logo_url
+  if (authStore.customer) return authStore.customer.avatar_url
+  return null
+})
+
 const roleBadgeColor = computed(() => {
   switch (userRole.value) {
     case 'Provider': return 'bg-purple-100 text-purple-800'
@@ -128,8 +134,9 @@ function handleClickOutside(event: MouseEvent) {
               class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <!-- Avatar -->
-              <div class="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                {{ userInitials }}
+              <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden" :class="!userLogo ? 'bg-primary-600 text-white' : ''">
+                <img v-if="userLogo" :src="userLogo" alt="User" class="w-full h-full object-cover" />
+                <span v-else>{{ userInitials }}</span>
               </div>
               <!-- Name & Role -->
               <div class="flex flex-col items-start">
@@ -228,8 +235,9 @@ function handleClickOutside(event: MouseEvent) {
         <!-- User Info (if authenticated) -->
         <div v-if="authStore.isAuthenticated" class="pb-3 border-b border-gray-200">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center font-semibold">
-              {{ userInitials }}
+            <div class="w-10 h-10 rounded-full flex items-center justify-center font-semibold overflow-hidden" :class="!userLogo ? 'bg-primary-600 text-white' : ''">
+              <img v-if="userLogo" :src="userLogo" alt="User" class="w-full h-full object-cover" />
+              <span v-else>{{ userInitials }}</span>
             </div>
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-900">{{ userName }}</p>

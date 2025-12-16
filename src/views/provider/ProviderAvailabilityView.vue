@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
-import { supabase } from '../../lib/supabase'
+import * as staffService from '../../services/staffService'
+import * as availabilityService from '../../services/availabilityService'
 import type { Availability, BlockedDate, Staff } from '../../types'
 
 const authStore = useAuthStore()
@@ -29,20 +30,22 @@ onMounted(async () => {
 })
 
 async function fetchStaff() {
-  const { data } = await supabase
-    .from('staff')
-    .select('*')
-    .eq('provider_id', authStore.provider?.id)
-    .eq('active', true)
-    .order('name')
-  
-  staff.value = data || []
-  if (staff.value.length > 0) {
-    const firstStaff = staff.value[0]
-    if (firstStaff) {
-      selectedStaffId.value = firstStaff.id
-      await fetchSchedule()
+  if (!authStore.provider?.id) return
+  try {
+    const data = await staffService.fetchStaff(authStore.provider.id)
+    // Filter for active staff only, as per original logic
+    const activeStaff = data.filter(s => s.active)
+    
+    staff.value = activeStaff || []
+    if (staff.value.length > 0) {
+      const firstStaff = staff.value[0]
+      if (firstStaff) {
+        selectedStaffId.value = firstStaff.id
+        await fetchSchedule()
+      }
     }
+  } catch (e) {
+    console.error('Error fetching staff:', e)
   }
 }
 
@@ -53,19 +56,10 @@ async function fetchSchedule() {
   
   try {
     // Fetch weekly availability
-    const { data: availData } = await supabase
-      .from('availability')
-      .select('*')
-      .eq('staff_id', selectedStaffId.value)
-      .order('day_of_week')
+    const availData = await availabilityService.fetchAvailability(selectedStaffId.value)
 
     // Fetch blocked dates
-    const { data: blockedData } = await supabase
-      .from('blocked_dates')
-      .select('*')
-      .eq('staff_id', selectedStaffId.value)
-      .gte('end_date', new Date().toISOString().split('T')[0])
-      .order('start_date')
+    const blockedData = await availabilityService.fetchBlockedDates(selectedStaffId.value)
 
     // Initialize schedule if empty
     if (!availData || availData.length === 0) {
@@ -122,11 +116,8 @@ async function saveSchedule() {
       return String(id).startsWith('temp-') ? data : slot
     })
 
-    const { error } = await supabase
-      .from('availability')
-      .upsert(updates)
+    await availabilityService.upsertAvailability(updates)
 
-    if (error) throw error
     successMessage.value = 'Schedule saved successfully!'
     await fetchSchedule()
   } catch (e) {
@@ -150,17 +141,13 @@ async function addBlockedDate() {
   errorMessage.value = null
   
   try {
-    const { error } = await supabase
-      .from('blocked_dates')
-      .insert([{
+    await availabilityService.createBlockedDate({
         staff_id: selectedStaffId.value,
         provider_id: authStore.provider?.id,
         start_date: blockForm.value.start_date,
         end_date: blockForm.value.end_date,
         reason: blockForm.value.reason
-      }])
-
-    if (error) throw error
+      })
     showBlockModal.value = false
     blockForm.value = { start_date: '', end_date: '', reason: '' }
     successMessage.value = 'Time off added successfully'
@@ -177,12 +164,7 @@ async function deleteBlockedDate(id: string) {
   errorMessage.value = null
   
   try {
-    const { error } = await supabase
-      .from('blocked_dates')
-      .delete()
-      .eq('id', id)
-
-    if (error) throw error
+    await availabilityService.deleteBlockedDate(id)
     successMessage.value = 'Time off removed successfully'
     await fetchSchedule()
   } catch (e) {

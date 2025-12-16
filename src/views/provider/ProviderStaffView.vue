@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
-import { supabase } from '../../lib/supabase'
+import * as staffService from '../../services/staffService'
 import type { Staff } from '../../types'
 
 const authStore = useAuthStore()
@@ -31,15 +31,9 @@ onMounted(async () => {
 async function fetchStaff() {
   loading.value = true
   try {
-    const { data, error } = await supabase
-      .from('staff')
-      .select('*')
-      .eq('provider_id', authStore.provider?.id)
-      .order('active', { ascending: false })
-      .order('name')
-
-    if (error) throw error
-    staff.value = data || []
+    if (authStore.provider?.id) {
+       staff.value = await staffService.fetchStaff(authStore.provider.id)
+    }
   } catch (e) {
     console.error('Error fetching staff:', e)
   } finally {
@@ -75,19 +69,12 @@ async function handleSave() {
   try {
     if (editingStaff.value) {
       // Update existing staff
-      const { data, error } = await supabase
-        .from('staff')
-        .update({
-          name: form.value.name,
-          email: form.value.email,
-          role: form.value.role,
-          active: form.value.active
-        })
-        .eq('id', editingStaff.value.id)
-        .select()
-        .single()
-
-      if (error) throw error
+      const data = await staffService.updateStaff(editingStaff.value.id, {
+        name: form.value.name,
+        email: form.value.email,
+        role: form.value.role,
+        active: form.value.active
+      })
       
       // Update local state
       if (data) {
@@ -98,19 +85,13 @@ async function handleSave() {
       }
     } else {
       // Create new staff
-      const { data, error } = await supabase
-        .from('staff')
-        .insert([{
-          name: form.value.name,
-          email: form.value.email,
-          role: form.value.role,
-          active: form.value.active,
-          provider_id: authStore.provider.id
-        }])
-        .select()
-        .single()
-
-      if (error) throw error
+      const data = await staffService.createStaff({
+        name: form.value.name,
+        email: form.value.email,
+        role: form.value.role,
+        active: form.value.active,
+        provider_id: authStore.provider.id
+      })
       
       // Add to local state
       if (data) {
@@ -127,14 +108,7 @@ async function handleSave() {
 
 async function toggleActive(staffMember: Staff) {
   try {
-    const { data, error } = await supabase
-      .from('staff')
-      .update({ active: !staffMember.active })
-      .eq('id', staffMember.id)
-      .select()
-      .single()
-
-    if (error) throw error
+    const data = await staffService.updateStaff(staffMember.id, { active: !staffMember.active })
     
     // Update local state
     if (data) {

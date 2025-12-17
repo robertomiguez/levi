@@ -16,7 +16,7 @@ const selectedAppointment = ref<Appointment | null>(null)
 const showAppointmentModal = ref(false)
 
 onMounted(async () => {
-  await serviceStore.fetchServices()
+  await serviceStore.fetchAllServices()
   await staffStore.fetchStaff()
   await loadAppointments()
 })

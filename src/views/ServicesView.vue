@@ -2,9 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { useServiceStore } from '../stores/useServiceStore'
 import type { Service } from '../types'
+import { useModal } from '../composables/useModal'
 
 const serviceStore = useServiceStore()
-const showModal = ref(false)
+const modal = useModal<Service>()
 const isEditing = ref(false)
 const formData = ref({
   name: '',
@@ -18,7 +19,7 @@ const formData = ref({
 const editingId = ref<string | null>(null)
 
 onMounted(() => {
-  serviceStore.fetchServices()
+  serviceStore.fetchAllServices()
 })
 
 function openCreateModal() {
@@ -32,7 +33,9 @@ function openCreateModal() {
     category: '',
     active: true
   }
-  showModal.value = true
+    active: true
+  }
+  modal.open(null)
 }
 
 function openEditModal(service: Service) {
@@ -47,11 +50,12 @@ function openEditModal(service: Service) {
     category: service.category || '',
     active: service.active
   }
-  showModal.value = true
+  modal.open(service)
 }
 
 function closeModal() {
-  showModal.value = false
+function closeModal() {
+  modal.close()
   editingId.value = null
 }
 
@@ -176,7 +180,7 @@ function formatPrice(price?: number) {
     </div>
 
     <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div v-if="modal.isOpen.value" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div class="p-6">
           <h2 class="text-2xl font-bold text-gray-900 mb-4">

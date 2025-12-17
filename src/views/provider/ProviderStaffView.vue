@@ -4,14 +4,14 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import * as staffService from '../../services/staffService'
 import type { Staff } from '../../types'
+import { useModal } from '../../composables/useModal'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const staff = ref<Staff[]>([])
 const loading = ref(false)
-const showModal = ref(false)
-const editingStaff = ref<Staff | null>(null)
+const modal = useModal<Staff>()
 
 const form = ref({
   name: '',
@@ -42,34 +42,32 @@ async function fetchStaff() {
 }
 
 function openAddModal() {
-  editingStaff.value = null
+  modal.open(null)
   form.value = {
     name: '',
     email: '',
     role: 'staff',
     active: true
   }
-  showModal.value = true
 }
 
 function openEditModal(staffMember: Staff) {
-  editingStaff.value = staffMember
+  modal.open(staffMember)
   form.value = {
     name: staffMember.name,
     email: staffMember.email,
     role: staffMember.role,
     active: staffMember.active
   }
-  showModal.value = true
 }
 
 async function handleSave() {
   if (!authStore.provider) return
 
   try {
-    if (editingStaff.value) {
+    if (modal.data.value) {
       // Update existing staff
-      const data = await staffService.updateStaff(editingStaff.value.id, {
+      const data = await staffService.updateStaff(modal.data.value.id, {
         name: form.value.name,
         email: form.value.email,
         role: form.value.role,
@@ -78,7 +76,7 @@ async function handleSave() {
       
       // Update local state
       if (data) {
-        const index = staff.value.findIndex(s => s.id === editingStaff.value!.id)
+        const index = staff.value.findIndex(s => s.id === modal.data.value!.id)
         if (index !== -1) {
           staff.value[index] = data
         }
@@ -99,7 +97,7 @@ async function handleSave() {
       }
     }
 
-    showModal.value = false
+    modal.close()
   } catch (e) {
     console.error('Error saving staff:', e)
     alert('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
@@ -248,15 +246,15 @@ async function toggleActive(staffMember: Staff) {
     </div>
 
     <!-- Staff Modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div v-if="modal.isOpen.value" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showModal = false"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="modal.close()"></div>
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div class="relative z-50 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-              {{ editingStaff ? 'Edit Staff Member' : 'Add Staff Member' }}
+              {{ modal.data.value ? 'Edit Staff Member' : 'Add Staff Member' }}
             </h3>
             
             <form @submit.prevent="handleSave" class="mt-6 space-y-4">
@@ -310,7 +308,7 @@ async function toggleActive(staffMember: Staff) {
                 <button
                   type="button"
                   class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                  @click="showModal = false"
+                  @click="modal.close()"
                 >
                   Cancel
                 </button>

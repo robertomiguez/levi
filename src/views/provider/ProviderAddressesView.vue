@@ -4,13 +4,13 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { useAddressStore } from '../../stores/useAddressStore'
 import { useRouter } from 'vue-router'
 import type { ProviderAddress } from '../../types'
+import { useModal } from '../../composables/useModal'
 
 const authStore = useAuthStore()
 const addressStore = useAddressStore()
 const router = useRouter()
 
-const showModal = ref(false)
-const editingAddress = ref<ProviderAddress | null>(null)
+const modal = useModal<ProviderAddress>()
 
 const form = ref({
   label: '',
@@ -35,7 +35,7 @@ const primaryAddress = computed(() =>
 )
 
 function openAddModal() {
-  editingAddress.value = null
+  modal.open(null)
   form.value = {
     label: '',
     street_address: '',
@@ -45,11 +45,10 @@ function openAddModal() {
     postal_code: '',
     country: 'USA'
   }
-  showModal.value = true
 }
 
 function openEditModal(address: ProviderAddress) {
-  editingAddress.value = address
+  modal.open(address)
   form.value = {
     label: address.label || '',
     street_address: address.street_address,
@@ -59,15 +58,14 @@ function openEditModal(address: ProviderAddress) {
     postal_code: address.postal_code,
     country: address.country
   }
-  showModal.value = true
 }
 
 async function handleSave() {
   if (!authStore.provider) return
 
   try {
-    if (editingAddress.value) {
-      await addressStore.updateAddress(editingAddress.value.id, form.value)
+    if (modal.data.value) {
+      await addressStore.updateAddress(modal.data.value.id, form.value)
     } else {
       await addressStore.createAddress({
         ...form.value,
@@ -75,7 +73,7 @@ async function handleSave() {
         is_primary: addressStore.addresses.length === 0 // First address is primary by default
       })
     }
-    showModal.value = false
+    modal.close()
   } catch (error) {
     console.error('Error saving address:', error)
     alert('Failed to save address: ' + (error instanceof Error ? error.message : String(error)))
@@ -226,15 +224,15 @@ async function handleSetPrimary(id: string) {
     </div>
 
     <!-- Address Modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div v-if="modal.isOpen.value" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showModal = false"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="modal.close()"></div>
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div class="relative z-50 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-              {{ editingAddress ? 'Edit Location' : 'Add Location' }}
+              {{ modal.data.value ? 'Edit Location' : 'Add Location' }}
             </h3>
             
             <form @submit.prevent="handleSave" class="mt-6 space-y-4">
@@ -326,7 +324,7 @@ async function handleSetPrimary(id: string) {
                 <button
                   type="button"
                   class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                  @click="showModal = false"
+                  @click="modal.close()"
                 >
                   Cancel
                 </button>

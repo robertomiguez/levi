@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useRouter } from 'vue-router'
+import { useNotifications } from '../composables/useNotifications'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -9,7 +10,7 @@ const router = useRouter()
 const name = ref('')
 const phone = ref('')
 const loading = ref(false)
-const successMessage = ref('')
+const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
 
 function populateForm() {
   if (authStore.customer) {
@@ -35,7 +36,7 @@ watch(
 async function updateProfile() {
   const isNewUser = !authStore.customer
   loading.value = true
-  successMessage.value = ''
+  clearMessages()
   
   try {
     // If no customer profile exists, create one with the current form data
@@ -52,7 +53,7 @@ async function updateProfile() {
       })
     }
     
-    successMessage.value = 'Profile updated successfully!'
+    showSuccess('Profile updated successfully!')
     
     if (isNewUser) {
       router.push('/booking')
@@ -60,7 +61,7 @@ async function updateProfile() {
 
   } catch (error) {
     console.error('Failed to update profile:', error)
-    alert('Failed to update profile: ' + (error instanceof Error ? error.message : String(error)))
+    showError('Failed to update profile: ' + (error instanceof Error ? error.message : String(error)))
   } finally {
     loading.value = false
   }
@@ -79,8 +80,8 @@ async function updateProfile() {
         {{ successMessage }}
       </div>
 
-      <div v-if="authStore.error" class="bg-red-50 text-red-800 p-4 rounded-lg mb-6 text-center">
-        {{ authStore.error }}
+      <div v-if="authStore.error || errorMessage" class="bg-red-50 text-red-800 p-4 rounded-lg mb-6 text-center">
+        {{ authStore.error || errorMessage }}
       </div>
 
       <form @submit.prevent="updateProfile" class="space-y-6">

@@ -4,6 +4,8 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import * as staffService from '../../services/staffService'
 import * as availabilityService from '../../services/availabilityService'
+import { useNotifications } from '../../composables/useNotifications'
+import { useModal } from '../../composables/useModal'
 import type { Availability, BlockedDate, Staff } from '../../types'
 
 const authStore = useAuthStore()
@@ -14,8 +16,7 @@ const selectedStaffId = ref<string>('')
 const weeklySchedule = ref<Availability[]>([])
 const blockedDates = ref<BlockedDate[]>([])
 const loading = ref(false)
-const successMessage = ref<string | null>(null)
-const errorMessage = ref<string | null>(null)
+const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
 
 const daysOfWeek = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -91,22 +92,20 @@ async function fetchSchedule() {
     blockedDates.value = blockedData || []
   } catch (e) {
     console.error('Error fetching schedule:', e)
-    errorMessage.value = 'Failed to load schedule'
+    showError('Failed to load schedule')
   } finally {
     loading.value = false
   }
 }
 
 function onStaffChange() {
-  successMessage.value = null
-  errorMessage.value = null
+  clearMessages()
   fetchSchedule()
 }
 
 async function saveSchedule() {
   loading.value = true
-  successMessage.value = null
-  errorMessage.value = null
+  clearMessages()
   
   try {
     // Upsert availability
@@ -118,18 +117,18 @@ async function saveSchedule() {
 
     await availabilityService.upsertAvailability(updates)
 
-    successMessage.value = 'Schedule saved successfully!'
+    showSuccess('Schedule saved successfully!')
     await fetchSchedule()
   } catch (e) {
     console.error('Error saving schedule:', e)
-    errorMessage.value = 'Failed to save schedule'
+    showError('Failed to save schedule')
   } finally {
     loading.value = false
   }
 }
 
 // Blocked Dates Logic
-const showBlockModal = ref(false)
+const blockModal = useModal()
 const blockForm = ref({
   start_date: '',
   end_date: '',
@@ -137,8 +136,7 @@ const blockForm = ref({
 })
 
 async function addBlockedDate() {
-  successMessage.value = null
-  errorMessage.value = null
+  clearMessages()
   
   try {
     await availabilityService.createBlockedDate({
@@ -148,28 +146,27 @@ async function addBlockedDate() {
         end_date: blockForm.value.end_date,
         reason: blockForm.value.reason
       })
-    showBlockModal.value = false
+    blockModal.close()
     blockForm.value = { start_date: '', end_date: '', reason: '' }
-    successMessage.value = 'Time off added successfully'
+    showSuccess('Time off added successfully')
     await fetchSchedule()
   } catch (e) {
     console.error('Error adding blocked date:', e)
-    errorMessage.value = 'Failed to add blocked date'
+    showError('Failed to add blocked date')
   }
 }
 
 async function deleteBlockedDate(id: string) {
   if (!confirm('Are you sure you want to remove this blocked date?')) return
-  successMessage.value = null
-  errorMessage.value = null
+  clearMessages()
   
   try {
     await availabilityService.deleteBlockedDate(id)
-    successMessage.value = 'Time off removed successfully'
+    showSuccess('Time off removed successfully')
     await fetchSchedule()
   } catch (e) {
     console.error('Error deleting blocked date:', e)
-    errorMessage.value = 'Failed to remove blocked date'
+    showError('Failed to remove blocked date')
   }
 }
 </script>
@@ -290,7 +287,7 @@ async function deleteBlockedDate(id: string) {
               <p class="text-sm text-gray-500">Vacations & holidays</p>
             </div>
             <button 
-              @click="showBlockModal = true"
+              @click="blockModal.open()"
               class="text-primary-600 hover:text-primary-700 text-sm font-medium"
             >
               + Add Time Off
@@ -324,9 +321,9 @@ async function deleteBlockedDate(id: string) {
     </div>
 
     <!-- Block Date Modal -->
-    <div v-if="showBlockModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div v-if="blockModal.isOpen.value" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showBlockModal = false"></div>
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="blockModal.close()"></div>
 
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
@@ -351,7 +348,7 @@ async function deleteBlockedDate(id: string) {
                 <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm">
                   Save
                 </button>
-                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm" @click="showBlockModal = false">
+                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm" @click="blockModal.close()">
                   Cancel
                 </button>
               </div>

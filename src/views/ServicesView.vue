@@ -33,8 +33,6 @@ function openCreateModal() {
     category: '',
     active: true
   }
-    active: true
-  }
   modal.open(null)
 }
 
@@ -47,13 +45,12 @@ function openEditModal(service: Service) {
     price: service.price || 0,
     buffer_before: service.buffer_before,
     buffer_after: service.buffer_after,
-    category: service.category || '',
+    category: service.categories?.name || '',
     active: service.active
   }
   modal.open(service)
 }
 
-function closeModal() {
 function closeModal() {
   modal.close()
   editingId.value = null
@@ -126,7 +123,7 @@ function formatPrice(price?: number) {
           <div class="flex justify-between items-start mb-3">
             <div>
               <h3 class="text-lg font-semibold text-gray-900">{{ service.name }}</h3>
-              <p v-if="service.category" class="text-sm text-gray-500">{{ service.category }}</p>
+              <p v-if="service.categories?.name" class="text-sm text-gray-500">{{ service.categories.name }}</p>
             </div>
             <span class="text-lg font-bold text-primary-600">{{ formatPrice(service.price) }}</span>
           </div>

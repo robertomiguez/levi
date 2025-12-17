@@ -171,7 +171,7 @@ async function handleSubmit() {
             </div>
           </div>
 
-          <div v-if="error" class="rounded-md bg-red-50 p-4">
+          <div v-if="errorMessage" class="rounded-md bg-red-50 p-4">
             <div class="flex">
               <div class="flex-shrink-0">
                 <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">

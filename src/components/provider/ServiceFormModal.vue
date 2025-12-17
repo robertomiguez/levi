@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useCategoryStore } from '../../stores/useCategoryStore'
+import Modal from '../../components/common/Modal.vue'
 
 const props = defineProps<{
   service: any // Temporarily using any to debug potential type import issues
@@ -54,149 +55,130 @@ function handleSubmit() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-      <!-- Background overlay -->
-      <div 
-        class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
-        aria-hidden="true"
-        @click="$emit('close')"
-      ></div>
+  <Modal
+    :is-open="true"
+    :title="service ? 'Edit Service' : 'Add New Service'"
+    @close="$emit('close')"
+  >
+    <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
+      <!-- Name -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Service Name</label>
+        <input
+          v-model="form.name"
+          type="text"
+          required
+          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          placeholder="e.g. Men's Haircut"
+        />
+      </div>
 
-      <!-- Modal panel -->
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-      <div class="relative z-50 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-          <div class="sm:flex sm:items-start">
-            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-              <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                {{ service ? 'Edit Service' : 'Add New Service' }}
-              </h3>
-              
-              <form @submit.prevent="handleSubmit" class="mt-6 space-y-4">
-                <!-- Name -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Service Name</label>
-                  <input
-                    v-model="form.name"
-                    type="text"
-                    required
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    placeholder="e.g. Men's Haircut"
-                  />
-                </div>
+      <!-- Category -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Category</label>
+        <select
+          v-model="form.category_id"
+          required
+          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+        >
+          <option value="" disabled>Select a category</option>
+          <option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id">
+            {{ cat.name }}
+          </option>
+        </select>
+      </div>
 
-                <!-- Category -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Category</label>
-                  <select
-                    v-model="form.category_id"
-                    required
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  >
-                    <option value="" disabled>Select a category</option>
-                    <option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id">
-                      {{ cat.name }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <!-- Price -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Price ($)</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span class="text-gray-500 sm:text-sm">$</span>
-                      </div>
-                      <input
-                        v-model="form.price"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        required
-                        class="block w-full pl-7 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Duration -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Duration (min)</label>
-                    <input
-                      v-model="form.duration"
-                      type="number"
-                      min="5"
-                      step="5"
-                      required
-                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <!-- Description -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea
-                    v-model="form.description"
-                    rows="3"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    placeholder="Describe the service..."
-                  ></textarea>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <!-- Buffer Before -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Buffer Before (min)</label>
-                    <input
-                      v-model="form.buffer_before"
-                      type="number"
-                      min="0"
-                      step="5"
-                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
-                  </div>
-
-                  <!-- Buffer After -->
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Buffer After (min)</label>
-                    <input
-                      v-model="form.buffer_after"
-                      type="number"
-                      min="0"
-                      step="5"
-                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                  <button
-                    type="submit"
-                    :disabled="props.loading"
-                    class="w-full inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg v-if="props.loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {{ props.loading ? 'Saving...' : 'Save Service' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                    @click="$emit('close')"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Price -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Price ($)</label>
+          <div class="mt-1 relative rounded-md shadow-sm">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span class="text-gray-500 sm:text-sm">$</span>
             </div>
+            <input
+              v-model="form.price"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              class="block w-full pl-7 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
           </div>
         </div>
+
+        <!-- Duration -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Duration (min)</label>
+          <input
+            v-model="form.duration"
+            type="number"
+            min="5"
+            step="5"
+            required
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
       </div>
-    </div>
-  </div>
+
+      <!-- Description -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Description</label>
+        <textarea
+          v-model="form.description"
+          rows="3"
+          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          placeholder="Describe the service..."
+        ></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Buffer Before -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Buffer Before (min)</label>
+          <input
+            v-model="form.buffer_before"
+            type="number"
+            min="0"
+            step="5"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
+
+        <!-- Buffer After -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Buffer After (min)</label>
+          <input
+            v-model="form.buffer_after"
+            type="number"
+            min="0"
+            step="5"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+        <button
+          type="submit"
+          :disabled="props.loading"
+          class="w-full inline-flex justify-center items-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg v-if="props.loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {{ props.loading ? 'Saving...' : 'Save Service' }}
+        </button>
+        <button
+          type="button"
+          class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+          @click="$emit('close')"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  </Modal>
 </template>

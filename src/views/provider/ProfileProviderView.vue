@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/useAuthStore'
 import ImageUpload from '../../components/ImageUpload.vue'
 import { saveProvider } from '../../services/providerService'
+import { useNotifications } from '../../composables/useNotifications'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -18,8 +19,7 @@ const form = ref({
 const logoFile = ref<File | null>(null)
 
 const loading = ref(false)
-const error = ref<string | null>(null)
-const successMessage = ref<string | null>(null)
+const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
 
 const isEditing = computed(() => !!authStore.provider)
 
@@ -54,7 +54,7 @@ async function handleSubmit() {
   if (!authStore.user) return
 
   loading.value = true
-  error.value = null
+  clearMessages()
 
   try {
     await saveProvider({
@@ -64,9 +64,9 @@ async function handleSubmit() {
       logoFile: logoFile.value
     })
 
-    successMessage.value = isEditing.value
+    showSuccess(isEditing.value
       ? 'Profile updated successfully'
-      : 'Profile created successfully'
+      : 'Profile created successfully')
 
     await authStore.fetchProviderProfile()
 
@@ -74,7 +74,7 @@ async function handleSubmit() {
       router.push('/provider/dashboard')
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to save changes'
+    showError(e instanceof Error ? e.message : 'Failed to save changes')
   } finally {
     loading.value = false
   }
@@ -171,7 +171,7 @@ async function handleSubmit() {
             </div>
           </div>
 
-          <div v-if="error" class="rounded-md bg-red-50 p-4">
+          <div v-if="errorMessage" class="rounded-md bg-red-50 p-4">
             <div class="flex">
               <div class="flex-shrink-0">
                 <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -179,7 +179,7 @@ async function handleSubmit() {
                 </svg>
               </div>
               <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">{{ error }}</h3>
+                <h3 class="text-sm font-medium text-red-800">{{ errorMessage }}</h3>
               </div>
             </div>
           </div>

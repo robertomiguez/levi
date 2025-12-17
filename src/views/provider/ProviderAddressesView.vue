@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useAddressStore } from '../../stores/useAddressStore'
 import { useRouter } from 'vue-router'
 import type { ProviderAddress } from '../../types'
+import { useModal } from '../../composables/useModal'
+import Modal from '../../components/common/Modal.vue'
 
 const authStore = useAuthStore()
 const addressStore = useAddressStore()
 const router = useRouter()
 
-const showModal = ref(false)
-const editingAddress = ref<ProviderAddress | null>(null)
+const modal = useModal<ProviderAddress>()
 
 const form = ref({
   label: '',
@@ -30,12 +31,8 @@ onMounted(async () => {
   await addressStore.fetchAddresses(authStore.provider.id)
 })
 
-const primaryAddress = computed(() => 
-  addressStore.addresses.find(a => a.is_primary)
-)
-
 function openAddModal() {
-  editingAddress.value = null
+  modal.open(null)
   form.value = {
     label: '',
     street_address: '',
@@ -45,11 +42,10 @@ function openAddModal() {
     postal_code: '',
     country: 'USA'
   }
-  showModal.value = true
 }
 
 function openEditModal(address: ProviderAddress) {
-  editingAddress.value = address
+  modal.open(address)
   form.value = {
     label: address.label || '',
     street_address: address.street_address,
@@ -59,15 +55,14 @@ function openEditModal(address: ProviderAddress) {
     postal_code: address.postal_code,
     country: address.country
   }
-  showModal.value = true
 }
 
 async function handleSave() {
   if (!authStore.provider) return
 
   try {
-    if (editingAddress.value) {
-      await addressStore.updateAddress(editingAddress.value.id, form.value)
+    if (modal.data.value) {
+      await addressStore.updateAddress(modal.data.value.id, form.value)
     } else {
       await addressStore.createAddress({
         ...form.value,
@@ -75,7 +70,7 @@ async function handleSave() {
         is_primary: addressStore.addresses.length === 0 // First address is primary by default
       })
     }
-    showModal.value = false
+    modal.close()
   } catch (error) {
     console.error('Error saving address:', error)
     alert('Failed to save address: ' + (error instanceof Error ? error.message : String(error)))
@@ -226,115 +221,106 @@ async function handleSetPrimary(id: string) {
     </div>
 
     <!-- Address Modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showModal = false"></div>
+    <Modal
+      :is-open="modal.isOpen.value"
+      :title="modal.data.value ? 'Edit Location' : 'Add Location'"
+      @close="modal.close()"
+    >
+      <form @submit.prevent="handleSave" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Location Label (Optional)</label>
+          <input
+            v-model="form.label"
+            type="text"
+            placeholder="e.g., Main Location, Downtown Branch"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
 
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="relative z-50 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-              {{ editingAddress ? 'Edit Location' : 'Add Location' }}
-            </h3>
-            
-            <form @submit.prevent="handleSave" class="mt-6 space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Location Label (Optional)</label>
-                <input
-                  v-model="form.label"
-                  type="text"
-                  placeholder="e.g., Main Location, Downtown Branch"
-                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Street Address *</label>
+          <input
+            v-model="form.street_address"
+            type="text"
+            required
+            placeholder="123 Main St"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Street Address *</label>
-                <input
-                  v-model="form.street_address"
-                  type="text"
-                  required
-                  placeholder="123 Main St"
-                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Apt, Suite, Floor (Optional)</label>
+          <input
+            v-model="form.street_address_2"
+            type="text"
+            placeholder="Suite 200"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Apt, Suite, Floor (Optional)</label>
-                <input
-                  v-model="form.street_address_2"
-                  type="text"
-                  placeholder="Suite 200"
-                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">City *</label>
+            <input
+              v-model="form.city"
+              type="text"
+              required
+              placeholder="New York"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
 
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">City *</label>
-                  <input
-                    v-model="form.city"
-                    type="text"
-                    required
-                    placeholder="New York"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">State/Province</label>
-                  <input
-                    v-model="form.state"
-                    type="text"
-                    placeholder="NY"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Postal Code *</label>
-                  <input
-                    v-model="form.postal_code"
-                    type="text"
-                    required
-                    placeholder="10001"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Country *</label>
-                  <input
-                    v-model="form.country"
-                    type="text"
-                    required
-                    placeholder="USA"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                <button
-                  type="submit"
-                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                  @click="showModal = false"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">State/Province</label>
+            <input
+              v-model="form.state"
+              type="text"
+              placeholder="NY"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
           </div>
         </div>
-      </div>
-    </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Postal Code *</label>
+            <input
+              v-model="form.postal_code"
+              type="text"
+              required
+              placeholder="10001"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Country *</label>
+            <input
+              v-model="form.country"
+              type="text"
+              required
+              placeholder="USA"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
+        </div>
+
+        <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+          <button
+            type="submit"
+            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+            @click="modal.close()"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
   </div>
 </template>

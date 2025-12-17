@@ -41,13 +41,15 @@ const userLogo = computed(() => {
   return null
 })
 
+const ROLE_COLORS = {
+  Provider: 'bg-purple-100 text-purple-800',
+  Customer: 'bg-blue-100 text-blue-800',
+  Both: 'bg-green-100 text-green-800',
+  Default: 'bg-gray-100 text-gray-800'
+} as const
+
 const roleBadgeColor = computed(() => {
-  switch (userRole.value) {
-    case 'Provider': return 'bg-purple-100 text-purple-800'
-    case 'Customer': return 'bg-blue-100 text-blue-800'  
-    case 'Both': return 'bg-green-100 text-green-800'
-    default: return 'bg-gray-100 text-gray-800'
-  }
+  return ROLE_COLORS[userRole.value as keyof typeof ROLE_COLORS] || ROLE_COLORS.Default
 })
 
 function navigateToForBusiness() {

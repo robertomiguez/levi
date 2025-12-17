@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
 import type { Provider } from '../types'
+import * as providerService from '../services/providerService'
 
 export const useProviderStore = defineStore('provider', () => {
     const provider = ref<Provider | null>(null)
@@ -46,77 +47,8 @@ export const useProviderStore = defineStore('provider', () => {
         if (!providerId) return
 
         try {
-            // Get today's date range
-            const today = new Date()
-            const todayStart = new Date(today.setHours(0, 0, 0, 0)).toISOString()
-            const todayEnd = new Date(today.setHours(23, 59, 59, 999)).toISOString()
-
-            // Get this week's date range
-            const weekStart = new Date(today)
-            weekStart.setDate(today.getDate() - today.getDay())
-            weekStart.setHours(0, 0, 0, 0)
-            const weekEnd = new Date(weekStart)
-            weekEnd.setDate(weekStart.getDate() + 7)
-
-            // Get this month's date range
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-
-            // Fetch today's appointments
-            const { data: todayAppts } = await supabase
-                .from('appointments')
-                .select('*, services!inner(provider_id, price)')
-                .gte('appointment_date', todayStart.split('T')[0])
-                .lte('appointment_date', todayEnd.split('T')[0])
-                .eq('services.provider_id', providerId)
-
-            // Fetch week's appointments
-            const { data: weekAppts } = await supabase
-                .from('appointments')
-                .select('*, services!inner(provider_id, price)')
-                .gte('appointment_date', weekStart.toISOString().split('T')[0])
-                .lt('appointment_date', weekEnd.toISOString().split('T')[0])
-                .eq('services.provider_id', providerId)
-
-            // Fetch month's appointments
-            const { data: monthAppts } = await supabase
-                .from('appointments')
-                .select('*, services!inner(provider_id, price)')
-                .gte('appointment_date', monthStart.toISOString().split('T')[0])
-                .lte('appointment_date', monthEnd.toISOString().split('T')[0])
-                .eq('services.provider_id', providerId)
-
-            // Fetch active services count
-            const { count: servicesCount } = await supabase
-                .from('services')
-                .select('*', { count: 'exact', head: true })
-                .eq('provider_id', providerId)
-                .eq('active', true)
-
-            // Fetch staff count
-            const { count: staffCount } = await supabase
-                .from('staff')
-                .select('*', { count: 'exact', head: true })
-                .eq('provider_id', providerId)
-                .eq('active', true)
-
-            // Calculate stats
-            stats.value.todayAppointments = todayAppts?.length || 0
-            stats.value.weekAppointments = weekAppts?.length || 0
-            stats.value.monthAppointments = monthAppts?.length || 0
-
-            // Calculate revenue (sum of service prices)
-            stats.value.weekRevenue = weekAppts?.reduce((sum, apt: any) => {
-                return sum + (apt.services?.price || 0)
-            }, 0) || 0
-
-            stats.value.monthRevenue = monthAppts?.reduce((sum, apt: any) => {
-                return sum + (apt.services?.price || 0)
-            }, 0) || 0
-
-            stats.value.activeServices = servicesCount || 0
-            stats.value.totalStaff = staffCount || 0
-
+            const statsData = await providerService.fetchDashboardStats(providerId)
+            stats.value = statsData
         } catch (e) {
             console.error('Error fetching dashboard stats:', e)
         }

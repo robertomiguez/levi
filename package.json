@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@headlessui/vue": "^1.7.23",
     "@supabase/supabase-js": "^2.86.0",
     "date-fns": "^4.1.0",
     "pinia": "^3.0.4",

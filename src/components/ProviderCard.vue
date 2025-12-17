@@ -20,14 +20,30 @@ const initials = computed(() => {
     .slice(0, 2)
 })
 
-const primaryAddress = computed(() => {
-  return props.provider.provider_addresses?.find(a => a.is_primary) || props.provider.provider_addresses?.[0]
-})
+
 
 const locationText = computed(() => {
-  if (!primaryAddress.value) return 'Location TBD'
-  const addr = primaryAddress.value
-  return `${addr.city}, ${addr.state || addr.postal_code}`
+  const addresses = props.provider.provider_addresses || []
+  if (addresses.length === 0) return 'Location TBD'
+
+  // Get unique states
+  const states = [...new Set(addresses.map(a => a.state).filter(Boolean))] as string[]
+
+  if (states.length > 1) {
+    // If multiple states, pick one address for each state to display
+    const locations = states.map(state => {
+      const addr = addresses.find(a => a.state === state && a.is_primary) || 
+                   addresses.find(a => a.state === state)
+      return addr ? `${addr.city}, ${addr.state}` : null
+    }).filter(Boolean)
+    
+    return locations.join(' & ')
+  }
+
+  // Fallback to single location (primary or first)
+  const primaryAddress = addresses.find(a => a.is_primary) || addresses[0]
+  if (!primaryAddress) return 'Location TBD'
+  return `${primaryAddress.city}, ${primaryAddress.state || primaryAddress.postal_code}`
 })
 
 const ratingStars = computed(() => {

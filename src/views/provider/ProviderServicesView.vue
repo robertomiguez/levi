@@ -6,14 +6,14 @@ import { useCategoryStore } from '../../stores/useCategoryStore'
 import { useRouter } from 'vue-router'
 import type { Service } from '../../types'
 import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
+import { useModal } from '../../composables/useModal'
 
 const serviceStore = useServiceStore()
 const authStore = useAuthStore()
 const categoryStore = useCategoryStore()
 const router = useRouter()
 
-const showModal = ref(false)
-const editingService = ref<Service | null>(null)
+const modal = useModal<Service>()
 const searchQuery = ref('')
 const categoryFilter = ref('All')
 const saving = ref(false)
@@ -47,20 +47,18 @@ onMounted(async () => {
 })
 
 function openAddModal() {
-  editingService.value = null
-  showModal.value = true
+  modal.open(null)
 }
 
 function openEditModal(service: Service) {
-  editingService.value = { ...service }
-  showModal.value = true
+  modal.open({ ...service })
 }
 
 async function handleSave(serviceData: any) {
   saving.value = true
   try {
-    if (editingService.value) {
-      await serviceStore.updateService(editingService.value.id, serviceData)
+    if (modal.data.value) {
+      await serviceStore.updateService(modal.data.value.id, serviceData)
     } else {
       const newService = {
         ...serviceData,
@@ -72,7 +70,7 @@ async function handleSave(serviceData: any) {
       }
       await serviceStore.createService(newService)
     }
-    showModal.value = false
+    modal.close()
     // await serviceStore.fetchAllServices(authStore.provider?.id) // Removed: Store handles local updates now
   } catch (err) {
     console.error('Error in handleSave:', err)
@@ -247,10 +245,10 @@ function formatCurrency(amount: number) {
 
     <!-- Service Form Modal -->
     <ServiceFormModal
-      v-if="showModal"
-      :service="editingService"
+      v-if="modal.isOpen.value"
+      :service="modal.data.value"
       :loading="saving"
-      @close="showModal = false"
+      @close="modal.close()"
       @save="handleSave"
     />
   </div>

@@ -2,9 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { useServiceStore } from '../stores/useServiceStore'
 import type { Service } from '../types'
+import { useModal } from '../composables/useModal'
 
 const serviceStore = useServiceStore()
-const showModal = ref(false)
+const modal = useModal<Service>()
 const isEditing = ref(false)
 const formData = ref({
   name: '',
@@ -18,7 +19,7 @@ const formData = ref({
 const editingId = ref<string | null>(null)
 
 onMounted(() => {
-  serviceStore.fetchServices()
+  serviceStore.fetchAllServices()
 })
 
 function openCreateModal() {
@@ -32,7 +33,7 @@ function openCreateModal() {
     category: '',
     active: true
   }
-  showModal.value = true
+  modal.open(null)
 }
 
 function openEditModal(service: Service) {
@@ -44,14 +45,14 @@ function openEditModal(service: Service) {
     price: service.price || 0,
     buffer_before: service.buffer_before,
     buffer_after: service.buffer_after,
-    category: service.category || '',
+    category: service.categories?.name || '',
     active: service.active
   }
-  showModal.value = true
+  modal.open(service)
 }
 
 function closeModal() {
-  showModal.value = false
+  modal.close()
   editingId.value = null
 }
 
@@ -122,7 +123,7 @@ function formatPrice(price?: number) {
           <div class="flex justify-between items-start mb-3">
             <div>
               <h3 class="text-lg font-semibold text-gray-900">{{ service.name }}</h3>
-              <p v-if="service.category" class="text-sm text-gray-500">{{ service.category }}</p>
+              <p v-if="service.categories?.name" class="text-sm text-gray-500">{{ service.categories.name }}</p>
             </div>
             <span class="text-lg font-bold text-primary-600">{{ formatPrice(service.price) }}</span>
           </div>
@@ -176,7 +177,7 @@ function formatPrice(price?: number) {
     </div>
 
     <!-- Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div v-if="modal.isOpen.value" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div class="p-6">
           <h2 class="text-2xl font-bold text-gray-900 mb-4">

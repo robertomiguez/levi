@@ -41,7 +41,7 @@ onMounted(async () => {
     await fetchProviderInfo(providerId)
   }
   
-  await serviceStore.fetchServices()
+  await serviceStore.fetchAllServices(providerId)
   await staffStore.fetchStaff()
 
   // Ensure customer profile exists if authenticated

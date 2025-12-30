@@ -56,7 +56,7 @@ async function fetchProviderInfo(providerId: string) {
   try {
     const { data, error } = await supabase
       .from('providers')
-      .select('*')
+      .select('*, provider_addresses(*)')
       .eq('id', providerId)
       .single()
     
@@ -79,7 +79,9 @@ const selectedService = computed(() =>
   filteredServices.value.find(s => s.id === selectedServiceId.value)
 )
 
-// Removed unused selectedStaff computed property
+const selectedStaff = computed(() => 
+  staffStore.staff.find(s => s.id === selectedStaffId.value)
+)
 
 // Generate dates for the next 60 days
 const availableDates = computed(() => {
@@ -268,6 +270,19 @@ function formatDateDisplay(date: Date) {
   return format(date, 'EEEE, MMMM d, yyyy')
 }
 
+function formatAddress(provider: Provider | null): string {
+  if (!provider?.provider_addresses?.length) return 'No address provided'
+  const addr = provider.provider_addresses[0]
+  if (!addr) return 'No address provided'
+  // Filter out undefined/null/empty strings
+  return [
+    addr.street_address,
+    addr.city,
+    addr.state,
+    addr.postal_code
+  ].filter(p => p).join(', ')
+}
+
 // Removed unused isToday function
 
 // Watch for staff selection to fetch availability
@@ -450,18 +465,31 @@ function resetBooking() {
         <p class="text-gray-600 mb-6">We've sent a confirmation to {{ authStore.customer?.email }}</p>
         
         <div class="bg-gray-50 rounded-lg p-6 mb-6 text-left">
-          <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
             <div>
-              <span class="text-sm text-gray-500">Service:</span>
+              <span class="text-sm text-gray-500 block">Service</span>
               <p class="font-semibold text-gray-900">{{ selectedService?.name }}</p>
             </div>
             <div>
-              <span class="text-sm text-gray-500">Date & Time:</span>
+              <span class="text-sm text-gray-500 block">Staff</span>
+              <p class="font-semibold text-gray-900">{{ selectedStaff?.name }}</p>
+            </div>
+            <div>
+              <span class="text-sm text-gray-500 block">Date & Time</span>
               <p class="font-semibold text-gray-900">{{ formatDateDisplay(selectedDate) }} at {{ selectedTime }}</p>
             </div>
             <div>
-              <span class="text-sm text-gray-500">Duration:</span>
-              <p class="font-semibold text-gray-900">{{ selectedService?.duration }} minutes</p>
+              <span class="text-sm text-gray-500 block">Price</span>
+              <p class="font-semibold text-gray-900">{{ formatPrice(selectedService?.price) }}</p>
+            </div>
+             <div class="col-span-2 border-t border-gray-200 pt-3">
+               <span class="text-sm text-gray-500 block">Location</span>
+               <p class="font-semibold text-gray-900">{{ providerInfo?.business_name }}</p>
+               <p class="text-gray-500 text-xs truncate">{{ formatAddress(providerInfo) }}</p>
+            </div>
+             <div v-if="notes" class="col-span-2 border-t border-gray-200 pt-3">
+               <span class="text-sm text-gray-500 block">Your Notes</span>
+               <p class="italic text-gray-700">{{ notes }}</p>
             </div>
           </div>
         </div>
@@ -699,20 +727,33 @@ function resetBooking() {
             <div class="bg-primary-50 rounded-lg p-4 mb-6">
               <div class="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span class="text-gray-600">Service:</span>
-                  <p class="font-semibold">{{ selectedService?.name }}</p>
+                  <span class="text-gray-600 block">Service</span>
+                  <p class="font-semibold text-gray-900">{{ selectedService?.name }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600">Date:</span>
-                  <p class="font-semibold">{{ formatDateDisplay(selectedDate) }}</p>
+                  <span class="text-gray-600 block">Staff</span>
+                  <p class="font-semibold text-gray-900">{{ selectedStaff?.name }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600">Time:</span>
-                  <p class="font-semibold">{{ selectedTime }}</p>
+                  <span class="text-gray-600 block">Date</span>
+                  <p class="font-semibold text-gray-900">{{ formatDateDisplay(selectedDate) }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600">Duration:</span>
-                  <p class="font-semibold">{{ selectedService?.duration }} min</p>
+                  <span class="text-gray-600 block">Time</span>
+                  <p class="font-semibold text-gray-900">{{ selectedTime }}</p>
+                </div>
+                <div>
+                  <span class="text-gray-600 block">Duration</span>
+                  <p class="font-semibold text-gray-900">{{ selectedService?.duration }} min</p>
+                </div>
+                <div>
+                  <span class="text-gray-600 block">Price</span>
+                  <p class="font-semibold text-gray-900">{{ formatPrice(selectedService?.price) }}</p>
+                </div>
+                <div class="col-span-2 border-t border-primary-100 pt-2 mt-1">
+                   <span class="text-gray-600 block">Location</span>
+                   <p class="font-semibold text-gray-900">{{ providerInfo?.business_name }}</p>
+                   <p class="text-gray-500 text-xs truncate">{{ formatAddress(providerInfo) }}</p>
                 </div>
               </div>
             </div>

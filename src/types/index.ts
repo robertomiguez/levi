@@ -52,6 +52,7 @@ export interface Provider {
     rejection_reason?: string
     created_at?: string
     updated_at?: string
+    provider_addresses?: ProviderAddress[] // Joined data
 }
 
 export interface Staff {

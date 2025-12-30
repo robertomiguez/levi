@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useStaffStore } from '../stores/useStaffStore'
+import { useNotifications } from '../composables/useNotifications'
+import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 
 const staffStore = useStaffStore()
+const { showSuccess, showError } = useNotifications()
+
 const selectedStaffId = ref<string>('')
 const showBlockedDateModal = ref(false)
 const blockedDateForm = ref({
@@ -10,6 +14,34 @@ const blockedDateForm = ref({
   end_date: '',
   reason: ''
 })
+
+// Confirmation logic
+const showConfirmModal = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const pendingDeleteId = ref<string | null>(null)
+
+function openDeleteConfirm(id: string) {
+  pendingDeleteId.value = id
+  confirmTitle.value = 'Remove Blocked Period'
+  confirmMessage.value = 'Are you sure you want to remove this blocked period?'
+  showConfirmModal.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!pendingDeleteId.value) return
+  
+  try {
+    await staffStore.deleteBlockedDate(pendingDeleteId.value)
+    showSuccess('Blocked period removed successfully')
+  } catch (e) {
+    console.error('Error deleting blocked date:', e)
+    showError('Failed to delete blocked period')
+  } finally {
+    showConfirmModal.value = false
+    pendingDeleteId.value = null
+  }
+}
 
 const daysOfWeek = [
   { value: 0, label: 'Sunday' },
@@ -44,8 +76,6 @@ onMounted(async () => {
     await loadStaffAvailability()
   }
 })
-
-// Removed unused selectedStaff computed property
 
 async function loadStaffAvailability() {
   if (!selectedStaffId.value) return
@@ -100,9 +130,10 @@ async function saveSchedule() {
   
   try {
     await staffStore.upsertAvailability(selectedStaffId.value, availabilityData)
-    alert('Schedule saved successfully!')
+    showSuccess('Schedule saved successfully')
   } catch (e) {
     console.error('Error saving schedule:', e)
+    showError('Failed to save schedule')
   }
 }
 
@@ -125,19 +156,11 @@ async function handleBlockedDateSubmit() {
       end_date: blockedDateForm.value.end_date,
       reason: blockedDateForm.value.reason
     })
+    showSuccess('Blocked period added')
     showBlockedDateModal.value = false
   } catch (e) {
     console.error('Error creating blocked date:', e)
-  }
-}
-
-async function deleteBlockedDate(id: string) {
-  if (confirm('Remove this blocked period?')) {
-    try {
-      await staffStore.deleteBlockedDate(id)
-    } catch (e) {
-      console.error('Error deleting blocked date:', e)
-    }
+    showError('Failed to add blocked period')
   }
 }
 
@@ -231,7 +254,7 @@ function formatDate(dateStr: string) {
                 <p v-if="blocked.reason" class="text-xs text-gray-500 mt-1">{{ blocked.reason }}</p>
               </div>
               <button
-                @click="deleteBlockedDate(blocked.id)"
+                @click="openDeleteConfirm(blocked.id)"
                 class="text-red-600 hover:text-red-700 text-sm"
               >
                 Remove
@@ -306,5 +329,14 @@ function formatDate(dateStr: string) {
         </div>
       </div>
     </div>
+    
+    <ConfirmationModal
+      :isOpen="showConfirmModal"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :isDestructive="true"
+      @close="showConfirmModal = false"
+      @confirm="handleConfirmDelete"
+    />
   </div>
 </template>

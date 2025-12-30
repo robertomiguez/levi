@@ -3,9 +3,13 @@ import { onMounted, ref } from 'vue'
 import { useServiceStore } from '../stores/useServiceStore'
 import type { Service } from '../types'
 import { useModal } from '../composables/useModal'
+import { useNotifications } from '../composables/useNotifications'
+import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 
 const serviceStore = useServiceStore()
 const modal = useModal<Service>()
+const { showSuccess, showError } = useNotifications()
+
 const isEditing = ref(false)
 const formData = ref({
   name: '',
@@ -17,6 +21,34 @@ const formData = ref({
   active: true
 })
 const editingId = ref<string | null>(null)
+
+// Confirmation logic
+const showConfirmModal = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const pendingDeleteId = ref<string | null>(null)
+
+function openDeleteConfirm(id: string) {
+  pendingDeleteId.value = id
+  confirmTitle.value = 'Delete Service'
+  confirmMessage.value = 'Are you sure you want to delete this service?'
+  showConfirmModal.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!pendingDeleteId.value) return
+  
+  try {
+    await serviceStore.deleteService(pendingDeleteId.value)
+    showSuccess('Service deleted successfully')
+  } catch (e) {
+    console.error('Error deleting service:', e)
+    showError('Failed to delete service')
+  } finally {
+    showConfirmModal.value = false
+    pendingDeleteId.value = null
+  }
+}
 
 onMounted(() => {
   serviceStore.fetchAllServices()
@@ -60,23 +92,20 @@ async function handleSubmit() {
   try {
     if (isEditing.value && editingId.value) {
       await serviceStore.updateService(editingId.value, formData.value)
+      showSuccess('Service updated successfully')
     } else {
       await serviceStore.createService(formData.value)
+      showSuccess('Service created successfully')
     }
     closeModal()
   } catch (e) {
     console.error('Error saving service:', e)
+    showError('Failed to save service')
   }
 }
 
-async function handleDelete(id: string) {
-  if (confirm('Are you sure you want to delete this service?')) {
-    try {
-      await serviceStore.deleteService(id)
-    } catch (e) {
-      console.error('Error deleting service:', e)
-    }
-  }
+function handleDelete(id: string) {
+  openDeleteConfirm(id)
 }
 
 function formatPrice(price?: number) {
@@ -271,5 +300,14 @@ function formatPrice(price?: number) {
         </div>
       </div>
     </div>
+
+    <ConfirmationModal
+      :isOpen="showConfirmModal"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :isDestructive="true"
+      @close="showConfirmModal = false"
+      @confirm="handleConfirmDelete"
+    />
   </div>
 </template>

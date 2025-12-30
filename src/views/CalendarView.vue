@@ -6,14 +6,25 @@ import { useStaffStore } from '../stores/useStaffStore'
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns'
 import type { Appointment } from '../types'
 
+import { useNotifications } from '../composables/useNotifications'
+import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+
 const appointmentStore = useAppointmentStore()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
+const { showSuccess, showError } = useNotifications()
 
 const viewMode = ref<'day' | 'week'>('week')
 const currentDate = ref(new Date())
 const selectedAppointment = ref<Appointment | null>(null)
 const showAppointmentModal = ref(false)
+
+// Confirmation State
+const showConfirmModal = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmActionType = ref<'cancel' | 'delete' | null>(null)
+const pendingAppointmentId = ref<string | null>(null)
 
 onMounted(async () => {
   await serviceStore.fetchAllServices()
@@ -63,25 +74,41 @@ function viewAppointment(appointment: Appointment) {
   showAppointmentModal.value = true
 }
 
-async function cancelAppointment(id: string) {
-  if (confirm('Cancel this appointment?')) {
-    try {
-      await appointmentStore.updateAppointment(id, { status: 'cancelled' })
-      showAppointmentModal.value = false
-    } catch (e) {
-      console.error('Error cancelling appointment:', e)
-    }
-  }
+function openCancelConfirm(id: string) {
+  pendingAppointmentId.value = id
+  confirmActionType.value = 'cancel'
+  confirmTitle.value = 'Cancel Appointment'
+  confirmMessage.value = 'Are you sure you want to cancel this appointment?'
+  showConfirmModal.value = true
 }
 
-async function deleteAppointmentPermanently(id: string) {
-  if (confirm('Permanently delete this appointment?')) {
-    try {
-      await appointmentStore.deleteAppointment(id)
-      showAppointmentModal.value = false
-    } catch (e) {
-      console.error('Error deleting appointment:', e)
+function openDeleteConfirm(id: string) {
+  pendingAppointmentId.value = id
+  confirmActionType.value = 'delete'
+  confirmTitle.value = 'Delete Appointment'
+  confirmMessage.value = 'Are you sure you want to permanently delete this appointment? This action cannot be undone.'
+  showConfirmModal.value = true
+}
+
+async function handleConfirmAction() {
+  if (!pendingAppointmentId.value || !confirmActionType.value) return
+
+  try {
+    if (confirmActionType.value === 'cancel') {
+      await appointmentStore.updateAppointment(pendingAppointmentId.value, { status: 'cancelled' })
+      showSuccess('Appointment cancelled')
+    } else if (confirmActionType.value === 'delete') {
+      await appointmentStore.deleteAppointment(pendingAppointmentId.value)
+      showSuccess('Appointment deleted')
     }
+    showAppointmentModal.value = false
+  } catch (e) {
+    console.error('Error processing appointment action:', e)
+    showError('Failed to process request')
+  } finally {
+    showConfirmModal.value = false
+    pendingAppointmentId.value = null
+    confirmActionType.value = null
   }
 }
 
@@ -309,13 +336,13 @@ function formatTime(time: string) {
           <div class="flex gap-3 mt-6 pt-6 border-t">
             <button
               v-if="selectedAppointment.status !== 'cancelled'"
-              @click="cancelAppointment(selectedAppointment.id)"
+              @click="openCancelConfirm(selectedAppointment.id)"
               class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               Cancel Appointment
             </button>
             <button
-              @click="deleteAppointmentPermanently(selectedAppointment.id)"
+              @click="openDeleteConfirm(selectedAppointment.id)"
               class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               Delete
@@ -324,5 +351,14 @@ function formatTime(time: string) {
         </div>
       </div>
     </div>
+
+    <ConfirmationModal
+      :isOpen="showConfirmModal"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :isDestructive="true"
+      @close="showConfirmModal = false"
+      @confirm="handleConfirmAction"
+    />
   </div>
 </template>

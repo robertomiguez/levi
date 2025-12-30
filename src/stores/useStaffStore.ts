@@ -10,15 +10,21 @@ export const useStaffStore = defineStore('staff', () => {
     const loading = ref(false)
     const error = ref<string | null>(null)
 
-    async function fetchStaff() {
+    async function fetchStaff(providerId?: string) {
         loading.value = true
         error.value = null
         try {
-            const { data, error: fetchError } = await supabase
+            let query = supabase
                 .from('staff')
                 .select('*')
                 .eq('active', true)
                 .order('name', { ascending: true })
+
+            if (providerId) {
+                query = query.eq('provider_id', providerId)
+            }
+
+            const { data, error: fetchError } = await query
 
             if (fetchError) throw fetchError
             staff.value = data || []

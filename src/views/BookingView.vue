@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue'
+import { onMounted, ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useServiceStore } from '../stores/useServiceStore'
 import { useStaffStore } from '../stores/useStaffStore'
@@ -8,12 +8,14 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { supabase } from '../lib/supabase'
 import { addDays, format, startOfDay } from 'date-fns'
 import type { TimeSlot, Provider } from '../types'
+import { useNotifications } from '../composables/useNotifications'
 
 const route = useRoute()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
 const appointmentStore = useAppointmentStore()
 const authStore = useAuthStore()
+const { errorMessage, showError, clearMessages } = useNotifications()
 
 // Provider filtering
 const selectedProviderId = ref<string | null>(null)
@@ -101,11 +103,41 @@ async function loadAvailableSlots() {
   
   loadingSlots.value = true
   try {
-    availableSlots.value = await appointmentStore.getAvailableSlots(
-      selectedServiceId.value,
-      selectedStaffId.value,
+    const dayOfWeek = selectedDate.value.getDay()
+    const schedule = staffStore.availability.find(a => a.day_of_week === dayOfWeek)
+
+    if (!schedule || !schedule.is_available) {
+      availableSlots.value = []
+      loadingSlots.value = false
+      return
+    }
+
+    const dateStr = format(selectedDate.value, 'yyyy-MM-dd')
+    
+    // Check local blocked dates
+    const isBlocked = staffStore.blockedDates.some(block => {
+      return dateStr >= block.start_date && dateStr <= block.end_date
+    })
+
+    if (isBlocked) {
+      availableSlots.value = []
+      loadingSlots.value = false
+      return
+    }
+
+    // Filter local appointments
+    const dayAppointments = rangeAppointments.value.filter(a => 
+      a.appointment_date === dateStr
+    )
+
+    // Generate slots purely on client side
+    availableSlots.value = appointmentStore.generateSlots(
+      selectedService.value,
+      [schedule],
+      dayAppointments,
       selectedDate.value
     )
+    
     selectedTime.value = '' // Reset selected time when slots change
   } catch (e) {
     console.error('Error loading slots:', e)
@@ -117,20 +149,43 @@ async function loadAvailableSlots() {
 
 function selectService(serviceId: string) {
   selectedServiceId.value = serviceId
-  if (staffStore.staff.length === 1 && staffStore.staff[0]) {
-    selectedStaffId.value = staffStore.staff[0].id
+  const service = serviceStore.services.find(s => s.id === serviceId)
+  
+  if (service?.staff && service.staff.length === 1 && service.staff[0]) {
+    // Single staff: Auto-select and skip to Date/Time (Step 3)
+    selectedStaffId.value = service.staff[0].id
+    currentStep.value = 3
+  } else {
+    // Multiple staff or no staff: Go to Staff Selection (Step 2)
+    // The "No Staff" message will be shown in Step 2
+    selectedStaffId.value = ''
+    currentStep.value = 2
   }
-  currentStep.value = 2
 }
 
 function selectDateTime() {
   if (selectedTime.value) {
-    currentStep.value = 3
+    currentStep.value = 4
   }
 }
 
+function selectStaff(staffId: string) {
+  selectedStaffId.value = staffId
+  currentStep.value = 3
+}
+
 function goBack() {
-  if (currentStep.value > 1) {
+  if (currentStep.value === 3) {
+    // If we are on Date/Time step
+    const service = serviceStore.services.find(s => s.id === selectedServiceId.value)
+    if (service?.staff && service.staff.length === 1) {
+      // If single staff, we skipped Step 2, so go back to Step 1
+      currentStep.value = 1
+    } else {
+      // Otherwise go back to Staff Selection (Step 2)
+      currentStep.value = 2
+    }
+  } else if (currentStep.value > 1) {
     currentStep.value--
   }
 }
@@ -140,12 +195,14 @@ async function submitBooking() {
     return
   }
 
+  clearMessages()
+
   if (!authStore.customer) {
     // Try to create profile if it doesn't exist
     await authStore.createCustomerProfile()
     
     if (!authStore.customer) {
-      alert('Please log in to book an appointment')
+      showError('Please log in to book an appointment')
       return
     }
   }
@@ -188,9 +245,17 @@ async function submitBooking() {
       confirmedAppointmentId.value = appointment.id
       bookingConfirmed.value = true
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error creating appointment:', e)
-    alert('Failed to book appointment. Please try again.')
+    
+    // Check for PostgreSQL exclusion violation (code 23P01)
+    if (e.code === '23P01' || e.message?.includes('no_overlapping_appointments')) {
+      showError('This time slot was just booked by another customer. Please choose another time.')
+      // Refresh slots to reflect the new reality
+      await loadAvailableSlots()
+    } else {
+      showError('Failed to book appointment. Please try again.')
+    }
   }
 }
 
@@ -204,6 +269,142 @@ function formatDateDisplay(date: Date) {
 }
 
 // Removed unused isToday function
+
+// Watch for staff selection to fetch availability
+const rangeAppointments = ref<any[]>([])
+let realtimeChannel: any = null
+
+onUnmounted(() => {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+  }
+})
+
+watch(selectedStaffId, async (newId) => {
+  // Cleanup previous channel
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+
+  if (newId) {
+    // Reset selected date/time
+    selectedTime.value = ''
+    availableSlots.value = []
+    
+    const today = new Date()
+    const endDate = addDays(today, 60)
+    
+    // Fetch all necessary data
+    await Promise.all([
+      staffStore.fetchAvailability(newId),
+      staffStore.fetchBlockedDates(newId),
+    ])
+
+    // Load appointments for the range
+    const fetchAppointments = async () => {
+        rangeAppointments.value = await appointmentStore.fetchStaffAppointments(
+        newId, 
+        format(today, 'yyyy-MM-dd'), 
+        format(endDate, 'yyyy-MM-dd')
+      )
+    }
+    await fetchAppointments()
+
+    // Subscribe to Realtime Updates
+    realtimeChannel = supabase
+      .channel(`public:appointments:staff_id=eq.${newId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for INSERT and DELETE (and UPDATE)
+          schema: 'public',
+          table: 'appointments',
+          filter: `staff_id=eq.${newId}`
+        },
+        async (payload) => {
+          // Simple strategy: Re-fetch the range to ensure perfect valid state
+          // Alternatively, we could manually push/splice the array for speed
+          // But re-fetching is safer and still fast for this dataset size
+          console.log('Realtime update received:', payload)
+          await fetchAppointments()
+          
+          // Force re-evaluation of slots if we are on the same date
+          if (selectedDate.value) {
+            await loadAvailableSlots()
+          }
+        }
+      )
+      .subscribe()
+    
+    // Auto-select first available date
+    if (!isDateAvailable(selectedDate.value)) {
+      const nextAvailable = availableDates.value.find(d => isDateAvailable(d))
+      if (nextAvailable) {
+        selectedDate.value = nextAvailable
+      }
+    }
+  }
+})
+
+// Calculate status map for all dates at once (computed cache)
+// This strictly optimizes the calendar rendering
+const dayStatusMap = computed(() => {
+  if (!selectedService.value || !selectedStaffId.value) return {}
+  
+  const map: Record<string, 'Available' | 'Busy' | 'Unavailable'> = {}
+  
+  availableDates.value.forEach(date => {
+    const dateStr = format(date, 'yyyy-MM-dd')
+    
+    // 1. Check working days
+    const dayOfWeek = date.getDay()
+    const schedule = staffStore.availability.find(a => a.day_of_week === dayOfWeek)
+    
+    if (!schedule || !schedule.is_available) {
+      map[dateStr] = 'Unavailable'
+      return
+    }
+
+    // 2. Check blocked dates
+    const isBlocked = staffStore.blockedDates.some(block => {
+      return dateStr >= block.start_date && dateStr <= block.end_date
+    })
+    
+    if (isBlocked) {
+      map[dateStr] = 'Busy'
+      return
+    }
+
+    // 3. Lazy Check Availability
+    const dayAppointments = rangeAppointments.value.filter(a => 
+      a.appointment_date === dateStr
+    )
+
+    try {
+      const isAvailable = appointmentStore.checkAvailability(
+        selectedService.value,
+        [schedule],
+        dayAppointments,
+        date
+      )
+      map[dateStr] = isAvailable ? 'Available' : 'Busy'
+    } catch {
+       map[dateStr] = 'Available'
+    }
+  })
+  
+  return map
+})
+
+function isDateAvailable(date: Date): boolean {
+  return getDateStatus(date) === 'Available'
+}
+
+function getDateStatus(date: Date): 'Available' | 'Busy' | 'Unavailable' {
+  const dateStr = format(date, 'yyyy-MM-dd')
+  return dayStatusMap.value[dateStr] || 'Unavailable'
+}
 
 function resetBooking() {
   bookingConfirmed.value = false
@@ -277,7 +478,8 @@ function resetBooking() {
       <div v-else class="bg-white rounded-2xl shadow-xl overflow-hidden">
         <!-- Progress Steps -->
         <div class="bg-gray-50 px-6 py-4 border-b">
-          <div class="flex items-center justify-between max-w-md mx-auto">
+
+          <div class="flex items-center justify-between max-w-2xl mx-auto">
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 1 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">1</div>
               <span class="ml-2 text-sm font-medium text-gray-700">Service</span>
@@ -287,13 +489,20 @@ function resetBooking() {
             </div>
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 2 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">2</div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Date & Time</span>
+              <span class="ml-2 text-sm font-medium text-gray-700">Staff</span>
             </div>
             <div class="flex-1 h-1 mx-4 bg-gray-300">
               <div :class="['h-full bg-primary-600 transition-all']" :style="{ width: currentStep > 2 ? '100%' : '0%' }"></div>
             </div>
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 3 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">3</div>
+              <span class="ml-2 text-sm font-medium text-gray-700">Time</span>
+            </div>
+            <div class="flex-1 h-1 mx-4 bg-gray-300">
+              <div :class="['h-full bg-primary-600 transition-all']" :style="{ width: currentStep > 3 ? '100%' : '0%' }"></div>
+            </div>
+            <div class="flex items-center">
+              <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 4 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">4</div>
               <span class="ml-2 text-sm font-medium text-gray-700">Details</span>
             </div>
           </div>
@@ -325,54 +534,99 @@ function resetBooking() {
             </div>
           </div>
 
-          <!-- Step 2: Select Date & Time -->
+
+
+          <!-- Step 2: Select Staff -->
           <div v-if="currentStep === 2">
             <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
               ← Back
             </button>
             
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Date & Time</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Staff</h2>
             <p class="text-gray-600 mb-6">Service: <span class="font-semibold">{{ selectedService?.name }}</span></p>
 
-            <!-- Staff Selection (if multiple staff) -->
-            <div v-if="staffStore.staff.length > 1" class="mb-6">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Select Provider</label>
-              <select 
-                v-model="selectedStaffId"
-                class="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="">Choose a provider...</option>
-                <option v-for="staff in staffStore.staff" :key="staff.id" :value="staff.id">
-                  {{ staff.name }}
-                </option>
-              </select>
+            <!-- No Staff Message -->
+            <div v-if="!selectedService?.staff || selectedService.staff.length === 0" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
+              <svg class="w-5 h-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <h3 class="text-sm font-medium text-yellow-800">Service Unavailable</h3>
+                <p class="mt-1 text-sm text-yellow-700">
+                  We apologize, but there are currently no staff members available for this service. Please check back later or choose a different service.
+                </p>
+              </div>
             </div>
 
-            <div v-if="selectedStaffId" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Staff List -->
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                v-for="staff in selectedService.staff"
+                :key="staff.id"
+                @click="selectStaff(staff.id)"
+                class="text-left p-6 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all flex items-center gap-4"
+              >
+                <div class="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-bold text-lg">
+                  {{ staff.name.charAt(0) }}
+                </div>
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900">{{ staff.name }}</h3>
+                  <p class="text-sm text-gray-500">{{ staff.role === 'admin' ? 'Provider' : 'Staff Member' }}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Select Date & Time -->
+          <div v-if="currentStep === 3">
+            <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
+              ← Back
+            </button>
+            
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Date & Time</h2>
+            <p class="text-gray-600 mb-6">
+              Service: <span class="font-semibold">{{ selectedService?.name }}</span>
+              <span class="mx-2">•</span>
+              Staff: <span class="font-semibold">{{ staffStore.staff.find(s => s.id === selectedStaffId)?.name }}</span>
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Date Picker -->
               <div>
                 <h3 class="font-semibold text-gray-900 mb-3">Choose Date</h3>
                 <div class="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
                   <button
-                    v-for="date in availableDates.slice(0, 14)"
+                    v-for="date in availableDates.slice(0, 30)"
                     :key="date.toISOString()"
-                    @click="selectedDate = date"
+                    @click="isDateAvailable(date) ? selectedDate = date : null"
+                    :disabled="!isDateAvailable(date)"
                     :class="[
-                      'p-3 rounded-lg border-2 text-left transition-all',
+                      'p-3 rounded-lg border-2 text-left transition-all relative overflow-hidden',
                       format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-gray-200 hover:border-primary-300'
+                        ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200'
+                        : isDateAvailable(date)
+                          ? 'border-gray-200 hover:border-primary-300 bg-white'
+                          : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
                     ]"
                   >
-                    <div class="text-xs text-gray-500">{{ format(date, 'EEE') }}</div>
-                    <div class="font-semibold">{{ format(date, 'MMM d') }}</div>
+                    <div class="flex justify-between items-center">
+                      <div>
+                        <div class="text-xs text-gray-500">{{ format(date, 'EEE') }}</div>
+                        <div class="font-semibold">{{ format(date, 'MMM d') }}</div>
+                      </div>
+                      
+                      <!-- Status Label -->
+                      <div v-if="!isDateAvailable(date)" class="text-xs font-medium px-2 py-0.5 rounded bg-gray-200 text-gray-600">
+                        {{ getDateStatus(date) === 'Busy' ? 'Busy' : 'Unavailable' }}
+                      </div>
+                    </div>
                   </button>
                 </div>
               </div>
 
               <!-- Time Slots -->
               <div>
-                <h3 class="font-semibold text-gray-900 mb-3">Available Times</h3>
+                <h3 class="font-semibold text-gray-900 mb-3">Available Times for {{ format(selectedDate, 'MMM d') }}</h3>
                 
                 <div v-if="loadingSlots" class="text-center py-12">
                   <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent"></div>
@@ -382,20 +636,30 @@ function resetBooking() {
                   <button
                     v-for="slot in availableSlots"
                     :key="slot.time"
-                    @click="selectedTime = slot.time"
+                    @click="slot.available ? selectedTime = slot.time : null"
+                    :disabled="!slot.available"
                     :class="[
-                      'px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all',
+                      'px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all relative overflow-hidden',
                       selectedTime === slot.time
                         ? 'border-primary-500 bg-primary-500 text-white'
-                        : 'border-gray-200 hover:border-primary-300'
+                        : slot.available
+                          ? 'border-gray-200 hover:border-primary-300'
+                          : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-75'
                     ]"
                   >
                     {{ slot.time }}
+                    <!-- Strike-through for taken slots -->
+                    <span v-if="!slot.available" class="absolute inset-0 flex items-center justify-center">
+                      <span class="w-full border-t border-gray-300 transform -rotate-12"></span>
+                    </span>
                   </button>
                 </div>
 
-                <div v-else class="text-center py-12 text-gray-500">
-                  No available slots for this date
+                <div v-else class="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                  <p v-if="!isDateAvailable(selectedDate)">
+                    {{ getDateStatus(selectedDate) === 'Busy' ? 'Staff is fully booked on this date.' : 'Staff is unavailable on this day.' }}
+                  </p>
+                  <p v-else>No slots available for this service on this date.</p>
                 </div>
               </div>
             </div>
@@ -409,13 +673,27 @@ function resetBooking() {
             </button>
           </div>
 
-          <!-- Step 3: Confirm Booking -->
-          <div v-if="currentStep === 3">
+          <!-- Step 4: Confirm Booking -->
+          <div v-if="currentStep === 4">
             <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
               ← Back
             </button>
             
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Confirm Your Booking</h2>
+
+            <!-- Error Notification -->
+            <div v-if="errorMessage" class="rounded-md bg-red-50 p-4 mb-6 text-left">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-red-800">{{ errorMessage }}</h3>
+                </div>
+              </div>
+            </div>
 
             <!-- Booking Summary -->
             <div class="bg-primary-50 rounded-lg p-4 mb-6">

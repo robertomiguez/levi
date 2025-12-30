@@ -8,10 +8,13 @@ import type { Service } from '../../types'
 import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
 import { useModal } from '../../composables/useModal'
 
+import { useNotifications } from '../../composables/useNotifications'
+
 const serviceStore = useServiceStore()
 const authStore = useAuthStore()
 const categoryStore = useCategoryStore()
 const router = useRouter()
+const { showSuccess, showError } = useNotifications()
 
 const modal = useModal<Service>()
 const searchQuery = ref('')
@@ -59,6 +62,7 @@ async function handleSave(serviceData: any) {
   try {
     if (modal.data.value) {
       await serviceStore.updateService(modal.data.value.id, serviceData)
+      showSuccess('Service updated successfully')
     } else {
       const newService = {
         ...serviceData,
@@ -69,12 +73,13 @@ async function handleSave(serviceData: any) {
         active: true
       }
       await serviceStore.createService(newService)
+      showSuccess('Service created successfully')
     }
     modal.close()
     // await serviceStore.fetchAllServices(authStore.provider?.id) // Removed: Store handles local updates now
   } catch (err) {
     console.error('Error in handleSave:', err)
-    alert('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))
+    showError('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))
   } finally {
     saving.value = false
   }

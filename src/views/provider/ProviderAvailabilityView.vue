@@ -6,6 +6,7 @@ import * as staffService from '../../services/staffService'
 import * as availabilityService from '../../services/availabilityService'
 import { useNotifications } from '../../composables/useNotifications'
 import { useModal } from '../../composables/useModal'
+import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 import type { Availability, BlockedDate, Staff } from '../../types'
 
 const authStore = useAuthStore()
@@ -17,6 +18,36 @@ const weeklySchedule = ref<Availability[]>([])
 const blockedDates = ref<BlockedDate[]>([])
 const loading = ref(false)
 const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
+
+// Confirmation logic
+const showConfirmModal = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const pendingDeleteId = ref<string | null>(null)
+
+function openDeleteConfirm(id: string) {
+  pendingDeleteId.value = id
+  confirmTitle.value = 'Remove Blocked Date'
+  confirmMessage.value = 'Are you sure you want to remove this blocked date?'
+  showConfirmModal.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!pendingDeleteId.value) return
+  
+  clearMessages()
+  try {
+    await availabilityService.deleteBlockedDate(pendingDeleteId.value)
+    showSuccess('Time off removed successfully')
+    await fetchSchedule()
+  } catch (e) {
+    console.error('Error deleting blocked date:', e)
+    showError('Failed to remove blocked date')
+  } finally {
+    showConfirmModal.value = false
+    pendingDeleteId.value = null
+  }
+}
 
 const daysOfWeek = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -157,17 +188,7 @@ async function addBlockedDate() {
 }
 
 async function deleteBlockedDate(id: string) {
-  if (!confirm('Are you sure you want to remove this blocked date?')) return
-  clearMessages()
-  
-  try {
-    await availabilityService.deleteBlockedDate(id)
-    showSuccess('Time off removed successfully')
-    await fetchSchedule()
-  } catch (e) {
-    console.error('Error deleting blocked date:', e)
-    showError('Failed to remove blocked date')
-  }
+  openDeleteConfirm(id)
 }
 </script>
 
@@ -357,5 +378,13 @@ async function deleteBlockedDate(id: string) {
         </div>
       </div>
     </div>
+    <ConfirmationModal
+      :isOpen="showConfirmModal"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :isDestructive="true"
+      @close="showConfirmModal = false"
+      @confirm="handleConfirmDelete"
+    />
   </div>
 </template>

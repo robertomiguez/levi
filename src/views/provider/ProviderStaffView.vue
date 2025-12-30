@@ -6,8 +6,11 @@ import * as staffService from '../../services/staffService'
 import type { Staff } from '../../types'
 import { useModal } from '../../composables/useModal'
 
+import { useNotifications } from '../../composables/useNotifications'
+
 const authStore = useAuthStore()
 const router = useRouter()
+const { showSuccess, showError } = useNotifications()
 
 const staff = ref<Staff[]>([])
 const loading = ref(false)
@@ -80,6 +83,7 @@ async function handleSave() {
         if (index !== -1) {
           staff.value[index] = data
         }
+        showSuccess('Staff member updated successfully')
       }
     } else {
       // Create new staff
@@ -94,13 +98,14 @@ async function handleSave() {
       // Add to local state
       if (data) {
         staff.value.push(data)
+        showSuccess('Staff member added successfully')
       }
     }
 
     modal.close()
   } catch (e) {
     console.error('Error saving staff:', e)
-    alert('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
+    showError('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
   }
 }
 

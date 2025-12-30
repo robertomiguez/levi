@@ -5,13 +5,44 @@ import { useAddressStore } from '../../stores/useAddressStore'
 import { useRouter } from 'vue-router'
 import type { ProviderAddress } from '../../types'
 import { useModal } from '../../composables/useModal'
+import { useNotifications } from '../../composables/useNotifications'
 import Modal from '../../components/common/Modal.vue'
+import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 
 const authStore = useAuthStore()
 const addressStore = useAddressStore()
 const router = useRouter()
+const { showSuccess, showError } = useNotifications()
 
 const modal = useModal<ProviderAddress>()
+
+// Confirmation logic
+const showConfirmModal = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const pendingDeleteId = ref<string | null>(null)
+
+function openDeleteConfirm(id: string) {
+  pendingDeleteId.value = id
+  confirmTitle.value = 'Delete Location'
+  confirmMessage.value = 'Are you sure you want to delete this address?'
+  showConfirmModal.value = true
+}
+
+async function handleConfirmDelete() {
+  if (!pendingDeleteId.value) return
+  
+  try {
+    await addressStore.deleteAddress(pendingDeleteId.value)
+    showSuccess('Address deleted successfully')
+  } catch (error) {
+    console.error('Error deleting address:', error)
+    showError('Failed to delete address')
+  } finally {
+    showConfirmModal.value = false
+    pendingDeleteId.value = null
+  }
+}
 
 const form = ref({
   label: '',
@@ -71,30 +102,25 @@ async function handleSave() {
       })
     }
     modal.close()
+    showSuccess('Address saved successfully')
   } catch (error) {
     console.error('Error saving address:', error)
-    alert('Failed to save address: ' + (error instanceof Error ? error.message : String(error)))
+    showError('Failed to save address: ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
 async function handleDelete(id: string) {
-  if (confirm('Are you sure you want to delete this address?')) {
-    try {
-      await addressStore.deleteAddress(id)
-    } catch (error) {
-      console.error('Error deleting address:', error)
-      alert('Failed to delete address')
-    }
-  }
+  openDeleteConfirm(id)
 }
 
 async function handleSetPrimary(id: string) {
   if (!authStore.provider) return
   try {
     await addressStore.setPrimaryAddress(id, authStore.provider.id)
+    showSuccess('Primary address updated')
   } catch (error) {
     console.error('Error setting primary address:', error)
-    alert('Failed to set primary address')
+    showError('Failed to set primary address')
   }
 }
 </script>
@@ -322,5 +348,14 @@ async function handleSetPrimary(id: string) {
         </div>
       </form>
     </Modal>
+
+    <ConfirmationModal
+      :isOpen="showConfirmModal"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :isDestructive="true"
+      @close="showConfirmModal = false"
+      @confirm="handleConfirmDelete"
+    />
   </div>
 </template>

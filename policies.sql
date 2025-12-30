@@ -25,9 +25,9 @@ ALTER TABLE "services" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "staff" ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
-DROP POLICY IF EXISTS "Authenticated users can create appointments" ON public.appointments;
-DROP POLICY IF EXISTS "Users can update their own appointments" ON public.appointments;
-DROP POLICY IF EXISTS "Users can view their own appointments" ON public.appointments;
+drop policy if exists "Allow public read access" on "public"."appointments";
+drop policy if exists "Allow auth users to insert own appointments" on "public"."appointments";
+drop policy if exists "Allow auth users to update own appointments" on "public"."appointments";
 DROP POLICY IF EXISTS "Availability is viewable by everyone" ON public.availability;
 DROP POLICY IF EXISTS "Providers can insert their own availability" ON public.availability;
 DROP POLICY IF EXISTS "Providers can update their own availability" ON public.availability;
@@ -55,27 +55,29 @@ DROP POLICY IF EXISTS "Providers can delete their own staff" ON public.staff;
 DROP POLICY IF EXISTS "Providers can insert their own staff" ON public.staff;
 DROP POLICY IF EXISTS "Providers can select their own staff" ON public.staff;
 DROP POLICY IF EXISTS "Providers can update their own staff" ON public.staff;
+DROP POLICY IF EXISTS "Public can view service_staff" ON public.service_staff;
+DROP POLICY IF EXISTS "Providers can manage their service_staff" ON public.service_staff;
 
 -- Appointments
-CREATE POLICY "Authenticated users can create appointments" ON public.appointments FOR INSERT TO authenticated WITH CHECK (
-  auth.role() = 'authenticated' AND EXISTS (
-    SELECT 1 FROM customers
-    WHERE customers.id = appointments.customer_id
-    AND customers.auth_user_id::text = auth.uid()::text
+create policy "Allow public read access" on "public"."appointments" for select using (true);
+create policy "Allow auth users to insert own appointments"
+on "public"."appointments"
+for insert
+with check (
+  exists (
+    select 1 from public.customers
+    where customers.id = appointments.customer_id
+    and customers.auth_user_id::text = auth.uid()::text
   )
 );
-CREATE POLICY "Users can update their own appointments" ON public.appointments FOR UPDATE TO authenticated USING (
-  EXISTS (
-    SELECT 1 FROM customers
-    WHERE customers.id = appointments.customer_id
-    AND customers.auth_user_id::text = auth.uid()::text
-  )
-);
-CREATE POLICY "Users can view their own appointments" ON public.appointments FOR SELECT TO authenticated USING (
-  EXISTS (
-    SELECT 1 FROM customers
-    WHERE customers.id = appointments.customer_id
-    AND customers.auth_user_id::text = auth.uid()::text
+create policy "Allow auth users to update own appointments"
+on "public"."appointments"
+for update
+using (
+  exists (
+    select 1 from public.customers
+    where customers.id = appointments.customer_id
+    and customers.auth_user_id::text = auth.uid()::text
   )
 );
 
@@ -138,6 +140,22 @@ CREATE POLICY "Providers can insert their own staff" ON public.staff FOR INSERT 
 CREATE POLICY "Providers can select their own staff" ON public.staff FOR SELECT TO authenticated USING (user_owns_provider(provider_id));
 CREATE POLICY "Providers can update their own staff" ON public.staff FOR UPDATE TO authenticated USING (user_owns_provider(provider_id)) WITH CHECK (user_owns_provider(provider_id));
       
+
+-- service_staff
+CREATE POLICY "Public can view service_staff" 
+ON public.service_staff FOR SELECT 
+USING (true);
+CREATE POLICY "Providers can manage their service_staff" 
+ON public.service_staff FOR ALL 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.services s
+        JOIN public.providers p ON s.provider_id = p.id
+        WHERE s.id = service_staff.service_id
+        AND p.auth_user_id = auth.uid()
+    )
+);
+
 -- Storage: provider-logos
 -- Note: These policies depend on the storage schema which might not be fully represented here, but added for reference.
 -- Check migration file for full bucket creation details.

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
-import { addMinutes, format, parse, isAfter, isBefore, isSameDay } from 'date-fns'
+import { addMinutes, format, parse, isAfter, isBefore } from 'date-fns'
 import type { Appointment, TimeSlot } from '../types'
 
 export const useAppointmentStore = defineStore('appointment', () => {
@@ -117,13 +117,141 @@ export const useAppointmentStore = defineStore('appointment', () => {
      * THE AVAILABILITY ENGINE - The "brain" of the scheduling system
      * Calculates available time slots for a given service, staff, and date
      */
+    async function fetchStaffAppointments(staffId: string, startDate: string, endDate: string) {
+        try {
+            const { data, error } = await supabase
+                .from('appointments')
+                .select('*')
+                .eq('staff_id', staffId)
+                .gte('appointment_date', startDate)
+                .lte('appointment_date', endDate)
+                .in('status', ['confirmed', 'pending'])
+
+            if (error) throw error
+            return data || []
+        } catch (e) {
+            console.error('Error fetching staff appointments:', e)
+            return []
+        }
+    }
+
+    function generateSlots(
+        service: any,
+        availability: any[],
+        existingAppointments: any[],
+        date: Date
+    ): TimeSlot[] {
+        const slots: TimeSlot[] = []
+        const cycleDuration = service.duration + service.buffer_after + service.buffer_before
+
+        for (const avail of availability) {
+            const scheduleStart = parse(avail.start_time, 'HH:mm:ss', date)
+            const scheduleEnd = parse(avail.end_time, 'HH:mm:ss', date)
+
+            let currentSlot = scheduleStart
+
+            while (true) {
+                const slotFaceStart = currentSlot
+                const slotFaceEnd = addMinutes(slotFaceStart, service.duration)
+                const slotTotalEnd = addMinutes(slotFaceEnd, service.buffer_after)
+
+                if (isAfter(slotTotalEnd, scheduleEnd)) {
+                    break
+                }
+
+                const collisionStart = addMinutes(slotFaceStart, -service.buffer_before)
+                const collisionEnd = addMinutes(slotFaceEnd, service.buffer_after)
+
+                let hasConflict = false
+
+                if (existingAppointments) {
+                    for (const appt of existingAppointments) {
+                        const apptFaceStart = parse(appt.start_time, 'HH:mm:ss', date)
+                        const apptFaceEnd = parse(appt.end_time, 'HH:mm:ss', date)
+
+                        // Check overlap
+                        if (
+                            isBefore(collisionStart, apptFaceEnd) &&
+                            isAfter(collisionEnd, apptFaceStart)
+                        ) {
+                            hasConflict = true
+                            break
+                        }
+                    }
+                }
+
+                slots.push({
+                    time: format(slotFaceStart, 'HH:mm'),
+                    available: !hasConflict,
+                    reason: hasConflict ? 'Already booked' : undefined
+                })
+
+                currentSlot = addMinutes(currentSlot, cycleDuration)
+            }
+        }
+        return slots
+    }
+
+    function checkAvailability(
+        service: any,
+        availability: any[],
+        existingAppointments: any[],
+        date: Date
+    ): boolean {
+        const cycleDuration = service.duration + service.buffer_after + service.buffer_before
+
+        for (const avail of availability) {
+            const scheduleStart = parse(avail.start_time, 'HH:mm:ss', date)
+            const scheduleEnd = parse(avail.end_time, 'HH:mm:ss', date)
+
+            let currentSlot = scheduleStart
+
+            while (true) {
+                const slotFaceStart = currentSlot
+                const slotFaceEnd = addMinutes(slotFaceStart, service.duration)
+                const slotTotalEnd = addMinutes(slotFaceEnd, service.buffer_after)
+
+                if (isAfter(slotTotalEnd, scheduleEnd)) {
+                    break
+                }
+
+                const collisionStart = addMinutes(slotFaceStart, -service.buffer_before)
+                const collisionEnd = addMinutes(slotFaceEnd, service.buffer_after)
+
+                let hasConflict = false
+
+                if (existingAppointments) {
+                    for (const appt of existingAppointments) {
+                        const apptFaceStart = parse(appt.start_time, 'HH:mm:ss', date)
+                        const apptFaceEnd = parse(appt.end_time, 'HH:mm:ss', date)
+
+                        if (
+                            isBefore(collisionStart, apptFaceEnd) &&
+                            isAfter(collisionEnd, apptFaceStart)
+                        ) {
+                            hasConflict = true
+                            break
+                        }
+                    }
+                }
+
+                if (!hasConflict) {
+                    return true // Found one available slot, day is available!
+                }
+
+                currentSlot = addMinutes(currentSlot, cycleDuration)
+            }
+        }
+        return false
+    }
+
     async function getAvailableSlots(
         serviceId: string,
         staffId: string,
         date: Date
     ): Promise<TimeSlot[]> {
         try {
-            // 1. Get service details (duration, buffers)
+            // 1. Get service details
             const { data: service } = await supabase
                 .from('services')
                 .select('*')
@@ -132,7 +260,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
 
             if (!service) throw new Error('Service not found')
 
-            // 2. Get staff availability for this day of week
+            // 2. Get staff availability
             const dayOfWeek = date.getDay()
             const { data: availability } = await supabase
                 .from('availability')
@@ -142,10 +270,10 @@ export const useAppointmentStore = defineStore('appointment', () => {
                 .eq('is_available', true)
 
             if (!availability || availability.length === 0) {
-                return [] // Not available on this day
+                return []
             }
 
-            // 3. Check for blocked dates
+            // 3. Check blocked dates
             const dateStr = format(date, 'yyyy-MM-dd')
             const { data: blockedDates } = await supabase
                 .from('blocked_dates')
@@ -155,66 +283,15 @@ export const useAppointmentStore = defineStore('appointment', () => {
                 .gte('end_date', dateStr)
 
             if (blockedDates && blockedDates.length > 0) {
-                return [] // Staff is blocked on this date
+                return []
             }
 
-            // 4. Get existing appointments for this staff on this date
-            const { data: existingAppointments } = await supabase
-                .from('appointments')
-                .select('*')
-                .eq('staff_id', staffId)
-                .eq('appointment_date', dateStr)
-                .in('status', ['confirmed', 'pending'])
+            // 4. Get appointments
+            const existingAppointments = await fetchStaffAppointments(staffId, dateStr, dateStr)
 
-            // 5. Generate time slots
-            const slots: TimeSlot[] = []
-            const slotInterval = 15 // 15-minute intervals
-            const totalDuration = service.duration + service.buffer_before + service.buffer_after
+            // 5. Generate slots using shared logic
+            return generateSlots(service, availability, existingAppointments, date)
 
-            for (const avail of availability) {
-                const startTime = parse(avail.start_time, 'HH:mm:ss', date)
-                const endTime = parse(avail.end_time, 'HH:mm:ss', date)
-
-                let currentSlot = startTime
-
-                while (isBefore(currentSlot, endTime)) {
-                    const slotStart = currentSlot
-                    const slotEnd = addMinutes(currentSlot, totalDuration)
-
-                    // Check if slot extends past business hours
-                    if (isAfter(slotEnd, endTime)) {
-                        break
-                    }
-
-                    // Check for conflicts with existing appointments
-                    let hasConflict = false
-                    if (existingAppointments) {
-                        for (const appt of existingAppointments) {
-                            const apptStart = parse(appt.start_time, 'HH:mm:ss', date)
-                            const apptEnd = parse(appt.end_time, 'HH:mm:ss', date)
-
-                            // Check overlap
-                            if (
-                                (isBefore(slotStart, apptEnd) && isAfter(slotEnd, apptStart)) ||
-                                isSameDay(slotStart, apptStart) && slotStart.getTime() === apptStart.getTime()
-                            ) {
-                                hasConflict = true
-                                break
-                            }
-                        }
-                    }
-
-                    slots.push({
-                        time: format(slotStart, 'HH:mm'),
-                        available: !hasConflict,
-                        reason: hasConflict ? 'Already booked' : undefined
-                    })
-
-                    currentSlot = addMinutes(currentSlot, slotInterval)
-                }
-            }
-
-            return slots.filter(slot => slot.available)
         } catch (e) {
             console.error('Error calculating available slots:', e)
             throw e
@@ -229,6 +306,9 @@ export const useAppointmentStore = defineStore('appointment', () => {
         createAppointment,
         updateAppointment,
         deleteAppointment,
-        getAvailableSlots
+        getAvailableSlots,
+        fetchStaffAppointments,
+        generateSlots,
+        checkAvailability
     }
 })

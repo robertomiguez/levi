@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useCategoryStore } from '../../stores/useCategoryStore'
+import { useStaffStore } from '../../stores/useStaffStore'
+import { useAuthStore } from '../../stores/useAuthStore'
 import Modal from '../../components/common/Modal.vue'
 
 const props = defineProps<{
@@ -12,6 +14,8 @@ console.log('ServiceFormModal mounted', props.service)
 
 const emit = defineEmits(['close', 'save'])
 const categoryStore = useCategoryStore()
+const staffStore = useStaffStore()
+const authStore = useAuthStore()
 
 const form = ref({
   name: '',
@@ -20,14 +24,23 @@ const form = ref({
   duration: 30,
   description: '',
   buffer_before: 0,
-  buffer_after: 0
+  buffer_after: 0,
+  staff_ids: [] as string[]
 })
 
 onMounted(async () => {
+  const promises = []
+  
   // Only fetch if we don't have categories yet
   if (categoryStore.categories.length === 0) {
-    await categoryStore.fetchCategories()
+    promises.push(categoryStore.fetchCategories())
   }
+  
+  if (authStore.provider && staffStore.staff.length === 0) {
+    promises.push(staffStore.fetchStaff(authStore.provider.id))
+  }
+  
+  await Promise.all(promises)
   
   if (props.service) {
     form.value = {
@@ -37,7 +50,8 @@ onMounted(async () => {
       duration: props.service.duration,
       description: props.service.description || '',
       buffer_before: props.service.buffer_before || 0,
-      buffer_after: props.service.buffer_after || 0
+      buffer_after: props.service.buffer_after || 0,
+      staff_ids: props.service.staff?.map((s: any) => s.id) || []
     }
   } else {
     // For new services, verify we have a valid initial state
@@ -130,6 +144,29 @@ function handleSubmit() {
           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
           placeholder="Describe the service..."
         ></textarea>
+      </div>
+
+      <!-- Staff Selection -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Assign Staff</label>
+        <div class="border border-gray-300 rounded-md max-h-48 overflow-y-auto p-2 space-y-2">
+          <div v-if="staffStore.staff.length === 0" class="text-sm text-gray-500 italic px-2">
+            No active staff members found.
+          </div>
+          <div v-for="member in staffStore.staff" :key="member.id" class="flex items-center">
+            <input
+              :id="'staff-' + member.id"
+              type="checkbox"
+              :value="member.id"
+              v-model="form.staff_ids"
+              class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+            <label :for="'staff-' + member.id" class="ml-2 block text-sm text-gray-900 select-none cursor-pointer flex-1">
+              {{ member.name }}
+            </label>
+          </div>
+        </div>
+        <p class="mt-1 text-xs text-gray-500">Select which staff members can perform this service.</p>
       </div>
 
       <div class="grid grid-cols-2 gap-4">

@@ -20,6 +20,7 @@ export interface Service {
     created_at?: string
     updated_at?: string
     provider?: Provider // Joined data
+    staff?: Staff[] // Joined data
 }
 
 export interface Customer {

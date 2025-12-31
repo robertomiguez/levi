@@ -102,7 +102,7 @@ export interface BlockedDate {
     reason?: string
 }
 
-export type AppointmentStatus = 'confirmed' | 'pending' | 'cancelled' | 'no-show'
+export type AppointmentStatus = 'confirmed' | 'pending' | 'cancelled' | 'no-show' | 'completed'
 
 export interface Appointment {
     id: string
@@ -117,6 +117,9 @@ export interface Appointment {
     created_at?: string
     updated_at?: string
     customer?: Customer // Joined data
+    service?: Service // Joined data
+    provider?: Provider // Joined data
+    staff?: Staff // Joined data
 }
 
 export interface TimeSlot {

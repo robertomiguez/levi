@@ -32,6 +32,12 @@ const router = createRouter({
             component: () => import('../views/ProfileCustomerView.vue'),
             meta: { requiresAuth: true }
         },
+        {
+            path: '/my-bookings',
+            name: 'CustomerBookings',
+            component: () => import('../views/CustomerBookingsView.vue'),
+            meta: { requiresAuth: true }
+        },
         // Provider routes
         {
             path: '/provider',

@@ -41,6 +41,41 @@ export const useAppointmentStore = defineStore('appointment', () => {
         }
     }
 
+    async function fetchCustomerAppointments(customerId: string) {
+        loading.value = true
+        error.value = null
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('appointments')
+                .select(`
+                    *,
+                    service:services(
+                        name, 
+                        price, 
+                        duration,
+                        provider:providers(business_name, logo_url)
+                    ),
+                    staff:staff(name)
+                `)
+                .eq('customer_id', customerId)
+                .order('appointment_date', { ascending: false }) // Newest first
+                .order('start_time', { ascending: false })
+
+            if (fetchError) throw fetchError
+
+            // Map the nested provider up to the top level for easier usage in components if desired,
+            // or just let the component handle the nesting.
+            // Let's keep it clean and return the data structure as returned by Supabase, 
+            // but we need to verify if the component expects booking.provider or booking.service.provider.
+            appointments.value = data || []
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Failed to fetch customer bookings'
+            console.error('Error fetching customer bookings:', e)
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function createAppointment(appointment: Omit<Appointment, 'id' | 'created_at' | 'updated_at'>) {
         loading.value = true
         error.value = null
@@ -309,6 +344,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
         getAvailableSlots,
         fetchStaffAppointments,
         generateSlots,
-        checkAvailability
+        checkAvailability,
+        fetchCustomerAppointments
     }
 })

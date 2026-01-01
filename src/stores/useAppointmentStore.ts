@@ -178,6 +178,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
     ): TimeSlot[] {
         const slots: TimeSlot[] = []
         const cycleDuration = service.duration + service.buffer_after + service.buffer_before
+        const minimumBookingTime = addMinutes(new Date(), 120) // 2 hours from now
 
         for (const avail of availability) {
             const scheduleStart = parse(avail.start_time, 'HH:mm:ss', date)
@@ -198,8 +199,16 @@ export const useAppointmentStore = defineStore('appointment', () => {
                 const collisionEnd = addMinutes(slotFaceEnd, service.buffer_after)
 
                 let hasConflict = false
+                let conflictReason: string | undefined
 
-                if (existingAppointments) {
+                // Check against Minimum Booking Time (2 hours notice)
+                // This handles both "too soon today" and "past dates"
+                if (isBefore(slotFaceStart, minimumBookingTime)) {
+                    hasConflict = true
+                    conflictReason = 'Too soon'
+                }
+
+                if (!hasConflict && existingAppointments) {
                     for (const appt of existingAppointments) {
                         const apptFaceStart = parse(appt.start_time, 'HH:mm:ss', date)
                         const apptFaceEnd = parse(appt.end_time, 'HH:mm:ss', date)
@@ -210,6 +219,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
                             isAfter(collisionEnd, apptFaceStart)
                         ) {
                             hasConflict = true
+                            conflictReason = 'Already booked'
                             break
                         }
                     }
@@ -218,7 +228,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
                 slots.push({
                     time: format(slotFaceStart, 'HH:mm'),
                     available: !hasConflict,
-                    reason: hasConflict ? 'Already booked' : undefined
+                    reason: conflictReason
                 })
 
                 currentSlot = addMinutes(currentSlot, cycleDuration)
@@ -234,6 +244,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
         date: Date
     ): boolean {
         const cycleDuration = service.duration + service.buffer_after + service.buffer_before
+        const minimumBookingTime = addMinutes(new Date(), 120) // 2 hours from now
 
         for (const avail of availability) {
             const scheduleStart = parse(avail.start_time, 'HH:mm:ss', date)
@@ -255,7 +266,12 @@ export const useAppointmentStore = defineStore('appointment', () => {
 
                 let hasConflict = false
 
-                if (existingAppointments) {
+                // Check Minimum Booking Time
+                if (isBefore(slotFaceStart, minimumBookingTime)) {
+                    hasConflict = true
+                }
+
+                if (!hasConflict && existingAppointments) {
                     for (const appt of existingAppointments) {
                         const apptFaceStart = parse(appt.start_time, 'HH:mm:ss', date)
                         const apptFaceEnd = parse(appt.end_time, 'HH:mm:ss', date)

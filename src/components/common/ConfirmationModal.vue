@@ -24,9 +24,11 @@ const emit = defineEmits<{
     maxWidth="sm:max-w-md"
   >
     <div class="mt-2">
-      <p class="text-sm text-gray-500">
-        {{ message }}
-      </p>
+      <slot>
+        <p class="text-sm text-gray-500 whitespace-pre-wrap">
+          {{ message }}
+        </p>
+      </slot>
     </div>
 
     <div class="mt-6 flex justify-end gap-3">

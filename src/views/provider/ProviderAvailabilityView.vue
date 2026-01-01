@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useAppointmentStore } from '../../stores/useAppointmentStore'
 import { useRouter } from 'vue-router'
+import { format, parseISO } from 'date-fns'
 import * as staffService from '../../services/staffService'
 import * as availabilityService from '../../services/availabilityService'
 import { useNotifications } from '../../composables/useNotifications'
@@ -10,11 +12,13 @@ import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 import type { Availability, BlockedDate, Staff } from '../../types'
 
 const authStore = useAuthStore()
+const appointmentStore = useAppointmentStore()
 const router = useRouter()
 
 const staff = ref<Staff[]>([])
 const selectedStaffId = ref<string>('')
 const weeklySchedule = ref<Availability[]>([])
+const originalSchedule = ref<Availability[]>([])
 const blockedDates = ref<BlockedDate[]>([])
 const loading = ref(false)
 const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
@@ -32,22 +36,7 @@ function openDeleteConfirm(id: string) {
   showConfirmModal.value = true
 }
 
-async function handleConfirmDelete() {
-  if (!pendingDeleteId.value) return
-  
-  clearMessages()
-  try {
-    await availabilityService.deleteBlockedDate(pendingDeleteId.value)
-    showSuccess('Time off removed successfully')
-    await fetchSchedule()
-  } catch (e) {
-    console.error('Error deleting blocked date:', e)
-    showError('Failed to remove blocked date')
-  } finally {
-    showConfirmModal.value = false
-    pendingDeleteId.value = null
-  }
-}
+// Old handleConfirmDelete removed, logic moved to handleConfirmSave / performDeleteBlockedDate
 
 const daysOfWeek = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -81,19 +70,19 @@ async function fetchStaff() {
   }
 }
 
+function onStaffChange() {
+  clearMessages()
+  fetchSchedule()
+}
+
 async function fetchSchedule() {
   if (!selectedStaffId.value) return
   loading.value = true
-  // Don't clear messages here, as it may be called after a save operation
   
   try {
-    // Fetch weekly availability
     const availData = await availabilityService.fetchAvailability(selectedStaffId.value)
-
-    // Fetch blocked dates
     const blockedData = await availabilityService.fetchBlockedDates(selectedStaffId.value)
 
-    // Initialize schedule if empty
     if (!availData || availData.length === 0) {
       weeklySchedule.value = daysOfWeek.map((_, index) => ({
         id: `temp-${index}`,
@@ -102,10 +91,9 @@ async function fetchSchedule() {
         day_of_week: index,
         start_time: '09:00',
         end_time: '17:00',
-        is_available: index >= 1 && index <= 5 // Mon-Fri default
+        is_available: index >= 1 && index <= 5
       }))
     } else {
-      // Merge with defaults to ensure all days exist
       weeklySchedule.value = daysOfWeek.map((_, index) => {
         const existing = availData.find(a => a.day_of_week === index)
         return existing || {
@@ -120,6 +108,9 @@ async function fetchSchedule() {
       })
     }
 
+    // Clone for comparison
+    originalSchedule.value = JSON.parse(JSON.stringify(weeklySchedule.value))
+
     blockedDates.value = blockedData || []
   } catch (e) {
     console.error('Error fetching schedule:', e)
@@ -129,15 +120,137 @@ async function fetchSchedule() {
   }
 }
 
-function onStaffChange() {
+// ...
+
+const conflictList = ref<{day: string, count: number, samples: string[]}[]>([])
+
+async function checkForConflicts(): Promise<boolean> {
+  const futureAppointments = await appointmentStore.fetchFutureAppointments(selectedStaffId.value)
+  if (!futureAppointments.length) return false
+
+  // Group bookings by day
+  const bookingsByDay = new Map<string, any[]>()
+  
+  for (const appt of futureAppointments) {
+    if (!appt.appointment_date) continue 
+    const date = parseISO(appt.appointment_date)
+    const dayIndex = date.getDay()
+    const dayName = daysOfWeek[dayIndex]
+    
+    if (!dayName) continue
+    
+    if (!bookingsByDay.has(dayName)) {
+      bookingsByDay.set(dayName, [])
+    }
+    bookingsByDay.get(dayName)?.push(appt)
+  }
+
+  // Check against the proposed schedule
+  const conflicts: {day: string, count: number, samples: string[]}[] = []
+
+  for (const slot of weeklySchedule.value) {
+    const dayName = daysOfWeek[slot.day_of_week]
+    if (!dayName) continue
+    const originalSlot = originalSchedule.value.find(s => s.day_of_week === slot.day_of_week)
+    
+    // Warn ONLY if:
+    // 1. Day is actively MARKED CLOSED (is_available === false)
+    // 2. AND it WAS PREVIOUSLY OPEN (originalSlot?.is_available === true)
+    //    (This prevents warning about days that were ALREADY closed in DB)
+    if (!slot.is_available && originalSlot && originalSlot.is_available) {
+       const bookings = bookingsByDay.get(dayName)
+       if (bookings && bookings.length > 0) {
+         conflicts.push({
+           day: dayName,
+           count: bookings.length,
+           samples: bookings.slice(0, 3).map(a => {
+             const d = a.appointment_date ? format(parseISO(a.appointment_date), 'MMM d') : 'Unknown Date'
+             const t = a.start_time ? a.start_time.slice(0, 5) : '??:??'
+             return `${d} @ ${t}`
+           })
+         })
+       }
+    }
+  }
+
+  if (conflicts.length > 0) {
+    conflictList.value = conflicts
+    confirmTitle.value = 'Important: Schedule Conflict'
+    // Message is unused when slot is active, but keeping fallback
+    confirmMessage.value = 'You have active bookings on days you are marking as closed.' 
+    
+    pendingSave.value = true
+    showConfirmModal.value = true
+    return true
+  }
+  
+  return false
+}
+
+const pendingSave = ref(false)
+
+async function handleConfirmSave() {
+  showConfirmModal.value = false
+  if (pendingSave.value) {
+    await performSave()
+    pendingSave.value = false
+  } else if (pendingDeleteId.value) {
+    await performDeleteBlockedDate()
+  }
+}
+
+async function handleCloseModal() {
+  showConfirmModal.value = false
+  if (pendingSave.value) {
+    // User cancelled the save operation triggered by conflict warning
+    // Revert changes by re-fetching the schedule
+    pendingSave.value = false
+    await fetchSchedule()
+  } else {
+    pendingDeleteId.value = null
+  }
+}
+
+// Renamed original handleConfirmDelete to generic or separate
+async function performDeleteBlockedDate() {
+    if (!pendingDeleteId.value) return
+  
   clearMessages()
-  fetchSchedule()
+  try {
+    await availabilityService.deleteBlockedDate(pendingDeleteId.value)
+    showSuccess('Time off removed successfully')
+    await fetchSchedule()
+  } catch (e) {
+    console.error('Error deleting blocked date:', e)
+    showError('Failed to remove blocked date')
+  } finally {
+    showConfirmModal.value = false
+    pendingDeleteId.value = null
+  }
 }
 
 async function saveSchedule() {
   loading.value = true
   clearMessages()
-  
+
+  try {
+    // Check for conflicts first
+    const hasConflicts = await checkForConflicts()
+    if (hasConflicts) {
+        loading.value = false
+        return
+    }
+    
+    await performSave()
+  } catch (e) {
+    console.error('Error in save flow:', e)
+    showError('An error occurred')
+    loading.value = false
+  }
+}
+
+async function performSave() {
+  loading.value = true
   try {
     // Upsert availability
     const updates = weeklySchedule.value.map(slot => {
@@ -383,8 +496,30 @@ async function deleteBlockedDate(id: string) {
       :title="confirmTitle"
       :message="confirmMessage"
       :isDestructive="true"
-      @close="showConfirmModal = false"
-      @confirm="handleConfirmDelete"
-    />
+      @close="handleCloseModal"
+      @confirm="handleConfirmSave"
+    >
+      <div v-if="pendingSave && conflictList.length > 0" class="mt-2 text-sm text-gray-500">
+        <p class="mb-3">
+          You have active bookings on days that are being set to unavailable:
+        </p>
+        <ul class="space-y-3">
+          <li v-for="conflict in conflictList" :key="conflict.day">
+            <div class="font-medium text-red-600">
+              {{ conflict.day }} ({{ conflict.count }} bookings)
+            </div>
+            <ul class="pl-4 mt-1 space-y-1 text-gray-400 text-xs">
+              <li v-for="sample in conflict.samples" :key="sample">
+                - {{ sample }}
+              </li>
+              <li v-if="conflict.count > 3">...and more</li>
+            </ul>
+          </li>
+        </ul>
+        <p class="mt-4 font-medium text-gray-700">
+          These appointments will remain scheduled. Do you wish to proceed?
+        </p>
+      </div>
+    </ConfirmationModal>
   </div>
 </template>

@@ -170,6 +170,32 @@ export const useAppointmentStore = defineStore('appointment', () => {
         }
     }
 
+    async function fetchFutureAppointments(staffId: string) {
+        try {
+            const today = format(new Date(), 'yyyy-MM-dd')
+            const { data, error } = await supabase
+                .from('appointments')
+                .select(`
+                    id,
+                    appointment_date,
+                    start_time,
+                    status,
+                    service:services(name),
+                    customer:customers(name)
+                `)
+                .eq('staff_id', staffId)
+                .gte('appointment_date', today)
+                .in('status', ['confirmed', 'pending'])
+                .order('appointment_date', { ascending: true })
+
+            if (error) throw error
+            return data || []
+        } catch (e) {
+            console.error('Error fetching future appointments:', e)
+            return []
+        }
+    }
+
     function generateSlots(
         service: any,
         availability: any[],
@@ -359,6 +385,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
         deleteAppointment,
         getAvailableSlots,
         fetchStaffAppointments,
+        fetchFutureAppointments,
         generateSlots,
         checkAvailability,
         fetchCustomerAppointments

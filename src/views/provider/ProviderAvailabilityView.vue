@@ -9,6 +9,7 @@ import * as availabilityService from '../../services/availabilityService'
 import { useNotifications } from '../../composables/useNotifications'
 import { useModal } from '../../composables/useModal'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+import Modal from '../../components/common/Modal.vue'
 import type { Availability, BlockedDate, Staff } from '../../types'
 
 const authStore = useAuthStore()
@@ -28,6 +29,7 @@ const showConfirmModal = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
 const pendingDeleteId = ref<string | null>(null)
+const pendingSave = ref(false)
 
 function openDeleteConfirm(id: string) {
   pendingDeleteId.value = id
@@ -35,8 +37,6 @@ function openDeleteConfirm(id: string) {
   confirmMessage.value = 'Are you sure you want to remove this blocked date?'
   showConfirmModal.value = true
 }
-
-// Old handleConfirmDelete removed, logic moved to handleConfirmSave / performDeleteBlockedDate
 
 const daysOfWeek = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -54,7 +54,6 @@ async function fetchStaff() {
   if (!authStore.provider?.id) return
   try {
     const data = await staffService.fetchStaff(authStore.provider.id)
-    // Filter for active staff only, as per original logic
     const activeStaff = data.filter(s => s.active)
     
     staff.value = activeStaff || []
@@ -84,22 +83,22 @@ async function fetchSchedule() {
     const blockedData = await availabilityService.fetchBlockedDates(selectedStaffId.value)
 
     if (!availData || availData.length === 0) {
-      weeklySchedule.value = daysOfWeek.map((_, index) => ({
+      weeklySchedule.value = daysOfWeek.map((_, index: number) => ({
         id: `temp-${index}`,
         staff_id: selectedStaffId.value,
-        provider_id: authStore.provider?.id,
+        provider_id: authStore.provider?.id || '',
         day_of_week: index,
         start_time: '09:00',
         end_time: '17:00',
         is_available: index >= 1 && index <= 5
       }))
     } else {
-      weeklySchedule.value = daysOfWeek.map((_, index) => {
+      weeklySchedule.value = daysOfWeek.map((_, index: number) => {
         const existing = availData.find(a => a.day_of_week === index)
         return existing || {
           id: `temp-${index}`,
           staff_id: selectedStaffId.value,
-          provider_id: authStore.provider?.id,
+          provider_id: authStore.provider?.id || '',
           day_of_week: index,
           start_time: '09:00',
           end_time: '17:00',
@@ -108,9 +107,7 @@ async function fetchSchedule() {
       })
     }
 
-    // Clone for comparison
     originalSchedule.value = JSON.parse(JSON.stringify(weeklySchedule.value))
-
     blockedDates.value = blockedData || []
   } catch (e) {
     console.error('Error fetching schedule:', e)
@@ -120,20 +117,19 @@ async function fetchSchedule() {
   }
 }
 
-// ...
-
 const conflictList = ref<{day: string, count: number, samples: string[]}[]>([])
 
 async function checkForConflicts(): Promise<boolean> {
   const futureAppointments = await appointmentStore.fetchFutureAppointments(selectedStaffId.value)
   if (!futureAppointments.length) return false
 
-  // Group bookings by day
   const bookingsByDay = new Map<string, any[]>()
   
   for (const appt of futureAppointments) {
-    if (!appt.appointment_date) continue 
-    const date = parseISO(appt.appointment_date)
+    const dateStr = appt.appointment_date
+    if (!dateStr) continue 
+    
+    const date = parseISO(dateStr)
     const dayIndex = date.getDay()
     const dayName = daysOfWeek[dayIndex]
     
@@ -145,7 +141,6 @@ async function checkForConflicts(): Promise<boolean> {
     bookingsByDay.get(dayName)?.push(appt)
   }
 
-  // Check against the proposed schedule
   const conflicts: {day: string, count: number, samples: string[]}[] = []
 
   for (const slot of weeklySchedule.value) {
@@ -153,10 +148,6 @@ async function checkForConflicts(): Promise<boolean> {
     if (!dayName) continue
     const originalSlot = originalSchedule.value.find(s => s.day_of_week === slot.day_of_week)
     
-    // Warn ONLY if:
-    // 1. Day is actively MARKED CLOSED (is_available === false)
-    // 2. AND it WAS PREVIOUSLY OPEN (originalSlot?.is_available === true)
-    //    (This prevents warning about days that were ALREADY closed in DB)
     if (!slot.is_available && originalSlot && originalSlot.is_available) {
        const bookings = bookingsByDay.get(dayName)
        if (bookings && bookings.length > 0) {
@@ -176,7 +167,6 @@ async function checkForConflicts(): Promise<boolean> {
   if (conflicts.length > 0) {
     conflictList.value = conflicts
     confirmTitle.value = 'Important: Schedule Conflict'
-    // Message is unused when slot is active, but keeping fallback
     confirmMessage.value = 'You have active bookings on days you are marking as closed.' 
     
     pendingSave.value = true
@@ -186,8 +176,6 @@ async function checkForConflicts(): Promise<boolean> {
   
   return false
 }
-
-const pendingSave = ref(false)
 
 async function handleConfirmSave() {
   showConfirmModal.value = false
@@ -202,8 +190,6 @@ async function handleConfirmSave() {
 async function handleCloseModal() {
   showConfirmModal.value = false
   if (pendingSave.value) {
-    // User cancelled the save operation triggered by conflict warning
-    // Revert changes by re-fetching the schedule
     pendingSave.value = false
     await fetchSchedule()
   } else {
@@ -211,13 +197,13 @@ async function handleCloseModal() {
   }
 }
 
-// Renamed original handleConfirmDelete to generic or separate
 async function performDeleteBlockedDate() {
-    if (!pendingDeleteId.value) return
+  if (!pendingDeleteId.value) return
+  const idToDelete = pendingDeleteId.value
   
   clearMessages()
   try {
-    await availabilityService.deleteBlockedDate(pendingDeleteId.value)
+    await availabilityService.deleteBlockedDate(idToDelete)
     showSuccess('Time off removed successfully')
     await fetchSchedule()
   } catch (e) {
@@ -234,7 +220,6 @@ async function saveSchedule() {
   clearMessages()
 
   try {
-    // Check for conflicts first
     const hasConflicts = await checkForConflicts()
     if (hasConflicts) {
         loading.value = false
@@ -252,10 +237,8 @@ async function saveSchedule() {
 async function performSave() {
   loading.value = true
   try {
-    // Upsert availability
     const updates = weeklySchedule.value.map(slot => {
       const { id, ...data } = slot
-      // Remove temp IDs
       return String(id).startsWith('temp-') ? data : slot
     })
 
@@ -272,25 +255,54 @@ async function performSave() {
 }
 
 // Blocked Dates Logic
-const blockModal = useModal()
+const timeOffModal = useModal()
 const blockForm = ref({
   start_date: '',
   end_date: '',
   reason: ''
 })
+const timeOffConflicts = ref<{date: string, time: string, customer?: string}[]>([])
 
 async function addBlockedDate() {
+  console.log('addBlockedDate called', { staffId: selectedStaffId.value, form: blockForm.value })
+  if (!selectedStaffId.value) {
+    console.log('No staff selected, returning early')
+    return
+  }
   clearMessages()
+  timeOffConflicts.value = []
   
   try {
+    console.log('Checking for conflicts...')
+    // Fetch actual appointments in the date range
+    const appointments = await appointmentStore.fetchStaffAppointments(
+      selectedStaffId.value,
+      blockForm.value.start_date,
+      blockForm.value.end_date
+    )
+    console.log('Appointments found:', appointments.length)
+
+    if (appointments.length > 0) {
+      // Build detailed conflict list
+      timeOffConflicts.value = appointments.slice(0, 5).map(appt => ({
+        date: appt.appointment_date ? format(parseISO(appt.appointment_date), 'MMM d, yyyy') : 'Unknown',
+        time: appt.start_time ? appt.start_time.slice(0, 5) : '??:??',
+        customer: appt.customer?.name
+      }))
+      showError(`Cannot add time off: ${appointments.length} appointment(s) exist during this period.`)
+      return
+    }
+
+    console.log('Creating blocked date...')
     await availabilityService.createBlockedDate({
         staff_id: selectedStaffId.value,
-        provider_id: authStore.provider?.id,
+        provider_id: authStore.provider?.id || '',
         start_date: blockForm.value.start_date,
         end_date: blockForm.value.end_date,
         reason: blockForm.value.reason
       })
-    blockModal.close()
+    console.log('Blocked date created successfully')
+    timeOffModal.close()
     blockForm.value = { start_date: '', end_date: '', reason: '' }
     showSuccess('Time off added successfully')
     await fetchSchedule()
@@ -300,7 +312,7 @@ async function addBlockedDate() {
   }
 }
 
-async function deleteBlockedDate(id: string) {
+async function handleDeleteBlockedDate(id: string) {
   openDeleteConfirm(id)
 }
 </script>
@@ -421,7 +433,7 @@ async function deleteBlockedDate(id: string) {
               <p class="text-sm text-gray-500">Vacations & holidays</p>
             </div>
             <button 
-              @click="blockModal.open()"
+              @click="timeOffModal.open()"
               class="text-primary-600 hover:text-primary-700 text-sm font-medium"
             >
               + Add Time Off
@@ -435,7 +447,7 @@ async function deleteBlockedDate(id: string) {
             <div v-else class="space-y-3">
               <div v-for="block in blockedDates" :key="block.id" class="bg-gray-50 rounded-lg p-3 border border-gray-200 relative group">
                 <button 
-                  @click="deleteBlockedDate(block.id)"
+                  @click="handleDeleteBlockedDate(block.id)"
                   class="absolute top-2 right-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,43 +466,80 @@ async function deleteBlockedDate(id: string) {
       </div>
     </div>
 
-    <!-- Block Date Modal -->
-    <div v-if="blockModal.isOpen.value" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="blockModal.close()"></div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Add Time Off</h3>
-            <form @submit.prevent="addBlockedDate" class="mt-4 space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Reason</label>
-                <input v-model="blockForm.reason" type="text" required placeholder="e.g. Vacation" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-              </div>
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Start Date</label>
-                  <input v-model="blockForm.start_date" type="date" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">End Date</label>
-                  <input v-model="blockForm.end_date" type="date" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                </div>
-              </div>
-              <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm">
-                  Save
-                </button>
-                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm" @click="blockModal.close()">
-                  Cancel
-                </button>
-              </div>
-            </form>
+    <!-- Time Off Modal -->
+    <Modal
+      :isOpen="timeOffModal.isOpen.value"
+      title="Add Time Off"
+      @close="timeOffModal.close()"
+    >
+      <form @submit.prevent="addBlockedDate" class="mt-4 space-y-4">
+        <!-- Error Message with Appointment Details -->
+        <div v-if="errorMessage" class="rounded-md bg-red-50 p-3 mb-2">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <div class="ml-3 flex-1">
+              <p class="text-sm font-medium text-red-800">{{ errorMessage }}</p>
+              <!-- Appointment Details List -->
+              <ul v-if="timeOffConflicts.length > 0" class="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
+                <li v-for="(conflict, idx) in timeOffConflicts" :key="idx">
+                  {{ conflict.date }} @ {{ conflict.time }}<span v-if="conflict.customer"> - {{ conflict.customer }}</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Reason</label>
+          <input 
+            v-model="blockForm.reason" 
+            type="text" 
+            required 
+            placeholder="e.g. Vacation" 
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          >
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Start Date</label>
+            <input 
+              v-model="blockForm.start_date" 
+              type="date" 
+              required 
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">End Date</label>
+            <input 
+              v-model="blockForm.end_date" 
+              type="date" 
+              required 
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            >
+          </div>
+        </div>
+        <div class="mt-5 sm:mt-6 flex justify-end gap-3">
+          <button 
+            type="button" 
+            class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm" 
+            @click="timeOffModal.close()"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </Modal>
+
     <ConfirmationModal
       :isOpen="showConfirmModal"
       :title="confirmTitle"

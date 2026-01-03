@@ -33,6 +33,9 @@ DROP POLICY IF EXISTS "Providers can insert their own availability" ON public.av
 DROP POLICY IF EXISTS "Providers can update their own availability" ON public.availability;
 DROP POLICY IF EXISTS "Providers can delete their own availability" ON public.availability;
 DROP POLICY IF EXISTS "Blocked dates are viewable by everyone" ON public.blocked_dates;
+DROP POLICY IF EXISTS "Providers can insert their own blocked dates" ON public.blocked_dates;
+DROP POLICY IF EXISTS "Providers can update their own blocked dates" ON public.blocked_dates;
+DROP POLICY IF EXISTS "Providers can delete their own blocked dates" ON public.blocked_dates;
 DROP POLICY IF EXISTS "Public categories are viewable by everyone" ON public.categories;
 DROP POLICY IF EXISTS "Users can insert their own profile" ON public.customers;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.customers;
@@ -87,6 +90,9 @@ CREATE POLICY "Providers can insert their own availability" ON public.availabili
 CREATE POLICY "Providers can update their own availability" ON public.availability FOR UPDATE TO authenticated USING (user_owns_provider(provider_id)) WITH CHECK (user_owns_provider(provider_id));
 CREATE POLICY "Providers can delete their own availability" ON public.availability FOR DELETE TO authenticated USING (user_owns_provider(provider_id));
 CREATE POLICY "Blocked dates are viewable by everyone" ON public.blocked_dates FOR SELECT TO public USING (true);
+CREATE POLICY "Providers can insert their own blocked dates" ON public.blocked_dates FOR INSERT TO authenticated WITH CHECK (user_owns_provider(provider_id));
+CREATE POLICY "Providers can update their own blocked dates" ON public.blocked_dates FOR UPDATE TO authenticated USING (user_owns_provider(provider_id)) WITH CHECK (user_owns_provider(provider_id));
+CREATE POLICY "Providers can delete their own blocked dates" ON public.blocked_dates FOR DELETE TO authenticated USING (user_owns_provider(provider_id));
 CREATE POLICY "Public categories are viewable by everyone" ON public.categories FOR SELECT TO public USING (true);
 
 -- Customers

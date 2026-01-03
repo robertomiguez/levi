@@ -375,6 +375,27 @@ export const useAppointmentStore = defineStore('appointment', () => {
         }
     }
 
+    async function checkConflictsInRange(staffId: string, startDate: string, endDate: string): Promise<boolean> {
+        try {
+            const { count, error: fetchError } = await supabase
+                .from('appointments')
+                .select('*', { count: 'exact', head: true })
+                .eq('staff_id', staffId)
+                .gte('appointment_date', startDate)
+                .lte('appointment_date', endDate)
+                .in('status', ['confirmed', 'pending'])
+
+            if (fetchError) throw fetchError
+            return (count || 0) > 0
+        } catch (e) {
+            console.error('Error checking conflicts in range:', e)
+            return false
+        }
+    }
+
+    // Initialize store
+    console.log('Appointment store initialized with checkConflictsInRange')
+
     return {
         appointments,
         loading,
@@ -388,6 +409,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
         fetchFutureAppointments,
         generateSlots,
         checkAvailability,
-        fetchCustomerAppointments
+        fetchCustomerAppointments,
+        checkConflictsInRange
     }
 })

@@ -387,7 +387,7 @@ const dayStatusMap = computed(() => {
     })
     
     if (isBlocked) {
-      map[dateStr] = 'Busy'
+      map[dateStr] = 'Unavailable'
       return
     }
 

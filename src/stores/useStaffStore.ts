@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
-import type { Staff, Availability, BlockedDate } from '../types'
+import type { Staff, Availability, BlockedDate, ProviderAddress } from '../types'
 
 export const useStaffStore = defineStore('staff', () => {
     const staff = ref<Staff[]>([])
@@ -147,6 +147,55 @@ export const useStaffStore = defineStore('staff', () => {
         }
     }
 
+    async function fetchStaffAddresses(staffId: string): Promise<ProviderAddress[]> {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('staff_addresses')
+                .select(`
+                    id,
+                    staff_id,
+                    address_id,
+                    address:provider_addresses(*)
+                `)
+                .eq('staff_id', staffId)
+
+            if (fetchError) throw fetchError
+            console.log('Raw staff_addresses data:', data)
+            // Map to addresses and filter nulls
+            const addresses = data?.map(sa => sa.address as unknown as ProviderAddress).filter(Boolean) || []
+            console.log('Mapped addresses:', addresses)
+            return addresses
+        } catch (e) {
+            console.error('Error fetching staff addresses:', e)
+            return []
+        }
+    }
+
+    async function syncStaffAddresses(staffId: string, addressIds: string[]) {
+        try {
+            // Delete existing
+            await supabase
+                .from('staff_addresses')
+                .delete()
+                .eq('staff_id', staffId)
+
+            // Insert new
+            if (addressIds.length > 0) {
+                const inserts = addressIds.map(addressId => ({
+                    staff_id: staffId,
+                    address_id: addressId
+                }))
+                const { error: insertError } = await supabase
+                    .from('staff_addresses')
+                    .insert(inserts)
+                if (insertError) throw insertError
+            }
+        } catch (e) {
+            console.error('Error syncing staff addresses:', e)
+            throw e
+        }
+    }
+
     return {
         staff,
         availability,
@@ -158,6 +207,8 @@ export const useStaffStore = defineStore('staff', () => {
         fetchBlockedDates,
         upsertAvailability,
         createBlockedDate,
-        deleteBlockedDate
+        deleteBlockedDate,
+        fetchStaffAddresses,
+        syncStaffAddresses
     }
 })

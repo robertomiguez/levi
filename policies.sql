@@ -23,6 +23,7 @@ ALTER TABLE "provider_addresses" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "providers" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "services" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "staff" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE staff_addresses ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
 drop policy if exists "Allow public read access" on "public"."appointments";
@@ -60,6 +61,8 @@ DROP POLICY IF EXISTS "Providers can select their own staff" ON public.staff;
 DROP POLICY IF EXISTS "Providers can update their own staff" ON public.staff;
 DROP POLICY IF EXISTS "Public can view service_staff" ON public.service_staff;
 DROP POLICY IF EXISTS "Providers can manage their service_staff" ON public.service_staff;
+DROP POLICY IF EXISTS "Public can view staff_addresses" ON public.staff_addresses;
+DROP POLICY IF EXISTS "Providers can manage staff_addresses" ON public.staff_addresses;
 
 -- Appointments
 create policy "Allow public read access" on "public"."appointments" for select using (true);
@@ -115,9 +118,7 @@ CREATE POLICY "Providers can update their own addresses" ON public.provider_addr
 CREATE POLICY "Providers can view their own addresses" ON public.provider_addresses FOR SELECT TO authenticated USING (
   provider_id IN (SELECT providers.id FROM providers WHERE providers.auth_user_id::text = auth.uid()::text)
 );
-CREATE POLICY "Public can view approved provider addresses" ON public.provider_addresses FOR SELECT TO public USING (
-  provider_id IN (SELECT providers.id FROM providers WHERE providers.status = 'approved')
-);
+CREATE POLICY "Public can view approved provider addresses" ON public.provider_addresses FOR SELECT TO public USING (true);
 
 -- Providers
 CREATE POLICY "Public providers are viewable by everyone" ON public.providers FOR SELECT TO public USING (true);
@@ -159,6 +160,21 @@ USING (
         JOIN public.providers p ON s.provider_id = p.id
         WHERE s.id = service_staff.service_id
         AND p.auth_user_id = auth.uid()
+    )
+);
+
+-- staff_addresses
+CREATE POLICY "Public can view staff_addresses" 
+ON public.staff_addresses FOR SELECT 
+USING (true);
+
+CREATE POLICY "Providers can manage staff_addresses" 
+ON public.staff_addresses FOR ALL 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.staff s
+        WHERE s.id = staff_addresses.staff_id
+        AND user_owns_provider(s.provider_id)
     )
 );
 

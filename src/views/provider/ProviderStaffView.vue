@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useStaffStore } from '../../stores/useStaffStore'
 import { useRouter } from 'vue-router'
+import { supabase } from '../../lib/supabase'
 import * as staffService from '../../services/staffService'
-import type { Staff } from '../../types'
+import type { Staff, ProviderAddress } from '../../types'
 import { useModal } from '../../composables/useModal'
 
 import { useNotifications } from '../../composables/useNotifications'
 
 const authStore = useAuthStore()
+const staffStore = useStaffStore()
 const router = useRouter()
 const { showSuccess, showError } = useNotifications()
 
 const staff = ref<Staff[]>([])
 const loading = ref(false)
 const modal = useModal<Staff>()
+
+// Provider Addresses (branches)
+const providerAddresses = ref<ProviderAddress[]>([])
+const selectedAddressIds = ref<string[]>([])
 
 const form = ref({
   name: '',
@@ -28,7 +35,10 @@ onMounted(async () => {
     router.push('/booking')
     return
   }
-  await fetchStaff()
+  await Promise.all([
+    fetchStaff(),
+    fetchProviderAddresses()
+  ])
 })
 
 async function fetchStaff() {
@@ -44,6 +54,21 @@ async function fetchStaff() {
   }
 }
 
+async function fetchProviderAddresses() {
+  if (!authStore.provider?.id) return
+  try {
+    const { data, error } = await supabase
+      .from('provider_addresses')
+      .select('*')
+      .eq('provider_id', authStore.provider.id)
+      .order('is_primary', { ascending: false })
+    if (error) throw error
+    providerAddresses.value = data || []
+  } catch (e) {
+    console.error('Error fetching provider addresses:', e)
+  }
+}
+
 function openAddModal() {
   modal.open(null)
   form.value = {
@@ -52,9 +77,11 @@ function openAddModal() {
     role: 'staff',
     active: true
   }
+  // Default: select all addresses for new staff
+  selectedAddressIds.value = providerAddresses.value.map(a => a.id)
 }
 
-function openEditModal(staffMember: Staff) {
+async function openEditModal(staffMember: Staff) {
   modal.open(staffMember)
   form.value = {
     name: staffMember.name,
@@ -62,12 +89,17 @@ function openEditModal(staffMember: Staff) {
     role: staffMember.role,
     active: staffMember.active
   }
+  // Load existing address assignments
+  const addresses = await staffStore.fetchStaffAddresses(staffMember.id)
+  selectedAddressIds.value = addresses.map(a => a.id)
 }
 
 async function handleSave() {
   if (!authStore.provider) return
 
   try {
+    let staffId: string | undefined
+    
     if (modal.data.value) {
       // Update existing staff
       const data = await staffService.updateStaff(modal.data.value.id, {
@@ -79,11 +111,11 @@ async function handleSave() {
       
       // Update local state
       if (data) {
+        staffId = data.id
         const index = staff.value.findIndex(s => s.id === modal.data.value!.id)
         if (index !== -1) {
           staff.value[index] = data
         }
-        showSuccess('Staff member updated successfully')
       }
     } else {
       // Create new staff
@@ -97,9 +129,15 @@ async function handleSave() {
       
       // Add to local state
       if (data) {
+        staffId = data.id
         staff.value.push(data)
-        showSuccess('Staff member added successfully')
       }
+    }
+
+    // Sync address assignments
+    if (staffId) {
+      await staffStore.syncStaffAddresses(staffId, selectedAddressIds.value)
+      showSuccess(modal.data.value ? 'Staff member updated successfully' : 'Staff member added successfully')
     }
 
     modal.close()
@@ -301,6 +339,29 @@ async function toggleActive(staffMember: Staff) {
                   class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
                 <label class="ml-2 block text-sm text-gray-900">Active</label>
+              </div>
+
+              <!-- Work Locations (Branches) -->
+              <div v-if="providerAddresses.length > 0">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Work Locations</label>
+                <div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3">
+                  <div v-for="address in providerAddresses" :key="address.id" class="flex items-start">
+                    <input
+                      :id="'addr-' + address.id"
+                      type="checkbox"
+                      :value="address.id"
+                      v-model="selectedAddressIds"
+                      class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-0.5"
+                    />
+                    <label :for="'addr-' + address.id" class="ml-2 text-sm text-gray-700">
+                      <span class="font-medium">{{ address.label || 'Location' }}</span>
+                      <span class="text-gray-500 block text-xs">{{ address.street_address }}, {{ address.city }}</span>
+                    </label>
+                  </div>
+                </div>
+                <p v-if="selectedAddressIds.length === 0" class="mt-1 text-xs text-red-500">
+                  Please select at least one work location.
+                </p>
               </div>
 
               <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">

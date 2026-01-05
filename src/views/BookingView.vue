@@ -7,7 +7,7 @@ import { useAppointmentStore } from '../stores/useAppointmentStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { supabase } from '../lib/supabase'
 import { addDays, format, startOfDay } from 'date-fns'
-import type { TimeSlot, Provider } from '../types'
+import type { TimeSlot, Provider, ProviderAddress } from '../types'
 import { useNotifications } from '../composables/useNotifications'
 
 const route = useRoute()
@@ -25,6 +25,8 @@ const providerInfo = ref<Provider | null>(null)
 const currentStep = ref(1)
 const selectedServiceId = ref<string>('')
 const selectedStaffId = ref<string>('')
+const selectedAddressId = ref<string>('')
+const staffAddresses = ref<ProviderAddress[]>([])
 const selectedDate = ref<Date>(new Date())
 const selectedTime = ref<string>('')
 const availableSlots = ref<TimeSlot[]>([])
@@ -82,6 +84,11 @@ const selectedService = computed(() =>
 const selectedStaff = computed(() => 
   staffStore.staff.find(s => s.id === selectedStaffId.value)
 )
+
+const selectedStaffName = computed(() => {
+  if (!selectedStaff.value) return ''
+  return selectedStaff.value.name
+})
 
 // Generate dates for the next 60 days
 const availableDates = computed(() => {
@@ -154,9 +161,8 @@ function selectService(serviceId: string) {
   const service = serviceStore.services.find(s => s.id === serviceId)
   
   if (service?.staff && service.staff.length === 1 && service.staff[0]) {
-    // Single staff: Auto-select and skip to Date/Time (Step 3)
-    selectedStaffId.value = service.staff[0].id
-    currentStep.value = 3
+    // Single staff: Auto-select but still run through logic to check for branches
+    selectStaff(service.staff[0].id)
   } else {
     // Multiple staff or no staff: Go to Staff Selection (Step 2)
     // The "No Staff" message will be shown in Step 2
@@ -171,8 +177,27 @@ function selectDateTime() {
   }
 }
 
-function selectStaff(staffId: string) {
+async function selectStaff(staffId: string) {
   selectedStaffId.value = staffId
+  
+  // Fetch staff's work locations
+  staffAddresses.value = await staffStore.fetchStaffAddresses(staffId)
+  
+  if (staffAddresses.value.length === 1 && staffAddresses.value[0]) {
+    // Auto-select if only one branch
+    selectedAddressId.value = staffAddresses.value[0].id
+    currentStep.value = 3 // Skip to Date/Time
+  } else if (staffAddresses.value.length > 1) {
+    // Show branch selection
+    currentStep.value = 2.5 // Branch selection step
+  } else {
+    // No branches assigned, proceed anyway (fallback)
+    currentStep.value = 3
+  }
+}
+
+function selectBranch(addressId: string) {
+  selectedAddressId.value = addressId
   currentStep.value = 3
 }
 
@@ -235,6 +260,7 @@ async function submitBooking() {
     const appointment = await appointmentStore.createAppointment({
       service_id: selectedServiceId.value,
       staff_id: selectedStaffId.value,
+      address_id: selectedAddressId.value || undefined,
       customer_id: authStore.customer.id,
       appointment_date: format(selectedDate.value, 'yyyy-MM-dd'),
       start_time: selectedTime.value,
@@ -271,11 +297,27 @@ function formatDateDisplay(date: Date) {
 }
 
 function formatAddress(provider: Provider | null): string {
+  // If we have a specific selected address (from branch selection), use that
+  if (selectedAddressId.value && staffAddresses.value.length > 0) {
+    const selectedAddr = staffAddresses.value.find(a => a.id === selectedAddressId.value)
+    if (selectedAddr) {
+      return [
+        selectedAddr.label,
+        selectedAddr.street_address,
+        selectedAddr.city,
+        selectedAddr.state,
+        selectedAddr.postal_code
+      ].filter(p => p).join(', ')
+    }
+  }
+
+  // Fallback to provider's first address
   if (!provider?.provider_addresses?.length) return 'No address provided'
   const addr = provider.provider_addresses[0]
   if (!addr) return 'No address provided'
-  // Filter out undefined/null/empty strings
+  
   return [
+    addr.label,
     addr.street_address,
     addr.city,
     addr.state,
@@ -605,6 +647,38 @@ function resetBooking() {
             </div>
           </div>
 
+          <!-- Step 2.5: Select Branch -->
+          <div v-if="currentStep === 2.5">
+            <button @click="currentStep = 2" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
+              ← Back
+            </button>
+            
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Location</h2>
+            <p class="text-gray-600 mb-6">Staff: <span class="font-semibold">{{ selectedStaffName }}</span></p>
+
+            <div class="grid grid-cols-1 gap-4">
+              <button
+                v-for="address in staffAddresses"
+                :key="address.id"
+                @click="selectBranch(address.id)"
+                class="text-left p-6 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:shadow-md transition-all flex items-start"
+              >
+                <!-- Location Icon -->
+                <div class="p-3 bg-blue-50 rounded-lg mr-4 text-blue-600">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900">{{ address.label || 'Location' }}</h3>
+                  <p class="text-gray-600">{{ address.street_address }}</p>
+                  <p class="text-gray-500 text-sm">{{ address.city }}, {{ address.state }} {{ address.postal_code }}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <!-- Step 3: Select Date & Time -->
           <div v-if="currentStep === 3">
             <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
@@ -612,11 +686,13 @@ function resetBooking() {
             </button>
             
             <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Date & Time</h2>
-            <p class="text-gray-600 mb-6">
-              Service: <span class="font-semibold">{{ selectedService?.name }}</span>
-              <span class="mx-2">•</span>
-              Staff: <span class="font-semibold">{{ staffStore.staff.find(s => s.id === selectedStaffId)?.name }}</span>
-            </p>
+            <div class="text-gray-600 mb-6 space-y-1">
+              <p>Service: <span class="font-semibold text-gray-900">{{ selectedService?.name }}</span></p>
+              <p>Staff: <span class="font-semibold text-gray-900">{{ staffStore.staff.find(s => s.id === selectedStaffId)?.name }}</span></p>
+              <p v-if="selectedAddressId && staffAddresses.find(a => a.id === selectedAddressId)">
+                Location: <span class="font-semibold text-gray-900">{{ staffAddresses.find(a => a.id === selectedAddressId)?.label || staffAddresses.find(a => a.id === selectedAddressId)?.street_address }}</span>
+              </p>
+            </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Date Picker -->

@@ -64,6 +64,14 @@ export interface Staff {
     provider_id?: string // References providers table
     created_at?: string
     updated_at?: string
+    addresses?: ProviderAddress[] // Joined data via staff_addresses
+}
+
+export interface StaffAddress {
+    id: string
+    staff_id: string
+    address_id: string
+    created_at?: string
 }
 
 export interface ProviderAddress {
@@ -108,6 +116,7 @@ export interface Appointment {
     id: string
     service_id: string
     staff_id: string
+    address_id?: string // References provider_addresses table
     customer_id: string // Now references customers table
     appointment_date: string // YYYY-MM-DD
     start_time: string // HH:mm format

@@ -36,6 +36,8 @@ const notes = ref('')
 // Confirmation state
 const bookingConfirmed = ref(false)
 const confirmedAppointmentId = ref<string>('')
+const confirmedDate = ref<Date | null>(null)
+const confirmedTime = ref<string>('')
 
 onMounted(async () => {
   // Check for provider ID in URL
@@ -276,6 +278,8 @@ async function submitBooking() {
 
     if (appointment) {
       confirmedAppointmentId.value = appointment.id
+      confirmedDate.value = selectedDate.value
+      confirmedTime.value = selectedTime.value
       bookingConfirmed.value = true
 
       // Send confirmation emails
@@ -553,7 +557,7 @@ function resetBooking() {
             </div>
             <div>
               <span class="text-sm text-gray-500 block">Date & Time</span>
-              <p class="font-semibold text-gray-900">{{ formatDateDisplay(selectedDate) }} at {{ selectedTime }}</p>
+              <p class="font-semibold text-gray-900">{{ confirmedDate ? formatDateDisplay(confirmedDate) : '' }} at {{ confirmedTime }}</p>
             </div>
             <div>
               <span class="text-sm text-gray-500 block">Price</span>

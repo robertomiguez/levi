@@ -222,6 +222,11 @@ async function submitBooking() {
     return
   }
 
+  // Ensure provider info is loaded
+  if (!providerInfo.value && selectedService.value?.provider_id) {
+    await fetchProviderInfo(selectedService.value.provider_id)
+  }
+
   clearMessages()
 
   if (!authStore.customer) {
@@ -272,6 +277,36 @@ async function submitBooking() {
     if (appointment) {
       confirmedAppointmentId.value = appointment.id
       bookingConfirmed.value = true
+
+      // Send confirmation emails
+      if (providerInfo.value && authStore.customer?.email) {
+          const payload = {
+            booking: {
+              ...appointment,
+              service: selectedService.value
+            },
+            customer: {
+              name: authStore.customer.name,
+              email: authStore.customer.email
+            },
+            provider: providerInfo.value,
+            staff: selectedStaff.value
+          }
+          console.log('Sending booking confirmation payload:', payload)
+          
+          try {
+            await supabase.functions.invoke('send-booking-confirmation', {
+              body: payload
+            })
+          } catch (emailError) {
+            console.error('Error sending confirmation emails:', emailError)
+          }
+      } else {
+          console.warn('Skipping email confirmation: Missing provider info or customer email', { 
+              provider: providerInfo.value, 
+              customerEmail: authStore.customer?.email 
+          })
+      }
     }
   } catch (e: any) {
     console.error('Error creating appointment:', e)

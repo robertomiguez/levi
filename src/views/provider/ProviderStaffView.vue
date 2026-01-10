@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useStaffStore } from '../../stores/useStaffStore'
+import { useAppointmentStore } from '../../stores/useAppointmentStore'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import * as staffService from '../../services/staffService'
+import { format, parseISO } from 'date-fns'
 import type { Staff, ProviderAddress } from '../../types'
 import { useModal } from '../../composables/useModal'
-
 import { useNotifications } from '../../composables/useNotifications'
+import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 
 const authStore = useAuthStore()
 const staffStore = useStaffStore()
+const appointmentStore = useAppointmentStore()
 const router = useRouter()
 const { showSuccess, showError } = useNotifications()
 
@@ -29,6 +32,38 @@ const form = ref({
   role: 'staff' as 'admin' | 'staff',
   active: true
 })
+
+// Conflict modal state
+const showConflictModal = ref(false)
+const conflicts = ref<any[]>([])
+const pendingDeactivationStaff = ref<Staff | null>(null)
+const isTogglingFromList = ref(false)
+
+const groupedConflicts = computed(() => {
+  const groups: Record<string, any[]> = {}
+  conflicts.value.forEach(apt => {
+    const date = apt.appointment_date
+    if (!groups[date]) groups[date] = []
+    groups[date].push(apt)
+  })
+  
+  return Object.entries(groups)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, appointments]) => ({
+      date,
+      dayName: format(parseISO(date), 'EEEE'),
+      displayDate: format(parseISO(date), 'MMM d'),
+      appointments
+    }))
+})
+
+function formatTime(time: string) {
+  if (!time) return ''
+  const [hours, minutes] = time.split(':')
+  const date = new Date()
+  date.setHours(parseInt(hours || '0'), parseInt(minutes || '0'))
+  return format(date, 'HH:mm')
+}
 
 onMounted(async () => {
   if (!authStore.provider) {
@@ -97,6 +132,24 @@ async function openEditModal(staffMember: Staff) {
 async function handleSave() {
   if (!authStore.provider) return
 
+  // Check for conflicts if deactivating an existing staff member
+  if (modal.data.value && modal.data.value.active && !form.value.active) {
+    const foundConflicts = await appointmentStore.fetchFutureAppointments(modal.data.value.id, 'staff')
+    if (foundConflicts.length > 0) {
+      conflicts.value = foundConflicts
+      pendingDeactivationStaff.value = modal.data.value
+      isTogglingFromList.value = false
+      showConflictModal.value = true
+      return
+    }
+  }
+
+  await executeSave()
+}
+
+async function executeSave() {
+  if (!authStore.provider) return
+  
   try {
     let staffId: string | undefined
     
@@ -141,6 +194,7 @@ async function handleSave() {
     }
 
     modal.close()
+    showConflictModal.value = false
   } catch (e) {
     console.error('Error saving staff:', e)
     showError('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
@@ -148,6 +202,22 @@ async function handleSave() {
 }
 
 async function toggleActive(staffMember: Staff) {
+  // Check for conflicts only if deactivating
+  if (staffMember.active) {
+    const foundConflicts = await appointmentStore.fetchFutureAppointments(staffMember.id, 'staff')
+    if (foundConflicts.length > 0) {
+      conflicts.value = foundConflicts
+      pendingDeactivationStaff.value = staffMember
+      isTogglingFromList.value = true
+      showConflictModal.value = true
+      return
+    }
+  }
+
+  await executeToggleActive(staffMember)
+}
+
+async function executeToggleActive(staffMember: Staff) {
   try {
     const data = await staffService.updateStaff(staffMember.id, { active: !staffMember.active })
     
@@ -158,8 +228,20 @@ async function toggleActive(staffMember: Staff) {
         staff.value[index] = data
       }
     }
+    showConflictModal.value = false
   } catch (e) {
     console.error('Error updating staff status:', e)
+    showError('Failed to update staff status')
+  }
+}
+
+async function confirmDeactivation() {
+  if (!pendingDeactivationStaff.value) return
+
+  if (isTogglingFromList.value) {
+    await executeToggleActive(pendingDeactivationStaff.value)
+  } else {
+    await executeSave()
   }
 }
 </script>
@@ -384,5 +466,53 @@ async function toggleActive(staffMember: Staff) {
         </div>
       </div>
     </div>
+
+    <!-- Conflict Confirmation -->
+    <ConfirmationModal
+      :isOpen="showConflictModal"
+      title="Important: Schedule Conflict"
+      :message="`You have active bookings with staff ${pendingDeactivationStaff?.name}`"
+      confirmLabel="Confirm"
+      :isDestructive="true"
+      @close="showConflictModal = false"
+      @confirm="confirmDeactivation"
+    >
+      <div v-if="conflicts.length > 0" class="mt-4">
+        <div class="space-y-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+          <div v-for="group in groupedConflicts" :key="group.date" class="space-y-2">
+            <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+              {{ group.dayName }} 
+              <span class="text-gray-400 font-normal">({{ group.appointments.length }} {{ group.appointments.length === 1 ? 'booking' : 'bookings' }})</span>
+            </h4>
+            <ul class="space-y-1 ml-2">
+              <li v-for="apt in group.appointments" :key="apt.id" class="text-sm text-gray-600 flex items-center gap-2">
+                <span class="text-gray-300">•</span>
+                <span>{{ group.displayDate }} @ {{ formatTime(apt.start_time) }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p class="mt-6 text-sm text-gray-500 italic">
+          These appointments will remain scheduled. Do you wish to proceed?
+        </p>
+      </div>
+    </ConfirmationModal>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+</style>

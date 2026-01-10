@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useProviderStore } from '../../stores/useProviderStore'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import type { Staff } from '../../types'
+import { format, parseISO } from 'date-fns'
 
-const providerStore = useProviderStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
@@ -88,11 +87,12 @@ async function fetchAppointments() {
       .from('appointments')
       .select(`
         *,
-        services (name, duration, color),
+        services!inner (name, duration),
         customers (name, phone, email),
-        staff (name)
+        staff!inner (name, provider_id)
       `)
       .eq('services.provider_id', authStore.provider?.id)
+      .eq('staff.provider_id', authStore.provider?.id)
 
     if (selectedStaffId.value !== 'all') {
       query = query.eq('staff_id', selectedStaffId.value)
@@ -111,13 +111,12 @@ async function fetchAppointments() {
       end.setDate(end.getDate() + (6 - end.getDay()))
     } else {
       // Day view
-      start.setHours(0, 0, 0, 0)
-      end.setHours(23, 59, 59, 999)
+      // No change needed for start/end points, they are just reference points for the query
     }
 
     const { data, error } = await query
-      .gte('appointment_date', start.toISOString().split('T')[0])
-      .lte('appointment_date', end.toISOString().split('T')[0])
+      .gte('appointment_date', format(start, 'yyyy-MM-dd'))
+      .lte('appointment_date', format(end, 'yyyy-MM-dd'))
 
     if (error) throw error
     appointments.value = data || []
@@ -129,7 +128,7 @@ async function fetchAppointments() {
 }
 
 function getAppointmentsForDate(date: Date) {
-  const dateStr = date.toISOString().split('T')[0]
+  const dateStr = format(date, 'yyyy-MM-dd')
   return appointments.value.filter(apt => apt.appointment_date === dateStr)
 }
 
@@ -257,9 +256,11 @@ async function updateStatus(status: string) {
           </svg>
         </button>
         <h2 class="text-xl font-semibold text-gray-900">
-          {{ currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }}
-          <span v-if="view === 'day'" class="text-gray-500 text-lg">
-            {{ currentDate.getDate() }}
+          <span v-if="view === 'day'">
+             {{ format(currentDate, 'MMMM d, yyyy') }}
+          </span>
+          <span v-else>
+            {{ currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }}
           </span>
         </h2>
         <button @click="nextPeriod" class="p-2 hover:bg-gray-200 rounded-full">
@@ -309,8 +310,9 @@ async function updateStatus(status: string) {
                   }"
                 >
                   <p class="font-bold truncate">{{ formatTime(apt.start_time) }}</p>
-                  <p class="truncate">{{ apt.customers?.name || 'Unknown' }}</p>
+                  <p class="truncate">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</p>
                   <p class="text-gray-500 truncate">{{ apt.services?.name }}</p>
+                  <p class="text-xs text-primary-600 truncate mt-1">w/ {{ apt.staff?.name }}</p>
                 </button>
               </div>
             </div>
@@ -373,7 +375,7 @@ async function updateStatus(status: string) {
                 {{ formatTime(apt.start_time) }}
               </div>
               <div class="flex-1">
-                <h3 class="font-bold text-gray-900">{{ apt.customers?.name }}</h3>
+                <h3 class="font-bold text-gray-900">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</h3>
                 <p class="text-gray-600">{{ apt.services?.name }} with {{ apt.staff?.name }}</p>
               </div>
               <div class="text-right">
@@ -413,7 +415,7 @@ async function updateStatus(status: string) {
                 <div class="mt-4 space-y-4">
                   <div class="bg-gray-50 p-4 rounded-lg">
                     <p class="text-sm text-gray-500">Customer</p>
-                    <p class="font-bold text-lg">{{ selectedAppointment.customers?.name }}</p>
+                    <p class="font-bold text-lg">{{ selectedAppointment.customers?.name || selectedAppointment.customers?.email || 'Unknown' }}</p>
                     <p class="text-gray-600">{{ selectedAppointment.customers?.email }}</p>
                     <p class="text-gray-600">{{ selectedAppointment.customers?.phone }}</p>
                   </div>
@@ -433,7 +435,7 @@ async function updateStatus(status: string) {
                   <div>
                     <p class="text-sm text-gray-500">Date & Time</p>
                     <p class="font-medium">
-                      {{ new Date(selectedAppointment.appointment_date).toLocaleDateString() }} at {{ formatTime(selectedAppointment.start_time) }}
+                      {{ format(parseISO(selectedAppointment.appointment_date), 'MMM d, yyyy') }} at {{ formatTime(selectedAppointment.start_time) }}
                     </p>
                   </div>
 

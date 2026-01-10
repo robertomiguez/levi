@@ -153,8 +153,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Add Service</p>
-              <p class="text-sm text-gray-600">Create new service offering</p>
+              <p class="font-semibold text-gray-900">Services</p>
+              <p class="text-sm text-gray-600">Add or edit services</p>
             </div>
           </button>
 
@@ -168,8 +168,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Manage Staff</p>
-              <p class="text-sm text-gray-600">Add or edit team members</p>
+              <p class="font-semibold text-gray-900">Staff</p>
+              <p class="text-sm text-gray-600">Add or edit Staff</p>
             </div>
           </button>
 
@@ -184,8 +184,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Manage Locations</p>
-              <p class="text-sm text-gray-600">Add service addresses</p>
+              <p class="font-semibold text-gray-900">Locations</p>
+              <p class="text-sm text-gray-600">Add or edit Locations</p>
             </div>
           </button>
 

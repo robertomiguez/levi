@@ -4,15 +4,18 @@ import { useServiceStore } from '../../stores/useServiceStore'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useCategoryStore } from '../../stores/useCategoryStore'
 import { useRouter } from 'vue-router'
+import { format, parseISO } from 'date-fns'
 import type { Service } from '../../types'
 import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
 import { useModal } from '../../composables/useModal'
-
 import { useNotifications } from '../../composables/useNotifications'
+import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+import { useAppointmentStore } from '../../stores/useAppointmentStore'
 
 const serviceStore = useServiceStore()
 const authStore = useAuthStore()
 const categoryStore = useCategoryStore()
+const appointmentStore = useAppointmentStore()
 const router = useRouter()
 const { showSuccess, showError } = useNotifications()
 
@@ -20,6 +23,39 @@ const modal = useModal<Service>()
 const searchQuery = ref('')
 const categoryFilter = ref('All')
 const saving = ref(false)
+
+// Conflict modal state
+const showConflictModal = ref(false)
+const conflicts = ref<any[]>([])
+const pendingDeactivationService = ref<Service | null>(null)
+const isTogglingFromList = ref(false)
+const pendingServiceData = ref<any>(null)
+
+const groupedConflicts = computed(() => {
+  const groups: Record<string, any[]> = {}
+  conflicts.value.forEach(apt => {
+    const date = apt.appointment_date
+    if (!groups[date]) groups[date] = []
+    groups[date].push(apt)
+  })
+  
+  return Object.entries(groups)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, appointments]) => ({
+      date,
+      dayName: format(parseISO(date), 'EEEE'),
+      displayDate: format(parseISO(date), 'MMM d'),
+      appointments
+    }))
+})
+
+function formatTime(time: string) {
+  if (!time) return ''
+  const [hours, minutes] = time.split(':')
+  const date = new Date()
+  date.setHours(parseInt(hours || '0'), parseInt(minutes || '0'))
+  return format(date, 'HH:mm')
+}
 
 // Categories from store
 const categories = computed(() => {
@@ -58,6 +94,23 @@ function openEditModal(service: Service) {
 }
 
 async function handleSave(serviceData: any) {
+  // Check for conflicts if deactivating an existing service
+  if (modal.data.value && modal.data.value.active && !serviceData.active) {
+    const foundConflicts = await appointmentStore.fetchFutureAppointments(modal.data.value.id, 'service')
+    if (foundConflicts.length > 0) {
+      conflicts.value = foundConflicts
+      pendingDeactivationService.value = modal.data.value
+      pendingServiceData.value = serviceData
+      isTogglingFromList.value = false
+      showConflictModal.value = true
+      return
+    }
+  }
+
+  await executeSave(serviceData)
+}
+
+async function executeSave(serviceData: any) {
   saving.value = true
   try {
     if (modal.data.value) {
@@ -76,7 +129,7 @@ async function handleSave(serviceData: any) {
       showSuccess('Service created successfully')
     }
     modal.close()
-    // await serviceStore.fetchAllServices(authStore.provider?.id) // Removed: Store handles local updates now
+    showConflictModal.value = false
   } catch (err) {
     console.error('Error in handleSave:', err)
     showError('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))
@@ -86,8 +139,41 @@ async function handleSave(serviceData: any) {
 }
 
 async function toggleActive(service: Service) {
-  await serviceStore.updateService(service.id, { active: !service.active })
-  // No need to refetch - updateService already updates local state
+  // Check for conflicts only if deactivating
+  if (service.active) {
+    const foundConflicts = await appointmentStore.fetchFutureAppointments(service.id, 'service')
+    if (foundConflicts.length > 0) {
+      conflicts.value = foundConflicts
+      pendingDeactivationService.value = service
+      isTogglingFromList.value = true
+      showConflictModal.value = true
+      return
+    }
+  }
+
+  await executeToggleActive(service)
+}
+
+async function executeToggleActive(service: Service) {
+  try {
+    await serviceStore.updateService(service.id, { active: !service.active })
+    showConflictModal.value = false
+  } catch (err) {
+    console.error('Error in toggleActive:', err)
+    showError('Failed to update service status')
+  }
+}
+
+async function confirmDeactivation() {
+  if (isTogglingFromList.value) {
+    if (pendingDeactivationService.value) {
+      await executeToggleActive(pendingDeactivationService.value)
+    }
+  } else {
+    if (pendingServiceData.value) {
+      await executeSave(pendingServiceData.value)
+    }
+  }
 }
 
 function formatCurrency(amount: number) {
@@ -256,5 +342,53 @@ function formatCurrency(amount: number) {
       @close="modal.close()"
       @save="handleSave"
     />
+
+    <!-- Conflict Confirmation -->
+    <ConfirmationModal
+      :isOpen="showConflictModal"
+      title="Important: Schedule Conflict"
+      :message="`You have active bookings with service ${pendingDeactivationService?.name}`"
+      confirmLabel="Confirm"
+      :isDestructive="true"
+      @close="showConflictModal = false"
+      @confirm="confirmDeactivation"
+    >
+      <div v-if="conflicts.length > 0" class="mt-4">
+        <div class="space-y-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+          <div v-for="group in groupedConflicts" :key="group.date" class="space-y-2">
+            <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+              {{ group.dayName }} 
+              <span class="text-gray-400 font-normal">({{ group.appointments.length }} {{ group.appointments.length === 1 ? 'booking' : 'bookings' }})</span>
+            </h4>
+            <ul class="space-y-1 ml-2">
+              <li v-for="apt in group.appointments" :key="apt.id" class="text-sm text-gray-600 flex items-center gap-2">
+                <span class="text-gray-300">•</span>
+                <span>{{ group.displayDate }} @ {{ formatTime(apt.start_time) }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p class="mt-6 text-sm text-gray-500 italic">
+          These appointments will remain scheduled. Do you wish to proceed?
+        </p>
+      </div>
+    </ConfirmationModal>
   </div>
 </template>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+</style>

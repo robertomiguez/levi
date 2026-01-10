@@ -170,10 +170,10 @@ export const useAppointmentStore = defineStore('appointment', () => {
         }
     }
 
-    async function fetchFutureAppointments(staffId: string) {
+    async function fetchFutureAppointments(id: string, type: 'staff' | 'service' = 'staff') {
         try {
             const today = format(new Date(), 'yyyy-MM-dd')
-            const { data, error } = await supabase
+            let query = supabase
                 .from('appointments')
                 .select(`
                     id,
@@ -183,10 +183,16 @@ export const useAppointmentStore = defineStore('appointment', () => {
                     service:services(name),
                     customer:customers(name)
                 `)
-                .eq('staff_id', staffId)
                 .gte('appointment_date', today)
                 .in('status', ['confirmed', 'pending'])
-                .order('appointment_date', { ascending: true })
+
+            if (type === 'staff') {
+                query = query.eq('staff_id', id)
+            } else {
+                query = query.eq('service_id', id)
+            }
+
+            const { data, error } = await query.order('appointment_date', { ascending: true })
 
             if (error) throw error
             return data || []

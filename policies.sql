@@ -63,6 +63,7 @@ DROP POLICY IF EXISTS "Public can view service_staff" ON public.service_staff;
 DROP POLICY IF EXISTS "Providers can manage their service_staff" ON public.service_staff;
 DROP POLICY IF EXISTS "Public can view staff_addresses" ON public.staff_addresses;
 DROP POLICY IF EXISTS "Providers can manage staff_addresses" ON public.staff_addresses;
+DROP POLICY IF EXISTS "Providers can view customers with appointments" ON public.customers; 
 
 -- Appointments
 create policy "Allow public read access" on "public"."appointments" for select using (true);
@@ -176,6 +177,19 @@ USING (
         WHERE s.id = staff_addresses.staff_id
         AND user_owns_provider(s.provider_id)
     )
+);
+
+-- Providers can view customers with appointments
+CREATE POLICY "Providers can view customers with appointments" ON public.customers
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM appointments a
+    JOIN services s ON a.service_id = s.id
+    JOIN providers p ON s.provider_id = p.id
+    WHERE a.customer_id = customers.id
+    AND p.auth_user_id = auth.uid()
+  )
 );
 
 -- Storage: provider-logos

@@ -3,17 +3,13 @@ import { onMounted, ref } from 'vue'
 import { useStaffStore } from '../stores/useStaffStore'
 import { useNotifications } from '../composables/useNotifications'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import BlockedDateModal from '../components/provider/BlockedDateModal.vue'
 
 const staffStore = useStaffStore()
 const { showSuccess, showError } = useNotifications()
 
 const selectedStaffId = ref<string>('')
 const showBlockedDateModal = ref(false)
-const blockedDateForm = ref({
-  start_date: '',
-  end_date: '',
-  reason: ''
-})
 
 // Confirmation logic
 const showConfirmModal = ref(false)
@@ -138,23 +134,18 @@ async function saveSchedule() {
 }
 
 function openBlockedDateModal() {
-  blockedDateForm.value = {
-    start_date: '',
-    end_date: '',
-    reason: ''
-  }
   showBlockedDateModal.value = true
 }
 
-async function handleBlockedDateSubmit() {
+async function handleBlockedDateSubmit(payload: { start_date: string; end_date: string; reason: string }) {
   if (!selectedStaffId.value) return
   
   try {
     await staffStore.createBlockedDate({
       staff_id: selectedStaffId.value,
-      start_date: blockedDateForm.value.start_date,
-      end_date: blockedDateForm.value.end_date,
-      reason: blockedDateForm.value.reason
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      reason: payload.reason
     })
     showSuccess('Blocked period added')
     showBlockedDateModal.value = false
@@ -195,25 +186,24 @@ function formatDate(dateStr: string) {
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Weekly Schedule</h2>
           
           <div class="space-y-3">
-            <div v-for="day in daysOfWeek" :key="day.value" class="flex items-center gap-3">
+            <div v-for="(schedule, index) in weeklySchedule" :key="index" class="flex items-center gap-3">
               <input 
                 type="checkbox" 
-                v-if="weeklySchedule[day.value]"
-                v-model="weeklySchedule[day.value].enabled"
+                v-model="schedule.enabled"
                 class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
               />
-              <span class="w-24 text-sm font-medium text-gray-700">{{ day.label }}</span>
+              <span class="w-24 text-sm font-medium text-gray-700">{{ daysOfWeek[index]?.label }}</span>
               
-              <template v-if="weeklySchedule[day.value] && weeklySchedule[day.value].enabled">
+              <template v-if="schedule.enabled">
                 <input 
                   type="time"
-                  v-model="weeklySchedule[day.value].start"
+                  v-model="schedule.start"
                   class="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
                 <span class="text-gray-500">to</span>
                 <input 
                   type="time"
-                  v-model="weeklySchedule[day.value].end"
+                  v-model="schedule.end"
                   class="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </template>
@@ -274,61 +264,11 @@ function formatDate(dateStr: string) {
     </div>
 
     <!-- Blocked Date Modal -->
-    <div v-if="showBlockedDateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div class="p-6">
-          <h2 class="text-2xl font-bold text-gray-900 mb-4">Add Blocked Period</h2>
-          
-          <form @submit.prevent="handleBlockedDateSubmit" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-              <input
-                v-model="blockedDateForm.start_date"
-                type="date"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
-              <input
-                v-model="blockedDateForm.end_date"
-                type="date"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Reason (Optional)</label>
-              <input
-                v-model="blockedDateForm.reason"
-                type="text"
-                placeholder="e.g., Vacation, Holiday"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            <div class="flex gap-3 pt-4">
-              <button
-                type="button"
-                @click="showBlockedDateModal = false"
-                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                Add Blocked Period
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <BlockedDateModal
+      :isOpen="showBlockedDateModal"
+      @close="showBlockedDateModal = false"
+      @save="handleBlockedDateSubmit"
+    />
     
     <ConfirmationModal
       :isOpen="showConfirmModal"

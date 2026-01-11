@@ -11,6 +11,7 @@ import type { Staff, ProviderAddress } from '../../types'
 import { useModal } from '../../composables/useModal'
 import { useNotifications } from '../../composables/useNotifications'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+import StaffFormModal from '../../components/provider/StaffFormModal.vue'
 
 const authStore = useAuthStore()
 const staffStore = useStaffStore()
@@ -26,12 +27,14 @@ const modal = useModal<Staff>()
 const providerAddresses = ref<ProviderAddress[]>([])
 const selectedAddressIds = ref<string[]>([])
 
-const form = ref({
-  name: '',
-  email: '',
-  role: 'staff' as 'admin' | 'staff',
-  active: true
-})
+// Temporary storage for form data when handling conflicts
+const pendingSavePayload = ref<{
+  name: string
+  email: string
+  role: 'admin' | 'staff'
+  active: boolean
+  addressIds: string[]
+} | null>(null)
 
 // Conflict modal state
 const showConflictModal = ref(false)
@@ -105,50 +108,44 @@ async function fetchProviderAddresses() {
 }
 
 function openAddModal() {
+  selectedAddressIds.value = [] // Component will handle default selection
   modal.open(null)
-  form.value = {
-    name: '',
-    email: '',
-    role: 'staff',
-    active: true
-  }
-  // Default: select all addresses for new staff
-  selectedAddressIds.value = providerAddresses.value.map(a => a.id)
 }
 
 async function openEditModal(staffMember: Staff) {
-  modal.open(staffMember)
-  form.value = {
-    name: staffMember.name,
-    email: staffMember.email,
-    role: staffMember.role,
-    active: staffMember.active
-  }
-  // Load existing address assignments
+  // Load existing address assignments first
   const addresses = await staffStore.fetchStaffAddresses(staffMember.id)
   selectedAddressIds.value = addresses.map(a => a.id)
+  modal.open(staffMember)
 }
 
-async function handleSave() {
+async function onSaveStaff(payload: {
+  name: string
+  email: string
+  role: 'admin' | 'staff'
+  active: boolean
+  addressIds: string[]
+}) {
   if (!authStore.provider) return
 
   // Check for conflicts if deactivating an existing staff member
-  if (modal.data.value && modal.data.value.active && !form.value.active) {
+  if (modal.data.value && modal.data.value.active && !payload.active) {
     const foundConflicts = await appointmentStore.fetchFutureAppointments(modal.data.value.id, 'staff')
     if (foundConflicts.length > 0) {
       conflicts.value = foundConflicts
       pendingDeactivationStaff.value = modal.data.value
+      pendingSavePayload.value = payload
       isTogglingFromList.value = false
       showConflictModal.value = true
       return
     }
   }
 
-  await executeSave()
+  await executeSave(payload)
 }
 
-async function executeSave() {
-  if (!authStore.provider) return
+async function executeSave(payload: typeof pendingSavePayload.value) {
+  if (!authStore.provider || !payload) return
   
   try {
     let staffId: string | undefined
@@ -156,10 +153,10 @@ async function executeSave() {
     if (modal.data.value) {
       // Update existing staff
       const data = await staffService.updateStaff(modal.data.value.id, {
-        name: form.value.name,
-        email: form.value.email,
-        role: form.value.role,
-        active: form.value.active
+        name: payload.name,
+        email: payload.email,
+        role: payload.role,
+        active: payload.active
       })
       
       // Update local state
@@ -173,10 +170,10 @@ async function executeSave() {
     } else {
       // Create new staff
       const data = await staffService.createStaff({
-        name: form.value.name,
-        email: form.value.email,
-        role: form.value.role,
-        active: form.value.active,
+        name: payload.name,
+        email: payload.email,
+        role: payload.role,
+        active: payload.active,
         provider_id: authStore.provider.id
       })
       
@@ -189,12 +186,13 @@ async function executeSave() {
 
     // Sync address assignments
     if (staffId) {
-      await staffStore.syncStaffAddresses(staffId, selectedAddressIds.value)
+      await staffStore.syncStaffAddresses(staffId, payload.addressIds)
       showSuccess(modal.data.value ? 'Staff member updated successfully' : 'Staff member added successfully')
     }
 
     modal.close()
     showConflictModal.value = false
+    pendingSavePayload.value = null
   } catch (e) {
     console.error('Error saving staff:', e)
     showError('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
@@ -241,7 +239,7 @@ async function confirmDeactivation() {
   if (isTogglingFromList.value) {
     await executeToggleActive(pendingDeactivationStaff.value)
   } else {
-    await executeSave()
+    await executeSave(pendingSavePayload.value)
   }
 }
 </script>
@@ -370,102 +368,15 @@ async function confirmDeactivation() {
       </div>
     </div>
 
-    <!-- Staff Modal -->
-    <div v-if="modal.isOpen.value" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="modal.close()"></div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="relative z-50 inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-              {{ modal.data.value ? 'Edit Staff Member' : 'Add Staff Member' }}
-            </h3>
-            
-            <form @submit.prevent="handleSave" class="mt-6 space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  v-model="form.name"
-                  type="text"
-                  required
-                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  v-model="form.email"
-                  type="email"
-                  required
-                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Role</label>
-                <select
-                  v-model="form.role"
-                  class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                >
-                  <option value="staff">Staff</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              <div class="flex items-center">
-                <input
-                  v-model="form.active"
-                  type="checkbox"
-                  class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label class="ml-2 block text-sm text-gray-900">Active</label>
-              </div>
-
-              <!-- Work Locations (Branches) -->
-              <div v-if="providerAddresses.length > 0">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Work Locations</label>
-                <div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3">
-                  <div v-for="address in providerAddresses" :key="address.id" class="flex items-start">
-                    <input
-                      :id="'addr-' + address.id"
-                      type="checkbox"
-                      :value="address.id"
-                      v-model="selectedAddressIds"
-                      class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-0.5"
-                    />
-                    <label :for="'addr-' + address.id" class="ml-2 text-sm text-gray-700">
-                      <span class="font-medium">{{ address.label || 'Location' }}</span>
-                      <span class="text-gray-500 block text-xs">{{ address.street_address }}, {{ address.city }}</span>
-                    </label>
-                  </div>
-                </div>
-                <p v-if="selectedAddressIds.length === 0" class="mt-1 text-xs text-red-500">
-                  Please select at least one work location.
-                </p>
-              </div>
-
-              <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                <button
-                  type="submit"
-                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                  @click="modal.close()"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Staff Form Modal -->
+    <StaffFormModal
+      :isOpen="modal.isOpen.value"
+      :staff="modal.data.value"
+      :providerAddresses="providerAddresses"
+      :initialAddressIds="selectedAddressIds"
+      @close="modal.close()"
+      @save="onSaveStaff"
+    />
 
     <!-- Conflict Confirmation -->
     <ConfirmationModal

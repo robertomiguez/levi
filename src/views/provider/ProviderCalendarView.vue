@@ -4,7 +4,8 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import type { Staff } from '../../types'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
+import AppointmentDetailsModal from '../../components/provider/AppointmentDetailsModal.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -399,83 +400,11 @@ async function updateStatus(status: string) {
     </div>
 
     <!-- Appointment Details Modal -->
-    <div v-if="showDetailsModal && selectedAppointment" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showDetailsModal = false"></div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div class="sm:flex sm:items-start">
-              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">
-                  Appointment Details
-                </h3>
-                
-                <div class="mt-4 space-y-4">
-                  <div class="bg-gray-50 p-4 rounded-lg">
-                    <p class="text-sm text-gray-500">Customer</p>
-                    <p class="font-bold text-lg">{{ selectedAppointment.customers?.name || selectedAppointment.customers?.email || 'Unknown' }}</p>
-                    <p class="text-gray-600">{{ selectedAppointment.customers?.email }}</p>
-                    <p class="text-gray-600">{{ selectedAppointment.customers?.phone }}</p>
-                  </div>
-
-                  <div class="grid grid-cols-2 gap-4">
-                    <div>
-                      <p class="text-sm text-gray-500">Service</p>
-                      <p class="font-medium">{{ selectedAppointment.services?.name }}</p>
-                      <p class="text-sm text-gray-600">{{ selectedAppointment.services?.duration }} min</p>
-                    </div>
-                    <div>
-                      <p class="text-sm text-gray-500">Staff</p>
-                      <p class="font-medium">{{ selectedAppointment.staff?.name }}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p class="text-sm text-gray-500">Date & Time</p>
-                    <p class="font-medium">
-                      {{ format(parseISO(selectedAppointment.appointment_date), 'MMM d, yyyy') }} at {{ formatTime(selectedAppointment.start_time) }}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p class="text-sm text-gray-500 mb-2">Status</p>
-                    <div class="flex gap-2">
-                      <button 
-                        @click="updateStatus('confirmed')"
-                        class="px-3 py-1 rounded-full text-sm font-medium border"
-                        :class="selectedAppointment.status === 'confirmed' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
-                      >
-                        Confirmed
-                      </button>
-                      <button 
-                        @click="updateStatus('completed')"
-                        class="px-3 py-1 rounded-full text-sm font-medium border"
-                        :class="selectedAppointment.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
-                      >
-                        Completed
-                      </button>
-                      <button 
-                        @click="updateStatus('cancelled')"
-                        class="px-3 py-1 rounded-full text-sm font-medium border"
-                        :class="selectedAppointment.status === 'cancelled' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
-                      >
-                        Cancelled
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" @click="showDetailsModal = false">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AppointmentDetailsModal
+      :isOpen="showDetailsModal"
+      :appointment="selectedAppointment"
+      @close="showDetailsModal = false"
+      @update-status="updateStatus"
+    />
   </div>
 </template>

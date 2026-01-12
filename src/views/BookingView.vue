@@ -5,16 +5,20 @@ import { useServiceStore } from '../stores/useServiceStore'
 import { useStaffStore } from '../stores/useStaffStore'
 import { useAppointmentStore } from '../stores/useAppointmentStore'
 import { useAuthStore } from '../stores/useAuthStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import { supabase } from '../lib/supabase'
 import { addDays, format, startOfDay } from 'date-fns'
 import type { TimeSlot, Provider, ProviderAddress } from '../types'
 import { useNotifications } from '../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
 const appointmentStore = useAppointmentStore()
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
+const { t } = useI18n()
 const { errorMessage, showError, clearMessages } = useNotifications()
 
 // Provider filtering
@@ -317,22 +321,30 @@ async function submitBooking() {
     
     // Check for PostgreSQL exclusion violation (code 23P01)
     if (e.code === '23P01' || e.message?.includes('no_overlapping_appointments')) {
-      showError('This time slot was just booked by another customer. Please choose another time.')
+      showError(t('booking.slot_taken_error'))
       // Refresh slots to reflect the new reality
       await loadAvailableSlots()
     } else {
-      showError('Failed to book appointment. Please try again.')
+      showError(t('booking.booking_failed'))
     }
   }
 }
 
 function formatPrice(price?: number) {
   if (!price) return 'Free'
-  return `$${price.toFixed(2)}`
+  return new Intl.NumberFormat(settingsStore.language, {
+    style: 'currency',
+    currency: 'USD'
+  }).format(price)
 }
 
 function formatDateDisplay(date: Date) {
-  return format(date, 'EEEE, MMMM d, yyyy')
+  return date.toLocaleDateString(settingsStore.language, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
 }
 
 function formatAddress(provider: Provider | null): string {
@@ -523,7 +535,7 @@ function resetBooking() {
             {{ providerInfo.business_name.charAt(0) }}
           </div>
           <div>
-            <p class="text-sm text-gray-500">Booking with</p>
+            <p class="text-sm text-gray-500">{{ $t('booking.with_provider') }}</p>
             <h2 class="text-lg font-bold text-gray-900">{{ providerInfo.business_name }}</h2>
           </div>
         </div>
@@ -531,8 +543,8 @@ function resetBooking() {
 
       <!-- Header -->
       <div class="text-center mb-8" :class="providerInfo ? '' : 'pt-8'">
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">Book Your Appointment</h1>
-        <p class="text-gray-600">Choose a service and pick your preferred time</p>
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ $t('booking.title') }}</h1>
+        <p class="text-gray-600">{{ $t('booking.subtitle') }}</p>
       </div>
 
       <!-- Confirmation View -->
@@ -542,34 +554,34 @@ function resetBooking() {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
           </svg>
         </div>
-        <h2 class="text-2xl font-bold text-gray-900 mb-2">Appointment Confirmed!</h2>
-        <p class="text-gray-600 mb-6">We've sent a confirmation to {{ authStore.customer?.email }}</p>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ $t('booking.confirmed_title') }}</h2>
+        <p class="text-gray-600 mb-6">{{ $t('booking.confirmed_desc', { email: authStore.customer?.email }) }}</p>
         
         <div class="bg-gray-50 rounded-lg p-6 mb-6 text-left">
-          <div class="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
+            <div class="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
             <div>
-              <span class="text-sm text-gray-500 block">Service</span>
+              <span class="text-sm text-gray-500 block">{{ $t('booking.steps.service') }}</span>
               <p class="font-semibold text-gray-900">{{ selectedService?.name }}</p>
             </div>
             <div>
-              <span class="text-sm text-gray-500 block">Staff</span>
+              <span class="text-sm text-gray-500 block">{{ $t('booking.steps.staff') }}</span>
               <p class="font-semibold text-gray-900">{{ selectedStaff?.name }}</p>
             </div>
             <div>
-              <span class="text-sm text-gray-500 block">Date & Time</span>
+              <span class="text-sm text-gray-500 block">{{ $t('booking.date_label') }} & {{ $t('booking.time_label') }}</span>
               <p class="font-semibold text-gray-900">{{ confirmedDate ? formatDateDisplay(confirmedDate) : '' }} at {{ confirmedTime }}</p>
             </div>
             <div>
-              <span class="text-sm text-gray-500 block">Price</span>
+              <span class="text-sm text-gray-500 block">{{ $t('booking.price_label') }}</span>
               <p class="font-semibold text-gray-900">{{ formatPrice(selectedService?.price) }}</p>
             </div>
              <div class="col-span-2 border-t border-gray-200 pt-3">
-               <span class="text-sm text-gray-500 block">Location</span>
+               <span class="text-sm text-gray-500 block">{{ $t('booking.location_label') }}</span>
                <p class="font-semibold text-gray-900">{{ providerInfo?.business_name }}</p>
                <p class="text-gray-500 text-xs truncate">{{ formatAddress(providerInfo) }}</p>
             </div>
              <div v-if="notes" class="col-span-2 border-t border-gray-200 pt-3">
-               <span class="text-sm text-gray-500 block">Your Notes</span>
+               <span class="text-sm text-gray-500 block">{{ $t('booking.notes_label') }}</span>
                <p class="italic text-gray-700">{{ notes }}</p>
             </div>
           </div>
@@ -579,7 +591,7 @@ function resetBooking() {
           @click="resetBooking"
           class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
         >
-          Book Another Appointment
+          {{ $t('booking.book_another') }}
         </button>
       </div>
 
@@ -591,28 +603,28 @@ function resetBooking() {
           <div class="flex items-center justify-between max-w-2xl mx-auto">
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 1 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">1</div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Service</span>
+              <span class="ml-2 text-sm font-medium text-gray-700">{{ $t('booking.steps.service') }}</span>
             </div>
             <div class="flex-1 h-1 mx-4 bg-gray-300">
               <div :class="['h-full bg-primary-600 transition-all']" :style="{ width: currentStep > 1 ? '100%' : '0%' }"></div>
             </div>
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 2 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">2</div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Staff</span>
+              <span class="ml-2 text-sm font-medium text-gray-700">{{ $t('booking.steps.staff') }}</span>
             </div>
             <div class="flex-1 h-1 mx-4 bg-gray-300">
               <div :class="['h-full bg-primary-600 transition-all']" :style="{ width: currentStep > 2 ? '100%' : '0%' }"></div>
             </div>
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 3 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">3</div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Time</span>
+              <span class="ml-2 text-sm font-medium text-gray-700">{{ $t('booking.steps.time') }}</span>
             </div>
             <div class="flex-1 h-1 mx-4 bg-gray-300">
               <div :class="['h-full bg-primary-600 transition-all']" :style="{ width: currentStep > 3 ? '100%' : '0%' }"></div>
             </div>
             <div class="flex items-center">
               <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold', currentStep >= 4 ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600']">4</div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Details</span>
+              <span class="ml-2 text-sm font-medium text-gray-700">{{ $t('booking.steps.details') }}</span>
             </div>
           </div>
         </div>
@@ -620,10 +632,10 @@ function resetBooking() {
         <div class="p-8">
           <!-- Step 1: Select Service -->
           <div v-if="currentStep === 1">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Choose a Service</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('booking.choose_service') }}</h2>
             
             <div v-if="filteredServices.length === 0" class="text-center py-12">
-              <p class="text-gray-500">No services available from this provider.</p>
+              <p class="text-gray-500">{{ $t('booking.no_services') }}</p>
             </div>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -638,7 +650,7 @@ function resetBooking() {
                   <span class="text-lg font-bold text-primary-600">{{ formatPrice(service.price) }}</span>
                 </div>
                 <p v-if="service.categories" class="text-sm text-gray-500 mb-2">{{ service.categories.name }}</p>
-                <p class="text-sm text-gray-600">{{ service.duration }} minutes</p>
+                <p class="text-sm text-gray-600">{{ service.duration }} {{ $t('common.minutes') }}</p>
               </button>
             </div>
           </div>
@@ -648,11 +660,11 @@ function resetBooking() {
           <!-- Step 2: Select Staff -->
           <div v-if="currentStep === 2">
             <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
-              ← Back
+              ← {{ $t('common.back') }}
             </button>
             
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Staff</h2>
-            <p class="text-gray-600 mb-6">Service: <span class="font-semibold">{{ selectedService?.name }}</span></p>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ $t('booking.select_staff') }}</h2>
+            <p class="text-gray-600 mb-6">{{ $t('booking.service_label', { name: selectedService?.name }) }}</p>
 
             <!-- No Staff Message -->
             <div v-if="!selectedService?.staff || selectedService.staff.length === 0" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start">
@@ -660,9 +672,9 @@ function resetBooking() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div>
-                <h3 class="text-sm font-medium text-yellow-800">Service Unavailable</h3>
+                <h3 class="text-sm font-medium text-yellow-800">{{ $t('booking.staff_unavailable_title') }}</h3>
                 <p class="mt-1 text-sm text-yellow-700">
-                  We apologize, but there are currently no staff members available for this service. Please check back later or choose a different service.
+                  {{ $t('booking.staff_unavailable_desc') }}
                 </p>
               </div>
             </div>
@@ -689,11 +701,11 @@ function resetBooking() {
           <!-- Step 2.5: Select Branch -->
           <div v-if="currentStep === 2.5">
             <button @click="currentStep = 2" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
-              ← Back
+              ← {{ $t('common.back') }}
             </button>
             
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Location</h2>
-            <p class="text-gray-600 mb-6">Staff: <span class="font-semibold">{{ selectedStaffName }}</span></p>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ $t('booking.select_location') }}</h2>
+            <p class="text-gray-600 mb-6">{{ $t('booking.staff_label', { name: selectedStaffName }) }}</p>
 
             <div class="grid grid-cols-1 gap-4">
               <button
@@ -721,13 +733,13 @@ function resetBooking() {
           <!-- Step 3: Select Date & Time -->
           <div v-if="currentStep === 3">
             <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
-              ← Back
+              ← {{ $t('common.back') }}
             </button>
             
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Select Date & Time</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ $t('booking.select_datetime') }}</h2>
             <div class="text-gray-600 mb-6 space-y-1">
-              <p>Service: <span class="font-semibold text-gray-900">{{ selectedService?.name }}</span></p>
-              <p>Staff: <span class="font-semibold text-gray-900">{{ staffStore.staff.find(s => s.id === selectedStaffId)?.name }}</span></p>
+              <p>{{ $t('booking.service_label', { name: selectedService?.name }) }}</p>
+              <p>{{ $t('booking.staff_label', { name: staffStore.staff.find(s => s.id === selectedStaffId)?.name }) }}</p>
               <p v-if="selectedAddressId && staffAddresses.find(a => a.id === selectedAddressId)">
                 Location: <span class="font-semibold text-gray-900">{{ staffAddresses.find(a => a.id === selectedAddressId)?.label || staffAddresses.find(a => a.id === selectedAddressId)?.street_address }}</span>
               </p>
@@ -736,7 +748,7 @@ function resetBooking() {
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Date Picker -->
               <div>
-                <h3 class="font-semibold text-gray-900 mb-3">Choose Date</h3>
+                <h3 class="font-semibold text-gray-900 mb-3">{{ $t('booking.choose_date') }}</h3>
                 <div class="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
                   <button
                     v-for="date in availableDates.slice(0, 30)"
@@ -754,13 +766,13 @@ function resetBooking() {
                   >
                     <div class="flex justify-between items-center">
                       <div>
-                        <div class="text-xs text-gray-500">{{ format(date, 'EEE') }}</div>
-                        <div class="font-semibold">{{ format(date, 'MMM d') }}</div>
+                        <div class="text-xs text-gray-500">{{ date.toLocaleDateString(settingsStore.language, { weekday: 'short' }) }}</div>
+                        <div class="font-semibold">{{ date.toLocaleDateString(settingsStore.language, { month: 'short', day: 'numeric' }) }}</div>
                       </div>
                       
                       <!-- Status Label -->
                       <div v-if="!isDateAvailable(date)" class="text-xs font-medium px-2 py-0.5 rounded bg-gray-200 text-gray-600">
-                        {{ getDateStatus(date) === 'Busy' ? 'Busy' : 'Unavailable' }}
+                        {{ getDateStatus(date) === 'Busy' ? $t('status.busy') : $t('status.unavailable') }}
                       </div>
                     </div>
                   </button>
@@ -769,7 +781,7 @@ function resetBooking() {
 
               <!-- Time Slots -->
               <div>
-                <h3 class="font-semibold text-gray-900 mb-3">Available Times for {{ format(selectedDate, 'MMM d') }}</h3>
+                <h3 class="font-semibold text-gray-900 mb-3">{{ $t('booking.available_times', { date: selectedDate.toLocaleDateString(settingsStore.language, { month: 'short', day: 'numeric' }) }) }}</h3>
                 
                 <div v-if="loadingSlots" class="text-center py-12">
                   <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent"></div>
@@ -800,9 +812,9 @@ function resetBooking() {
 
                 <div v-else class="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
                   <p v-if="!isDateAvailable(selectedDate)">
-                    {{ getDateStatus(selectedDate) === 'Busy' ? 'Staff is fully booked on this date.' : 'Staff is unavailable on this day.' }}
+                    {{ getDateStatus(selectedDate) === 'Busy' ? $t('booking.fully_booked') : $t('booking.staff_unavailable_day') }}
                   </p>
-                  <p v-else>No slots available for this service on this date.</p>
+                  <p v-else>{{ $t('booking.no_slots') }}</p>
                 </div>
               </div>
             </div>
@@ -819,10 +831,10 @@ function resetBooking() {
           <!-- Step 4: Confirm Booking -->
           <div v-if="currentStep === 4">
             <button @click="goBack" class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center">
-              ← Back
+              ← {{ $t('common.back') }}
             </button>
             
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Confirm Your Booking</h2>
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ $t('booking.confirm_title') }}</h2>
 
             <!-- Error Notification -->
             <div v-if="errorMessage" class="rounded-md bg-red-50 p-4 mb-6 text-left">
@@ -842,31 +854,31 @@ function resetBooking() {
             <div class="bg-primary-50 rounded-lg p-4 mb-6">
               <div class="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span class="text-gray-600 block">Service</span>
+                  <span class="text-gray-600 block">{{ $t('booking.steps.service') }}</span>
                   <p class="font-semibold text-gray-900">{{ selectedService?.name }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600 block">Staff</span>
+                  <span class="text-gray-600 block">{{ $t('booking.steps.staff') }}</span>
                   <p class="font-semibold text-gray-900">{{ selectedStaff?.name }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600 block">Date</span>
+                  <span class="text-gray-600 block">{{ $t('booking.date_label') }}</span>
                   <p class="font-semibold text-gray-900">{{ formatDateDisplay(selectedDate) }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600 block">Time</span>
+                  <span class="text-gray-600 block">{{ $t('booking.time_label') }}</span>
                   <p class="font-semibold text-gray-900">{{ selectedTime }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600 block">Duration</span>
-                  <p class="font-semibold text-gray-900">{{ selectedService?.duration }} min</p>
+                  <span class="text-gray-600 block">{{ $t('booking.duration_label') }}</span>
+                  <p class="font-semibold text-gray-900">{{ selectedService?.duration }} {{ $t('common.minutes') }}</p>
                 </div>
                 <div>
-                  <span class="text-gray-600 block">Price</span>
+                  <span class="text-gray-600 block">{{ $t('booking.price_label') }}</span>
                   <p class="font-semibold text-gray-900">{{ formatPrice(selectedService?.price) }}</p>
                 </div>
                 <div class="col-span-2 border-t border-primary-100 pt-2 mt-1">
-                   <span class="text-gray-600 block">Location</span>
+                   <span class="text-gray-600 block">{{ $t('booking.location_label') }}</span>
                    <p class="font-semibold text-gray-900">{{ providerInfo?.business_name }}</p>
                    <p class="text-gray-500 text-xs truncate">{{ formatAddress(providerInfo) }}</p>
                 </div>
@@ -875,18 +887,18 @@ function resetBooking() {
 
             <!-- Customer Info Display -->
             <div class="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 class="font-semibold text-gray-900 mb-3">Your Information</h3>
+              <h3 class="font-semibold text-gray-900 mb-3">{{ $t('booking.your_info') }}</h3>
               <div class="space-y-2 text-sm">
                 <div>
-                  <span class="text-gray-600">Name:</span>
+                  <span class="text-gray-600">{{ $t('booking.name') }}</span>
                   <span class="ml-2 font-medium">{{ authStore.customer?.name || authStore.user?.email }}</span>
                 </div>
                 <div>
-                  <span class="text-gray-600">Email:</span>
+                  <span class="text-gray-600">{{ $t('booking.email') }}</span>
                   <span class="ml-2 font-medium">{{ authStore.customer?.email }}</span>
                 </div>
                 <div v-if="authStore.customer?.phone">
-                  <span class="text-gray-600">Phone:</span>
+                  <span class="text-gray-600">{{ $t('booking.phone') }}</span>
                   <span class="ml-2 font-medium">{{ authStore.customer.phone }}</span>
                 </div>
               </div>
@@ -894,12 +906,12 @@ function resetBooking() {
 
             <form @submit.prevent="submitBooking" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('booking.notes_label') }}</label>
                 <textarea
                   v-model="notes"
                   rows="3"
                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Any special requests or notes..."
+                  :placeholder="$t('booking.notes_placeholder')"
                 ></textarea>
               </div>
 
@@ -907,12 +919,13 @@ function resetBooking() {
                 type="submit"
                 class="w-full bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
               >
-                Confirm Booking
+                {{ $t('booking.confirm_button') }}
               </button>
             </form>
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>

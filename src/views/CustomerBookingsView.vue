@@ -4,12 +4,16 @@ import { useRouter } from 'vue-router'
 import { format, isFuture, parseISO, isPast } from 'date-fns'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useAppointmentStore } from '../stores/useAppointmentStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import { useNotifications } from '../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const appointmentStore = useAppointmentStore()
+const settingsStore = useSettingsStore()
+const { t } = useI18n()
 const { showSuccess, showError } = useNotifications()
 
 const activeTab = ref<'upcoming' | 'past'>('upcoming')
@@ -69,7 +73,7 @@ function formatTime(time: string) {
 
 function formatCurrency(price?: number) {
   if (!price) return 'Free'
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(settingsStore.language, {
     style: 'currency',
     currency: 'USD'
   }).format(price)
@@ -88,8 +92,8 @@ function getStatusColor(status: string) {
 
 function openCancelModal(id: string) {
   pendingCancelId.value = id
-  confirmTitle.value = 'Cancel Booking'
-  confirmMessage.value = 'Are you sure you want to cancel this booking? This action cannot be undone.'
+  confirmTitle.value = t('my_bookings.cancel_confirm_title')
+  confirmMessage.value = t('my_bookings.cancel_confirm_msg')
   showConfirmModal.value = true
 }
 
@@ -98,14 +102,14 @@ async function handleCancel() {
 
   try {
     await appointmentStore.updateAppointment(pendingCancelId.value, { status: 'cancelled' })
-    showSuccess('Booking cancelled successfully')
+    showSuccess(t('my_bookings.cancel_success'))
     // Refresh list
     if (authStore.customer) {
       await appointmentStore.fetchCustomerAppointments(authStore.customer.id)
     }
   } catch (e) {
     console.error('Error cancelling booking:', e)
-    showError('Failed to cancel booking')
+    showError(t('my_bookings.cancel_failed'))
   } finally {
     showConfirmModal.value = false
     pendingCancelId.value = null
@@ -116,8 +120,8 @@ async function handleCancel() {
 <template>
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-4xl mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">My Bookings</h1>
-      <p class="text-gray-600 mb-8">Manage your upcoming appointments and view availability.</p>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ $t('my_bookings.title') }}</h1>
+      <p class="text-gray-600 mb-8">{{ $t('my_bookings.subtitle') }}</p>
 
       <!-- Tabs -->
       <div class="bg-white rounded-lg shadow-sm mb-6">
@@ -127,7 +131,7 @@ async function handleCancel() {
             class="flex-1 py-4 text-center font-medium text-sm transition-colors relative"
             :class="activeTab === 'upcoming' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'"
           >
-            Upcoming
+            {{ $t('my_bookings.upcoming') }}
             <span 
               v-if="activeTab === 'upcoming'" 
               class="absolute bottom-0 left-0 w-full h-0.5 bg-primary-600"
@@ -138,7 +142,7 @@ async function handleCancel() {
             class="flex-1 py-4 text-center font-medium text-sm transition-colors relative"
             :class="activeTab === 'past' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'"
           >
-            Past & Cancelled
+            {{ $t('my_bookings.past') }}
             <span 
               v-if="activeTab === 'past'" 
               class="absolute bottom-0 left-0 w-full h-0.5 bg-primary-600"
@@ -150,7 +154,7 @@ async function handleCancel() {
       <!-- Loading State -->
       <div v-if="appointmentStore.loading" class="text-center py-12">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">Loading your bookings...</p>
+        <p class="text-gray-500 mt-4">{{ $t('my_bookings.loading') }}</p>
       </div>
 
       <!-- Empty State -->
@@ -158,16 +162,16 @@ async function handleCancel() {
         <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
         </svg>
-        <h3 class="text-lg font-medium text-gray-900">No {{ activeTab }} bookings</h3>
+        <h3 class="text-lg font-medium text-gray-900">{{ $t('my_bookings.no_upcoming') }}</h3>
         <p class="text-gray-500 mt-2">
-          {{ activeTab === 'upcoming' ? "You don't have any upcoming appointments." : "You don't have any past bookings." }}
+          {{ activeTab === 'upcoming' ? $t('my_bookings.no_upcoming') : $t('my_bookings.no_past') }}
         </p>
         <button
           v-if="activeTab === 'upcoming'"
           @click="router.push('/booking')"
           class="mt-6 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
         >
-          Book an Appointment
+          {{ $t('my_bookings.book_now') }}
         </button>
       </div>
 
@@ -186,10 +190,10 @@ async function handleCancel() {
                   v-if="!(activeTab === 'past' && booking.status === 'confirmed')"
                   :class="['px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wide', getStatusColor(booking.status)]"
                 >
-                  {{ booking.status }}
+                  {{ $t(`status.${booking.status}`) }}
                 </span>
                 <span class="text-sm text-gray-500">
-                  {{ format(parseISO(booking.appointment_date), 'EEEE, MMMM d, yyyy') }}
+                  {{ parseISO(booking.appointment_date).toLocaleDateString(settingsStore.language, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) }}
                 </span>
               </div>
               
@@ -202,7 +206,7 @@ async function handleCancel() {
                   {{ booking.service?.provider?.business_name || 'Provider' }}
                 </span>
                 <span class="text-gray-300">•</span>
-                <span>with {{ booking.staff?.name || 'Staff' }}</span>
+                <span>{{ $t('booking.staff_label', { name: booking.staff?.name || 'Staff' }) }}</span>
               </div>
 
               <div class="grid grid-cols-2 gap-4 text-sm max-w-sm">
@@ -232,7 +236,7 @@ async function handleCancel() {
                 @click="openCancelModal(booking.id)"
                 class="w-full sm:w-auto text-red-600 hover:bg-red-50 hover:text-red-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent hover:border-red-200"
               >
-                Cancel Booking
+                {{ $t('my_bookings.cancel_booking') }}
               </button>
             </div>
           </div>

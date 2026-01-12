@@ -40,13 +40,13 @@ function handleSubmit() {
 <template>
   <Modal
     :is-open="isOpen"
-    title="Add Blocked Period"
+    :title="$t('modals.blocked_date.title')"
     maxWidth="sm:max-w-md"
     @close="$emit('close')"
   >
     <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('modals.blocked_date.start_date') }}</label>
         <input
           v-model="form.start_date"
           type="date"
@@ -56,7 +56,7 @@ function handleSubmit() {
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('modals.blocked_date.end_date') }}</label>
         <input
           v-model="form.end_date"
           type="date"
@@ -66,11 +66,11 @@ function handleSubmit() {
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Reason (Optional)</label>
+        <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('modals.blocked_date.reason') }}</label>
         <input
           v-model="form.reason"
           type="text"
-          placeholder="e.g., Vacation, Holiday"
+          :placeholder="$t('modals.blocked_date.reason_placeholder')"
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         />
       </div>
@@ -81,14 +81,14 @@ function handleSubmit() {
           @click="$emit('close')"
           class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
         >
-          Cancel
+          {{ $t('common.cancel') }}
         </button>
         <button
           type="submit"
           :disabled="loading"
           class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
         >
-          {{ loading ? 'Adding...' : 'Add Blocked Period' }}
+          {{ loading ? $t('modals.blocked_date.adding') : $t('modals.blocked_date.add_button') }}
         </button>
       </div>
     </form>

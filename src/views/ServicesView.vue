@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useServiceStore } from '../stores/useServiceStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import type { Service } from '../types'
 import { useModal } from '../composables/useModal'
 import { useNotifications } from '../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 
 const serviceStore = useServiceStore()
+const settingsStore = useSettingsStore()
 const modal = useModal<Service>()
+const { t } = useI18n()
 const { showSuccess, showError } = useNotifications()
 
 const isEditing = ref(false)
@@ -30,8 +34,8 @@ const pendingDeleteId = ref<string | null>(null)
 
 function openDeleteConfirm(id: string) {
   pendingDeleteId.value = id
-  confirmTitle.value = 'Delete Service'
-  confirmMessage.value = 'Are you sure you want to delete this service?'
+  confirmTitle.value = t('services.delete_confirm_title')
+  confirmMessage.value = t('services.delete_confirm_msg')
   showConfirmModal.value = true
 }
 
@@ -40,16 +44,15 @@ async function handleConfirmDelete() {
   
   try {
     await serviceStore.deleteService(pendingDeleteId.value)
-    showSuccess('Service deleted successfully')
+    showSuccess(t('services.delete_success'))
   } catch (e) {
     console.error('Error deleting service:', e)
-    showError('Failed to delete service')
+    showError(t('services.delete_failed'))
   } finally {
     showConfirmModal.value = false
     pendingDeleteId.value = null
   }
 }
-
 onMounted(() => {
   serviceStore.fetchAllServices()
 })
@@ -92,15 +95,15 @@ async function handleSubmit() {
   try {
     if (isEditing.value && editingId.value) {
       await serviceStore.updateService(editingId.value, formData.value)
-      showSuccess('Service updated successfully')
+      showSuccess(t('services.update_success'))
     } else {
       await serviceStore.createService(formData.value)
-      showSuccess('Service created successfully')
+      showSuccess(t('services.create_success'))
     }
     closeModal()
   } catch (e) {
     console.error('Error saving service:', e)
-    showError('Failed to save service')
+    showError(t('services.save_failed'))
   }
 }
 
@@ -110,7 +113,10 @@ function handleDelete(id: string) {
 
 function formatPrice(price?: number) {
   if (!price) return 'Free'
-  return `$${price.toFixed(2)}`
+  return new Intl.NumberFormat(settingsStore.language, {
+    style: 'currency',
+    currency: 'USD'
+  }).format(price)
 }
 </script>
 
@@ -120,14 +126,14 @@ function formatPrice(price?: number) {
       <!-- Header -->
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Services</h1>
-          <p class="text-gray-600">Manage your services and pricing</p>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ $t('services.title') }}</h1>
+          <p class="text-gray-600">{{ $t('services.subtitle') }}</p>
         </div>
         <button
           @click="openCreateModal"
           class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          + Add Service
+          + {{ $t('services.add_service') }}
         </button>
       </div>
 
@@ -139,7 +145,7 @@ function formatPrice(price?: number) {
       <!-- Loading State -->
       <div v-if="serviceStore.loading && serviceStore.services.length === 0" class="bg-white rounded-lg shadow p-12 text-center">
         <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent"></div>
-        <p class="text-gray-500 mt-4">Loading services...</p>
+        <p class="text-gray-500 mt-4">{{ $t('services.loading') }}</p>
       </div>
 
       <!-- Services Grid -->
@@ -177,13 +183,13 @@ function formatPrice(price?: number) {
               @click="openEditModal(service)"
               class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm font-medium transition-colors"
             >
-              Edit
+              {{ $t('common.edit') }}
             </button>
             <button
               @click="handleDelete(service.id)"
               class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded text-sm font-medium transition-colors"
             >
-              Delete
+              {{ $t('common.delete') }}
             </button>
           </div>
         </div>
@@ -194,13 +200,13 @@ function formatPrice(price?: number) {
         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
         </svg>
-        <h3 class="mt-2 text-lg font-medium text-gray-900">No services</h3>
-        <p class="mt-1 text-gray-500">Get started by creating a new service.</p>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">{{ $t('services.no_services') }}</h3>
+        <p class="mt-1 text-gray-500">{{ $t('services.no_services_desc') }}</p>
         <button
           @click="openCreateModal"
           class="mt-6 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
         >
-          + Add Your First Service
+          + {{ $t('services.add_first') }}
         </button>
       </div>
     </div>
@@ -210,12 +216,12 @@ function formatPrice(price?: number) {
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div class="p-6">
           <h2 class="text-2xl font-bold text-gray-900 mb-4">
-            {{ isEditing ? 'Edit Service' : 'New Service' }}
+            {{ isEditing ? $t('services.edit_service') : $t('services.new_service') }}
           </h2>
           
           <form @submit.prevent="handleSubmit" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Service Name *</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('services.form.name') }}</label>
               <input
                 v-model="formData.name"
                 type="text"
@@ -226,7 +232,7 @@ function formatPrice(price?: number) {
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('services.form.category') }}</label>
               <input
                 v-model="formData.category"
                 type="text"
@@ -237,7 +243,7 @@ function formatPrice(price?: number) {
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Duration (min) *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('services.form.duration') }}</label>
                 <input
                   v-model.number="formData.duration"
                   type="number"
@@ -248,7 +254,7 @@ function formatPrice(price?: number) {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('services.form.price') }}</label>
                 <input
                   v-model.number="formData.price"
                   type="number"
@@ -261,7 +267,7 @@ function formatPrice(price?: number) {
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Buffer Before (min)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('services.form.buffer_before') }}</label>
                 <input
                   v-model.number="formData.buffer_before"
                   type="number"
@@ -271,7 +277,7 @@ function formatPrice(price?: number) {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Buffer After (min)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('services.form.buffer_after') }}</label>
                 <input
                   v-model.number="formData.buffer_after"
                   type="number"
@@ -287,13 +293,13 @@ function formatPrice(price?: number) {
                 @click="closeModal"
                 class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
               >
-                Cancel
+                {{ $t('common.cancel') }}
               </button>
               <button
                 type="submit"
                 class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                {{ isEditing ? 'Save Changes' : 'Create Service' }}
+                {{ isEditing ? $t('services.form.save_changes') : $t('services.form.create_service') }}
               </button>
             </div>
           </form>

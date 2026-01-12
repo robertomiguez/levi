@@ -2,10 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 const email = ref('')
 const otpCode = ref('')
@@ -24,9 +26,9 @@ const loginContext = computed(() => {
 
 const subtitle = computed(() => {
   if (loginContext.value === 'provider') {
-    return 'Business Management'
+    return t('auth.context.provider')
   }
-  return 'Appointment Scheduling'
+  return t('auth.context.customer')
 })
 
 onMounted(async () => {
@@ -117,7 +119,7 @@ function goBack() {
       <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-8">
         <!-- Step 1: Email Input -->
         <div v-if="!codeSent">
-          <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Log In</h2>
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">{{ $t('auth.login') }}</h2>
 
           <!-- Error Message -->
           <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
@@ -131,7 +133,7 @@ function goBack() {
                   v-model="email"
                   type="email"
                   required
-                  placeholder="Email Address"
+                  :placeholder="$t('auth.email')"
                   class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400"
                   :disabled="authStore.loading"
                 />
@@ -149,7 +151,7 @@ function goBack() {
               class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               <div v-if="authStore.loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>{{ authStore.loading ? 'Sending...' : 'Send Code' }}</span>
+              <span>{{ authStore.loading ? $t('common.sending') : $t('auth.send_code') }}</span>
             </button>
           </form>
 
@@ -159,7 +161,7 @@ function goBack() {
               <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-center text-sm">
-              <span class="px-4 bg-white text-gray-500">We'll email you a verification code</span>
+              <span class="px-4 bg-white text-gray-500">{{ $t('auth.verification_email_notice') }}</span>
             </div>
           </div>
         </div>
@@ -170,11 +172,11 @@ function goBack() {
             @click="goBack"
             class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center text-sm"
           >
-            ← Change Email
+            ← {{ $t('auth.change_email') }}
           </button>
 
-          <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">Enter Code</h2>
-          <p class="text-gray-600 mb-6 text-center">We sent a code to <span class="font-semibold">{{ email }}</span></p>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2 text-center">{{ $t('auth.enter_code') }}</h2>
+          <p class="text-gray-600 mb-6 text-center" v-html="$t('auth.code_sent_to', { email: `<span class='font-semibold'>${email}</span>` })"></p>
 
           <!-- Error Message -->
           <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
@@ -187,7 +189,7 @@ function goBack() {
                 v-model="otpCode"
                 type="text"
                 required
-                placeholder="Enter 6-digit code"
+                :placeholder="$t('auth.enter_6_digit')"
                 maxlength="6"
                 pattern="[0-9]{6}"
                 class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400 text-center text-2xl tracking-widest font-mono"
@@ -202,7 +204,7 @@ function goBack() {
               class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               <div v-if="authStore.loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>{{ authStore.loading ? 'Verifying...' : 'Verify Code' }}</span>
+              <span>{{ authStore.loading ? $t('common.verifying') : $t('auth.verify_code') }}</span>
             </button>
           </form>
 
@@ -213,7 +215,7 @@ function goBack() {
               :disabled="authStore.loading"
               class="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
             >
-              Didn't receive it? Resend code
+              {{ $t('auth.resend_code') }}
             </button>
           </div>
         </div>

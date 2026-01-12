@@ -9,6 +9,7 @@ import type { Service } from '../../types'
 import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
 import { useModal } from '../../composables/useModal'
 import { useNotifications } from '../../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 import { useAppointmentStore } from '../../stores/useAppointmentStore'
 
@@ -17,11 +18,12 @@ const authStore = useAuthStore()
 const categoryStore = useCategoryStore()
 const appointmentStore = useAppointmentStore()
 const router = useRouter()
+const { t } = useI18n()
 const { showSuccess, showError } = useNotifications()
 
 const modal = useModal<Service>()
 const searchQuery = ref('')
-const categoryFilter = ref('All')
+const categoryFilter = ref(t('category_pills.all'))
 const saving = ref(false)
 
 // Conflict modal state
@@ -59,7 +61,7 @@ function formatTime(time: string) {
 
 // Categories from store
 const categories = computed(() => {
-  return ['All', ...categoryStore.categories.map(c => c.name)]
+  return [t('category_pills.all'), ...categoryStore.categories.map(c => c.name)]
 })
 
 // Filtered services
@@ -67,7 +69,7 @@ const filteredServices = computed(() => {
   return serviceStore.services.filter(service => {
     const matchesSearch = service.name.toLowerCase().includes(searchQuery.value.toLowerCase())
     const serviceCategoryName = service.categories?.name || 'Uncategorized'
-    const matchesCategory = categoryFilter.value === 'All' || serviceCategoryName === categoryFilter.value
+    const matchesCategory = categoryFilter.value === t('category_pills.all') || serviceCategoryName === categoryFilter.value
     // Only show services belonging to this provider
     const matchesProvider = service.provider_id === authStore.provider?.id
     return matchesSearch && matchesCategory && matchesProvider
@@ -115,7 +117,7 @@ async function executeSave(serviceData: any) {
   try {
     if (modal.data.value) {
       await serviceStore.updateService(modal.data.value.id, serviceData)
-      showSuccess('Service updated successfully')
+      showSuccess(t('provider.services.save_success'))
     } else {
       const newService = {
         ...serviceData,
@@ -126,13 +128,13 @@ async function executeSave(serviceData: any) {
         active: true
       }
       await serviceStore.createService(newService)
-      showSuccess('Service created successfully')
+      showSuccess(t('provider.services.add_success'))
     }
     modal.close()
     showConflictModal.value = false
   } catch (err) {
     console.error('Error in handleSave:', err)
-    showError('Failed to save service: ' + (err instanceof Error ? err.message : String(err)))
+    showError(t('provider.services.save_error') + ': ' + (err instanceof Error ? err.message : String(err)))
   } finally {
     saving.value = false
   }
@@ -157,10 +159,11 @@ async function toggleActive(service: Service) {
 async function executeToggleActive(service: Service) {
   try {
     await serviceStore.updateService(service.id, { active: !service.active })
+    showSuccess(t('provider.staff.toggle_success'))
     showConflictModal.value = false
   } catch (err) {
     console.error('Error in toggleActive:', err)
-    showError('Failed to update service status')
+    showError(t('provider.services.toggle_error'))
   }
 }
 
@@ -196,7 +199,7 @@ function formatCurrency(amount: number) {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
             </button>
-            <h1 class="text-2xl font-bold text-gray-900">My Services</h1>
+            <h1 class="text-2xl font-bold text-gray-900">{{ $t('provider.services.title') }}</h1>
           </div>
           <button
             @click="openAddModal"
@@ -205,7 +208,7 @@ function formatCurrency(amount: number) {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
-            Add Service
+            {{ $t('provider.services.add_button') }}
           </button>
         </div>
       </div>
@@ -222,12 +225,12 @@ function formatCurrency(amount: number) {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search services..."
+            :placeholder="$t('provider.services.search_placeholder')"
             class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
         <div class="flex items-center gap-2 w-full md:w-auto">
-          <label class="text-gray-600 whitespace-nowrap">Category:</label>
+          <label class="text-gray-600 whitespace-nowrap">{{ $t('provider.services.category_label') }}</label>
           <select
             v-model="categoryFilter"
             class="w-full md:w-48 border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -240,7 +243,7 @@ function formatCurrency(amount: number) {
       <!-- Loading State -->
       <div v-if="serviceStore.loading" class="text-center py-12">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">Loading services...</p>
+        <p class="text-gray-500 mt-4">{{ $t('services.loading') }}</p>
       </div>
 
       <!-- Empty State -->
@@ -248,13 +251,13 @@ function formatCurrency(amount: number) {
         <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
         </svg>
-        <h3 class="text-lg font-medium text-gray-900">No services found</h3>
-        <p class="text-gray-500 mt-2">Get started by adding your first service.</p>
+        <h3 class="text-lg font-medium text-gray-900">{{ $t('provider.services.no_services_found') }}</h3>
+        <p class="text-gray-500 mt-2">{{ $t('provider.services.no_services_desc') }}</p>
         <button
           @click="openAddModal"
           class="mt-4 text-primary-600 hover:text-primary-700 font-medium"
         >
-          Add Service →
+          {{ $t('provider.services.add_button') }} →
         </button>
       </div>
 
@@ -270,7 +273,7 @@ function formatCurrency(amount: number) {
             <!-- Inactive banner -->
             <div v-if="!service.active" class="mb-3 -mx-6 -mt-6 px-6 py-2 bg-gray-200 border-b border-gray-300">
               <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                ⚠️ Inactive Service
+                ⚠️ {{ $t('provider.services.inactive_banner') }}
               </span>
             </div>
             
@@ -278,7 +281,7 @@ function formatCurrency(amount: number) {
               <div>
                 <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full mb-2"
                   :class="service.active ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-500'">
-                  {{ service.categories?.name || 'Uncategorized' }}
+                  {{ service.categories?.name || $t('provider.services.uncategorized') }}
                 </span>
                 <h3 class="text-xl font-bold" :class="service.active ? 'text-gray-900' : 'text-gray-600'">
                   {{ service.name }}
@@ -295,7 +298,7 @@ function formatCurrency(amount: number) {
             </div>
             
             <p class="text-sm mb-4 line-clamp-2" :class="service.active ? 'text-gray-600' : 'text-gray-500'">
-              {{ service.description || 'No description provided.' }}
+              {{ service.description || $t('provider.services.description_fallback') }}
             </p>
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -313,7 +316,7 @@ function formatCurrency(amount: number) {
                   ></span>
                 </button>
                 <span class="text-sm font-medium" :class="service.active ? 'text-green-600' : 'text-gray-500'">
-                  {{ service.active ? 'Active' : 'Inactive' }}
+                  {{ service.active ? $t('provider.staff.active') : $t('provider.staff.inactive') }}
                 </span>
               </div>
               
@@ -321,7 +324,7 @@ function formatCurrency(amount: number) {
                 <button
                   @click="openEditModal(service)"
                   class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit service"
+                  :title="$t('services.edit_service')"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -346,8 +349,8 @@ function formatCurrency(amount: number) {
     <!-- Conflict Confirmation -->
     <ConfirmationModal
       :isOpen="showConflictModal"
-      title="Important: Schedule Conflict"
-      :message="`You have active bookings with service ${pendingDeactivationService?.name}`"
+      :title="$t('provider.services.conflict_title')"
+      :message="$t('provider.services.conflict_msg', { name: pendingDeactivationService?.name })"
       confirmLabel="Confirm"
       :isDestructive="true"
       @close="showConflictModal = false"
@@ -369,7 +372,7 @@ function formatCurrency(amount: number) {
           </div>
         </div>
         <p class="mt-6 text-sm text-gray-500 italic">
-          These appointments will remain scheduled. Do you wish to proceed?
+          {{ $t('provider.staff.conflict_notice') }}
         </p>
       </div>
     </ConfirmationModal>

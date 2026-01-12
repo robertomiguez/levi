@@ -2,12 +2,25 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/useAuthStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 
 const showMobileMenu = ref(false)
 const showUserDropdown = ref(false)
+const showLanguageDropdown = ref(false)
+
+const languages = [
+  { code: 'en', flag: '🇺🇸', label: 'English' },
+  { code: 'fr', flag: '🇫🇷', label: 'Français' },
+  { code: 'pt', flag: '🇧🇷', label: 'Português' }
+]
+
+const currentLanguageFlag = computed(() => {
+  return languages.find(l => l.code === settingsStore.language)?.flag || '🇺🇸'
+})
 
 const userRole = computed(() => {
   const isProvider = authStore.provider !== null
@@ -45,7 +58,7 @@ const ROLE_COLORS = {
   Provider: 'bg-purple-100 text-purple-800',
   Customer: 'bg-blue-100 text-blue-800',
   Both: 'bg-green-100 text-green-800',
-  Default: 'bg-gray-100 text-gray-800'
+  Default: 'bg-green-100 text-gray-800'
 } as const
 
 const roleBadgeColor = computed(() => {
@@ -94,13 +107,26 @@ function toggleMobileMenu() {
 
 function toggleUserDropdown() {
   showUserDropdown.value = !showUserDropdown.value
+  showLanguageDropdown.value = false
+}
+
+function toggleLanguageDropdown() {
+  showLanguageDropdown.value = !showLanguageDropdown.value
+  showUserDropdown.value = false
+}
+
+function changeLanguage(lang: string) {
+  settingsStore.setLanguage(lang)
+  showLanguageDropdown.value = false
+  showMobileMenu.value = false
 }
 
 // Close dropdown when clicking outside
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (!target.closest('.user-dropdown')) {
+  if (!target.closest('.user-dropdown') && !target.closest('.language-dropdown')) {
     showUserDropdown.value = false
+    showLanguageDropdown.value = false
   }
 }
 </script>
@@ -118,6 +144,42 @@ function handleClickOutside(event: MouseEvent) {
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center gap-4">
+          <!-- Language Switcher -->
+          <div class="relative language-dropdown">
+            <button
+              @click="toggleLanguageDropdown"
+              class="flex items-center gap-1 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <span class="text-xl">{{ currentLanguageFlag }}</span>
+              <svg 
+                class="w-4 h-4 text-gray-500 transition-transform"
+                :class="{ 'rotate-180': showLanguageDropdown }"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <!-- Language Dropdown -->
+            <div
+              v-if="showLanguageDropdown"
+              class="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1"
+            >
+              <button
+                v-for="lang in languages"
+                :key="lang.code"
+                @click="changeLanguage(lang.code)"
+                class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-3"
+                :class="{ 'bg-gray-50': settingsStore.language === lang.code }"
+              >
+                <span class="text-lg">{{ lang.flag }}</span>
+                <span>{{ lang.label }}</span>
+              </button>
+            </div>
+          </div>
+
           <!-- For Business Button -->
           <button
             @click="navigateToForBusiness"
@@ -126,7 +188,7 @@ function handleClickOutside(event: MouseEvent) {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
             </svg>
-            For Business
+            {{ $t('nav.for_business') }}
           </button>
 
           <!-- User Menu -->
@@ -177,7 +239,7 @@ function handleClickOutside(event: MouseEvent) {
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                 </svg>
-                Dashboard
+                {{ $t('nav.dashboard') }}
               </button>
 
               <button
@@ -210,7 +272,7 @@ function handleClickOutside(event: MouseEvent) {
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
-                Logout
+                {{ $t('nav.logout') }}
               </button>
             </div>
           </div>
@@ -221,7 +283,7 @@ function handleClickOutside(event: MouseEvent) {
             @click="navigateToLogin"
             class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
           >
-            Login
+            {{ $t('nav.login') }}
           </button>
         </div>
 
@@ -261,6 +323,23 @@ function handleClickOutside(event: MouseEvent) {
             </div>
           </div>
         </div>
+        
+        <!-- Language Switcher Mobile -->
+        <div class="pb-3 border-b border-gray-200">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Language</p>
+          <div class="flex gap-2">
+            <button
+              v-for="lang in languages"
+              :key="lang.code"
+              @click="changeLanguage(lang.code)"
+              class="flex-1 px-3 py-2 text-sm text-center border rounded-md"
+              :class="settingsStore.language === lang.code ? 'bg-primary-50 border-primary-500 text-primary-700' : 'bg-white border-gray-200 text-gray-700'"
+            >
+              <span class="mr-1">{{ lang.flag }}</span>
+              {{ lang.code.toUpperCase() }}
+            </button>
+          </div>
+        </div>
 
         <!-- Menu Items -->
         <button
@@ -270,7 +349,7 @@ function handleClickOutside(event: MouseEvent) {
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
           </svg>
-          For Business
+          {{ $t('nav.for_business') }}
         </button>
 
         <template v-if="authStore.isAuthenticated">
@@ -282,7 +361,7 @@ function handleClickOutside(event: MouseEvent) {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
             </svg>
-            Dashboard
+            {{ $t('nav.dashboard') }}
           </button>
 
           <button
@@ -313,7 +392,7 @@ function handleClickOutside(event: MouseEvent) {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
             </svg>
-            Logout
+            {{ $t('nav.logout') }}
           </button>
         </template>
 
@@ -322,7 +401,7 @@ function handleClickOutside(event: MouseEvent) {
           @click="navigateToLogin(); showMobileMenu = false"
           class="w-full px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium"
         >
-          Login
+          {{ $t('nav.login') }}
         </button>
       </div>
     </div>

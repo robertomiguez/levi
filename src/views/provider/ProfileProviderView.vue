@@ -5,9 +5,11 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import ImageUpload from '../../components/ImageUpload.vue'
 import { saveProvider } from '../../services/providerService'
 import { useNotifications } from '../../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 
 const form = ref({
   business_name: '',
@@ -65,8 +67,8 @@ async function handleSubmit() {
     })
 
     showSuccess(isEditing.value
-      ? 'Profile updated successfully'
-      : 'Profile created successfully')
+      ? t('provider_profile.save_success_edit')
+      : t('provider_profile.save_success_new'))
 
     await authStore.fetchProviderProfile()
 
@@ -74,7 +76,7 @@ async function handleSubmit() {
       router.push('/provider/dashboard')
     }
   } catch (e) {
-    showError(e instanceof Error ? e.message : 'Failed to save changes')
+    showError(e instanceof Error ? e.message : t('provider_profile.save_error'))
   } finally {
     loading.value = false
   }
@@ -93,10 +95,10 @@ async function handleSubmit() {
         </div>
       </div>
       <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-        {{ isEditing ? 'Business Profile' : 'Become a Provider' }}
+        {{ isEditing ? $t('provider_profile.title_edit') : $t('provider_profile.title_new') }}
       </h2>
       <p class="mt-2 text-center text-sm text-gray-600">
-        {{ isEditing ? 'Manage your business details' : 'Start managing your business with Levi today.' }}
+        {{ isEditing ? $t('provider_profile.subtitle_edit') : $t('provider_profile.subtitle_new') }}
       </p>
     </div>
 
@@ -114,8 +116,8 @@ async function handleSubmit() {
             <div>
               <ImageUpload
                 v-model="form.logo_url"
-                label="Business Logo"
-                help-text="Upload a logo for your business (optional)"
+                :label="$t('provider_profile.logo_label')"
+                :help-text="$t('provider_profile.logo_help')"
                 :processing="loading"
                 @change="file => logoFile = file"
               />
@@ -123,7 +125,7 @@ async function handleSubmit() {
 
           <div>
             <label for="business_name" class="block text-sm font-medium text-gray-700">
-              Business Name
+              {{ $t('provider_profile.business_name') }}
             </label>
             <div class="mt-1">
               <input
@@ -140,7 +142,7 @@ async function handleSubmit() {
 
           <div>
             <label for="phone" class="block text-sm font-medium text-gray-700">
-              Phone Number
+              {{ $t('provider_profile.phone_number') }}
             </label>
             <div class="mt-1">
               <input
@@ -157,7 +159,7 @@ async function handleSubmit() {
 
           <div>
             <label for="description" class="block text-sm font-medium text-gray-700">
-              Description
+              {{ $t('provider_profile.description') }}
             </label>
             <div class="mt-1">
               <textarea
@@ -166,7 +168,7 @@ async function handleSubmit() {
                 name="description"
                 rows="3"
                 class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Tell us about your services..."
+                :placeholder="$t('provider_profile.description_placeholder')"
               ></textarea>
             </div>
           </div>
@@ -196,7 +198,7 @@ async function handleSubmit() {
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {{ loading ? 'Saving...' : 'Save and Continue' }}
+              {{ loading ? $t('common.sending') : $t('profile.save_and_continue') }}
             </button>
 
             <!-- Existing Provider: Save & Close -->
@@ -210,7 +212,7 @@ async function handleSubmit() {
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                {{ loading ? 'Saving...' : 'Save' }}
+                {{ loading ? $t('common.sending') : $t('common.save') }}
               </button>
               
               <button
@@ -218,7 +220,7 @@ async function handleSubmit() {
                 @click="router.push('/provider/dashboard')"
                 class="mt-3 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
-                Close
+                {{ $t('common.close') }}
               </button>
             </template>
           </div>

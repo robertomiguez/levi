@@ -3,8 +3,10 @@ import { onMounted, ref, computed } from 'vue'
 import { useAppointmentStore } from '../stores/useAppointmentStore'
 import { useServiceStore } from '../stores/useServiceStore'
 import { useStaffStore } from '../stores/useStaffStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns'
 import type { Appointment } from '../types'
+import { useI18n } from 'vue-i18n'
 
 import { useNotifications } from '../composables/useNotifications'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
@@ -12,6 +14,8 @@ import ConfirmationModal from '../components/common/ConfirmationModal.vue'
 const appointmentStore = useAppointmentStore()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
+const settingsStore = useSettingsStore()
+const { t } = useI18n()
 const { showSuccess, showError } = useNotifications()
 
 const viewMode = ref<'day' | 'week'>('week')
@@ -77,16 +81,16 @@ function viewAppointment(appointment: Appointment) {
 function openCancelConfirm(id: string) {
   pendingAppointmentId.value = id
   confirmActionType.value = 'cancel'
-  confirmTitle.value = 'Cancel Appointment'
-  confirmMessage.value = 'Are you sure you want to cancel this appointment?'
+  confirmTitle.value = t('calendar.cancel_confirm_title')
+  confirmMessage.value = t('calendar.cancel_confirm_msg')
   showConfirmModal.value = true
 }
 
 function openDeleteConfirm(id: string) {
   pendingAppointmentId.value = id
   confirmActionType.value = 'delete'
-  confirmTitle.value = 'Delete Appointment'
-  confirmMessage.value = 'Are you sure you want to permanently delete this appointment? This action cannot be undone.'
+  confirmTitle.value = t('calendar.delete_confirm_title')
+  confirmMessage.value = t('calendar.delete_confirm_msg')
   showConfirmModal.value = true
 }
 
@@ -96,15 +100,15 @@ async function handleConfirmAction() {
   try {
     if (confirmActionType.value === 'cancel') {
       await appointmentStore.updateAppointment(pendingAppointmentId.value, { status: 'cancelled' })
-      showSuccess('Appointment cancelled')
+      showSuccess(t('calendar.cancel_success'))
     } else if (confirmActionType.value === 'delete') {
       await appointmentStore.deleteAppointment(pendingAppointmentId.value)
-      showSuccess('Appointment deleted')
+      showSuccess(t('calendar.delete_success'))
     }
     showAppointmentModal.value = false
   } catch (e) {
     console.error('Error processing appointment action:', e)
-    showError('Failed to process request')
+    showError(t('calendar.action_failed'))
   } finally {
     showConfirmModal.value = false
     pendingAppointmentId.value = null
@@ -152,8 +156,8 @@ function formatTime(time: string) {
       <!-- Header -->
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Calendar</h1>
-          <p class="text-gray-600">View and manage appointments</p>
+          <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ $t('calendar.title') }}</h1>
+          <p class="text-gray-600">{{ $t('calendar.subtitle') }}</p>
         </div>
 
         <!-- View Toggle -->
@@ -167,7 +171,7 @@ function formatTime(time: string) {
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             ]"
           >
-            Day
+            {{ $t('calendar.day') }}
           </button>
           <button
             @click="viewMode = 'week'; loadAppointments()"
@@ -178,7 +182,7 @@ function formatTime(time: string) {
                 : 'bg-white text-gray-700 hover:bg-gray-100'
             ]"
           >
-            Week
+            {{ $t('calendar.week') }}
           </button>
         </div>
       </div>
@@ -199,7 +203,7 @@ function formatTime(time: string) {
               @click="goToToday"
               class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
             >
-              Today
+              {{ $t('calendar.today') }}
             </button>
             <button
               @click="nextPeriod"
@@ -213,8 +217,8 @@ function formatTime(time: string) {
 
           <h2 class="text-xl font-semibold text-gray-900">
             {{ viewMode === 'day' 
-              ? format(currentDate, 'EEEE, MMMM d, yyyy')
-              : `${format(startOfWeek(currentDate), 'MMM d')} - ${format(endOfWeek(currentDate), 'MMM d, yyyy')}`
+              ? currentDate.toLocaleDateString(settingsStore.language, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+              : `${startOfWeek(currentDate).toLocaleDateString(settingsStore.language, { month: 'short', day: 'numeric' })} - ${endOfWeek(currentDate).toLocaleDateString(settingsStore.language, { month: 'short', day: 'numeric', year: 'numeric' })}`
             }}
           </h2>
 
@@ -264,7 +268,7 @@ function formatTime(time: string) {
                 </button>
                 
                 <div v-if="getAppointmentsForDate(day).length === 0" class="text-center py-12 text-gray-400 text-sm">
-                  No appointments
+                  {{ $t('calendar.no_appointments') }}
                 </div>
               </div>
             </div>
@@ -278,7 +282,7 @@ function formatTime(time: string) {
       <div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
         <div class="p-6">
           <div class="flex justify-between items-start mb-4">
-            <h2 class="text-2xl font-bold text-gray-900">Appointment Details</h2>
+            <h2 class="text-2xl font-bold text-gray-900">{{ $t('calendar.details_title') }}</h2>
             <button
               @click="showAppointmentModal = false"
               class="text-gray-400 hover:text-gray-600"
@@ -291,7 +295,7 @@ function formatTime(time: string) {
 
           <div class="space-y-4">
             <div>
-              <span class="text-sm text-gray-500">Service</span>
+              <span class="text-sm text-gray-500">{{ $t('booking.steps.service') }}</span>
               <p class="font-semibold text-gray-900">{{ getServiceName(selectedAppointment.service_id) }}</p>
             </div>
 
@@ -303,7 +307,7 @@ function formatTime(time: string) {
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <span class="text-sm text-gray-500">Date</span>
-                <p class="font-semibold text-gray-900">{{ format(new Date(selectedAppointment.appointment_date), 'MMM d, yyyy') }}</p>
+                <p class="font-semibold text-gray-900">{{ new Date(selectedAppointment.appointment_date).toLocaleDateString(settingsStore.language, { month: 'short', day: 'numeric', year: 'numeric' }) }}</p>
               </div>
               <div>
                 <span class="text-sm text-gray-500">Time</span>
@@ -319,7 +323,7 @@ function formatTime(time: string) {
             </div>
 
             <div v-if="selectedAppointment.notes">
-              <span class="text-sm text-gray-500">Notes</span>
+              <span class="text-sm text-gray-500">{{ $t('booking.notes_label') }}</span>
               <p class="text-gray-900">{{ selectedAppointment.notes }}</p>
             </div>
 
@@ -327,7 +331,7 @@ function formatTime(time: string) {
               <span class="text-sm text-gray-500">Status</span>
               <div class="mt-1">
                 <span :class="['inline-block px-3 py-1 rounded-full text-sm font-medium', getStatusColor(selectedAppointment.status)]">
-                  {{ selectedAppointment.status }}
+                  {{ $t(`status.${selectedAppointment.status}`) }}
                 </span>
               </div>
             </div>
@@ -339,13 +343,13 @@ function formatTime(time: string) {
               @click="openCancelConfirm(selectedAppointment.id)"
               class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
-              Cancel Appointment
+              {{ $t('calendar.cancel_appointment') }}
             </button>
             <button
               @click="openDeleteConfirm(selectedAppointment.id)"
               class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
-              Delete
+              {{ $t('common.delete') }}
             </button>
           </div>
         </div>

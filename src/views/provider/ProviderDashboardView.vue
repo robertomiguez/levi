@@ -2,10 +2,12 @@
 import { onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useProviderStore } from '../../stores/useProviderStore'
+import { useSettingsStore } from '../../stores/useSettingsStore'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const providerStore = useProviderStore()
+const settingsStore = useSettingsStore()
 const router = useRouter()
 
 onMounted(async () => {
@@ -18,7 +20,7 @@ onMounted(async () => {
 })
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat(settingsStore.language, {
     style: 'currency',
     currency: 'USD'
   }).format(amount)
@@ -52,8 +54,8 @@ function goToAvailability() {
       <div class="max-w-7xl mx-auto px-6 py-4">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-3xl font-bold text-gray-900">Provider Dashboard</h1>
-            <p class="text-gray-600 mt-1">Welcome back, {{ authStore.provider?.business_name || 'Provider' }}! 👋</p>
+            <h1 class="text-3xl font-bold text-gray-900">{{ $t('dashboard.title') }}</h1>
+            <p class="text-gray-600 mt-1">{{ $t('dashboard.welcome_back', { name: authStore.provider?.business_name || 'Provider' }) }}</p>
           </div>
           <div class="flex items-center gap-4">
             <!-- Notifications placeholder -->
@@ -82,7 +84,7 @@ function goToAvailability() {
         <div class="bg-white rounded-lg shadow p-6 border-l-4 border-primary-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">Today's Appointments</p>
+              <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.today_appointments') }}</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ providerStore.stats.todayAppointments }}</p>
             </div>
             <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
@@ -97,7 +99,7 @@ function goToAvailability() {
         <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">This Week Revenue</p>
+              <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.week_revenue') }}</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ formatCurrency(providerStore.stats.weekRevenue) }}</p>
             </div>
             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -112,7 +114,7 @@ function goToAvailability() {
         <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">Active Services</p>
+              <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.active_services') }}</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ providerStore.stats.activeServices }}</p>
             </div>
             <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -127,7 +129,7 @@ function goToAvailability() {
         <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">Staff Members</p>
+              <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.staff_members') }}</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ providerStore.stats.totalStaff }}</p>
             </div>
             <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -141,7 +143,7 @@ function goToAvailability() {
 
       <!-- Quick Actions -->
       <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">{{ $t('dashboard.quick_actions.title') }}</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             @click="goToServices"
@@ -153,8 +155,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Services</p>
-              <p class="text-sm text-gray-600">Add or edit services</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.services_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.services_desc') }}</p>
             </div>
           </button>
 
@@ -168,8 +170,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Staff</p>
-              <p class="text-sm text-gray-600">Add or edit Staff</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.staff_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.staff_desc') }}</p>
             </div>
           </button>
 
@@ -184,8 +186,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Locations</p>
-              <p class="text-sm text-gray-600">Add or edit Locations</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.locations_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.locations_desc') }}</p>
             </div>
           </button>
 
@@ -199,8 +201,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">View Calendar</p>
-              <p class="text-sm text-gray-600">See all appointments</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.calendar_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.calendar_desc') }}</p>
             </div>
           </button>
 
@@ -214,8 +216,8 @@ function goToAvailability() {
               </svg>
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">Set Hours</p>
-              <p class="text-sm text-gray-600">Manage availability</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.availability_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.availability_desc') }}</p>
             </div>
           </button>
         </div>
@@ -230,9 +232,9 @@ function goToAvailability() {
             </svg>
           </div>
           <div class="ml-3">
-            <h3 class="text-sm font-medium text-yellow-800">Pending Approval</h3>
+            <h3 class="text-sm font-medium text-yellow-800">{{ $t('dashboard.status.pending_title') }}</h3>
             <div class="mt-2 text-sm text-yellow-700">
-              <p>Your provider account is pending admin approval. You can set up your services and availability, but customers won't see your offerings until approved.</p>
+              <p>{{ $t('dashboard.status.pending_desc') }}</p>
             </div>
           </div>
         </div>
@@ -240,20 +242,20 @@ function goToAvailability() {
 
       <!-- Recent Activity / Upcoming Appointments -->
       <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Upcoming Today</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">{{ $t('dashboard.upcoming.title') }}</h2>
         <div v-if="providerStore.stats.todayAppointments === 0" class="text-center py-12">
           <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
           </svg>
-          <p class="text-gray-600">No appointments scheduled for today</p>
+          <p class="text-gray-600">{{ $t('dashboard.upcoming.no_appointments') }}</p>
           <button @click="goToCalendar" class="mt-4 text-primary-600 hover:text-primary-700 font-medium">
-            View Full Calendar →
+            {{ $t('dashboard.upcoming.view_full_calendar') }} →
           </button>
         </div>
         <div v-else class="space-y-3">
-          <p class="text-gray-600">You have {{ providerStore.stats.todayAppointments }} appointment(s) scheduled for today.</p>
+          <p class="text-gray-600">{{ $t('dashboard.upcoming.appointments_count', { count: providerStore.stats.todayAppointments }) }}</p>
           <button @click="goToCalendar" class="text-primary-600 hover:text-primary-700 font-medium">
-            View Details →
+            {{ $t('dashboard.upcoming.view_details') }} →
           </button>
         </div>
       </div>

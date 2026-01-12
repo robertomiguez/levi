@@ -5,10 +5,14 @@ import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import type { Staff } from '../../types'
 import { format } from 'date-fns'
+import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '../../stores/useSettingsStore'
 import AppointmentDetailsModal from '../../components/provider/AppointmentDetailsModal.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
+const settingsStore = useSettingsStore()
 
 const staff = ref<Staff[]>([])
 const selectedStaffId = ref<string>('all')
@@ -215,7 +219,7 @@ async function updateStatus(status: string) {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
             </button>
-            <h1 class="text-2xl font-bold text-gray-900">Calendar</h1>
+            <h1 class="text-2xl font-bold text-gray-900">{{ $t('calendar.title') }}</h1>
           </div>
           
           <div class="flex items-center gap-4">
@@ -225,7 +229,7 @@ async function updateStatus(status: string) {
               @change="fetchAppointments"
               class="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
             >
-              <option value="all">All Staff</option>
+              <option value="all">{{ $t('category_pills.all') }} {{ $t('modals.appointment_details.staff') }}</option>
               <option v-for="member in staff" :key="member.id" :value="member.id">
                 {{ member.name }}
               </option>
@@ -234,13 +238,25 @@ async function updateStatus(status: string) {
             <!-- View Switcher -->
             <div class="flex bg-gray-100 rounded-lg p-1">
               <button 
-                v-for="v in ['month', 'week', 'day']" 
-                :key="v"
-                @click="view = v as any; fetchAppointments()"
+                @click="view = 'month'; fetchAppointments()"
                 class="px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors"
-                :class="view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                :class="view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
               >
-                {{ v }}
+                {{ $t('calendar.month') }}
+              </button>
+              <button 
+                @click="view = 'week'; fetchAppointments()"
+                class="px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors"
+                :class="view === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+              >
+                {{ $t('calendar.week') }}
+              </button>
+              <button 
+                @click="view = 'day'; fetchAppointments()"
+                class="px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors"
+                :class="view === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+              >
+                {{ $t('calendar.day') }}
               </button>
             </div>
           </div>
@@ -258,10 +274,10 @@ async function updateStatus(status: string) {
         </button>
         <h2 class="text-xl font-semibold text-gray-900">
           <span v-if="view === 'day'">
-             {{ format(currentDate, 'MMMM d, yyyy') }}
+             {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', day: 'numeric', year: 'numeric' }) }}
           </span>
           <span v-else>
-            {{ currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) }}
+            {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', year: 'numeric' }) }}
           </span>
         </h2>
         <button @click="nextPeriod" class="p-2 hover:bg-gray-200 rounded-full">
@@ -270,7 +286,7 @@ async function updateStatus(status: string) {
           </svg>
         </button>
         <button @click="today" class="text-sm font-medium text-primary-600 hover:text-primary-700">
-          Today
+          {{ $t('calendar.today') }}
         </button>
       </div>
     </div>
@@ -287,7 +303,7 @@ async function updateStatus(status: string) {
               class="p-4 text-center border-r border-gray-100 last:border-r-0"
               :class="{'bg-blue-50': day.toDateString() === new Date().toDateString()}"
             >
-              <p class="text-xs font-medium text-gray-500 uppercase">{{ day.toLocaleDateString('en-US', { weekday: 'short' }) }}</p>
+              <p class="text-xs font-medium text-gray-500 uppercase">{{ day.toLocaleDateString(settingsStore.language, { weekday: 'short' }) }}</p>
               <p class="text-lg font-bold text-gray-900 mt-1">{{ day.getDate() }}</p>
             </div>
           </div>
@@ -313,7 +329,7 @@ async function updateStatus(status: string) {
                   <p class="font-bold truncate">{{ formatTime(apt.start_time) }}</p>
                   <p class="truncate">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</p>
                   <p class="text-gray-500 truncate">{{ apt.services?.name }}</p>
-                  <p class="text-xs text-primary-600 truncate mt-1">w/ {{ apt.staff?.name }}</p>
+                  <p class="text-xs text-primary-600 truncate mt-1">{{ $t('calendar.with') }} {{ apt.staff?.name }}</p>
                 </button>
               </div>
             </div>
@@ -377,7 +393,7 @@ async function updateStatus(status: string) {
               </div>
               <div class="flex-1">
                 <h3 class="font-bold text-gray-900">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</h3>
-                <p class="text-gray-600">{{ apt.services?.name }} with {{ apt.staff?.name }}</p>
+                <p class="text-gray-600">{{ apt.services?.name }} {{ $t('calendar.with') }} {{ apt.staff?.name }}</p>
               </div>
               <div class="text-right">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
@@ -387,12 +403,12 @@ async function updateStatus(status: string) {
                     'bg-green-100 text-green-800': apt.status === 'completed',
                     'bg-red-100 text-red-800': apt.status === 'cancelled'
                   }">
-                  {{ apt.status }}
+                  {{ $t(`status.${apt.status}`) }}
                 </span>
               </div>
             </div>
             <div v-if="getAppointmentsForDate(currentDate).length === 0" class="text-center py-12 text-gray-500">
-              No appointments for today.
+              {{ $t('calendar.no_appointments') }}
             </div>
           </div>
         </div>

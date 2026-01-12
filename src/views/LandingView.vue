@@ -30,7 +30,7 @@ const heroOptions = [
     image: '/src/assets/images/hero_massage_service_1765116300777.png'
   },
   {
-    service: 'spa treatment',
+    service: 'spa',
     image: '/src/assets/images/hero_spa_service_1765116318055.png'
   }
 ]
@@ -164,8 +164,8 @@ function handleCategorySelect(categoryId: string | null) {
       <div class="max-w-7xl mx-auto px-6 w-full">
         <div class="max-w-3xl">
           <h1 class="text-5xl lg:text-6xl font-bold text-white mb-6">
-            Discover your perfect 
-            <span class="inline-block transition-all duration-500">{{ currentHero.service }}</span>
+            {{ $t('landing.hero_title') }} 
+            <span class="inline-block transition-all duration-500">{{ $t(`landing.hero_services.${currentHero.service}`) }}</span>
           </h1>
           
           <!-- Search Bar -->
@@ -187,9 +187,9 @@ function handleCategorySelect(categoryId: string | null) {
     <div class="max-w-7xl mx-auto px-6 py-12">
       <div class="mb-8">
         <h2 class="text-3xl font-bold text-gray-900 mb-2">
-          Popular in San Francisco, CA
+          {{ $t('landing.popular_in', { location: 'San Francisco, CA' }) }}
           <a href="#" class="text-base font-normal text-primary-600 hover:text-primary-700 ml-4">
-            See all →
+            {{ $t('nav.see_all') }} →
           </a>
         </h2>
       </div>
@@ -197,7 +197,7 @@ function handleCategorySelect(categoryId: string | null) {
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">Loading providers...</p>
+        <p class="text-gray-500 mt-4">{{ $t('common.loading') }}</p>
       </div>
 
       <!-- Empty State -->
@@ -205,8 +205,8 @@ function handleCategorySelect(categoryId: string | null) {
         <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
         </svg>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No providers found</h3>
-        <p class="text-gray-600">Try adjusting your search or filters</p>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">{{ $t('landing.no_providers_found') }}</h3>
+        <p class="text-gray-600">{{ $t('landing.adjust_search') }}</p>
       </div>
 
       <!-- Provider Grid -->
@@ -227,8 +227,8 @@ function handleCategorySelect(categoryId: string | null) {
     <div class="bg-gray-50 py-20">
       <div class="max-w-7xl mx-auto px-6">
         <div class="text-center mb-16">
-          <h2 class="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-          <p class="text-xl text-gray-600">Book appointments in three easy steps</p>
+          <h2 class="text-4xl font-bold text-gray-900 mb-4">{{ $t('landing.how_it_works_title') }}</h2>
+          <p class="text-xl text-gray-600">{{ $t('landing.how_it_works_subtitle') }}</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -236,24 +236,24 @@ function handleCategorySelect(categoryId: string | null) {
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               1
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">Browse Services</h3>
-            <p class="text-gray-600">Explore services from verified local providers in your area</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('landing.steps.browse_title') }}</h3>
+            <p class="text-gray-600">{{ $t('landing.steps.browse_desc') }}</p>
           </div>
 
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               2
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">Pick Your Time</h3>
-            <p class="text-gray-600">Select a date and time that works best for your schedule</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('landing.steps.time_title') }}</h3>
+            <p class="text-gray-600">{{ $t('landing.steps.time_desc') }}</p>
           </div>
 
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               3
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">Book & Done</h3>
-            <p class="text-gray-600">Receive instant confirmation and manage your appointments</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ $t('landing.steps.book_title') }}</h3>
+            <p class="text-gray-600">{{ $t('landing.steps.book_desc') }}</p>
           </div>
         </div>
       </div>
@@ -263,12 +263,12 @@ function handleCategorySelect(categoryId: string | null) {
     <div class="bg-gray-900 text-gray-400 py-12">
       <div class="max-w-7xl mx-auto px-6">
         <div class="text-center">
-          <p class="mb-4">&copy; 2025 Levi. All rights reserved.</p>
+          <p class="mb-4">&copy; 2025 Levi. {{ $t('footer.rights') }}</p>
           <div class="flex justify-center gap-6 text-sm">
-            <a href="#" class="hover:text-white transition-colors">About</a>
-            <a href="#" class="hover:text-white transition-colors">Privacy</a>
-            <a href="#" class="hover:text-white transition-colors">Terms</a>
-            <a href="#" class="hover:text-white transition-colors">Contact</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.about') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.privacy') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.terms') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.contact') }}</a>
           </div>
         </div>
       </div>

@@ -35,24 +35,24 @@ function goToDashboard() {
       <div class="max-w-7xl mx-auto px-6 py-20 lg:py-32">
         <div class="max-w-3xl">
           <h1 class="text-5xl lg:text-6xl font-bold mb-6">
-            Grow Your Business with Levi
+            {{ $t('business.hero_title') }}
           </h1>
           <p class="text-xl lg:text-2xl mb-8 text-purple-100">
-            The all-in-one platform for service providers. Manage services, staff, schedules, and bookings effortlessly.
+            {{ $t('business.hero_subtitle') }}
           </p>
           <div class="flex flex-col sm:flex-row gap-4">
             <button
               @click="goToRegister"
               class="px-8 py-4 bg-white text-primary-600 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors shadow-lg"
             >
-              Get Started Free
+              {{ $t('business.get_started_free') }}
             </button>
             <button
               v-if="authStore.provider"
               @click="goToDashboard"
               class="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-semibold text-lg hover:bg-white hover:text-primary-600 transition-colors"
             >
-              Go to Dashboard
+              {{ $t('business.go_to_dashboard') }}
             </button>
           </div>
         </div>
@@ -62,8 +62,8 @@ function goToDashboard() {
     <!-- Features Section -->
     <div class="max-w-7xl mx-auto px-6 py-20">
       <div class="text-center mb-16">
-        <h2 class="text-4xl font-bold text-gray-900 mb-4">Everything You Need to Run Your Business</h2>
-        <p class="text-xl text-gray-600">Powerful tools designed for service professionals</p>
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">{{ $t('business.features_title') }}</h2>
+        <p class="text-xl text-gray-600">{{ $t('business.features_subtitle') }}</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -74,8 +74,8 @@ function goToDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Service Management</h3>
-          <p class="text-gray-600">Create and manage your service offerings with custom pricing and durations</p>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $t('business.features.services_title') }}</h3>
+          <p class="text-gray-600">{{ $t('business.features.services_desc') }}</p>
         </div>
 
         <!-- Staff Management -->
@@ -85,8 +85,8 @@ function goToDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Team Management</h3>
-          <p class="text-gray-600">Add team members and manage their schedules and availability</p>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $t('business.features.team_title') }}</h3>
+          <p class="text-gray-600">{{ $t('business.features.team_desc') }}</p>
         </div>
 
         <!-- Calendar -->
@@ -96,8 +96,8 @@ function goToDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Smart Calendar</h3>
-          <p class="text-gray-600">View all appointments in one place with real-time updates</p>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $t('business.features.calendar_title') }}</h3>
+          <p class="text-gray-600">{{ $t('business.features.calendar_desc') }}</p>
         </div>
 
         <!-- Locations -->
@@ -108,8 +108,8 @@ function goToDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Multiple Locations</h3>
-          <p class="text-gray-600">Manage multiple service locations and branches from one account</p>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $t('business.features.locations_title') }}</h3>
+          <p class="text-gray-600">{{ $t('business.features.locations_desc') }}</p>
         </div>
 
         <!-- Availability -->
@@ -119,8 +119,8 @@ function goToDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Flexible Scheduling</h3>
-          <p class="text-gray-600">Set your hours, manage availability, and block out time when needed</p>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $t('business.features.scheduling_title') }}</h3>
+          <p class="text-gray-600">{{ $t('business.features.scheduling_desc') }}</p>
         </div>
 
         <!-- Real-time Bookings -->
@@ -130,8 +130,8 @@ function goToDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
             </svg>
           </div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">Instant Bookings</h3>
-          <p class="text-gray-600">Accept bookings 24/7 with automatic confirmations</p>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">{{ $t('business.features.bookings_title') }}</h3>
+          <p class="text-gray-600">{{ $t('business.features.bookings_desc') }}</p>
         </div>
       </div>
     </div>
@@ -140,8 +140,8 @@ function goToDashboard() {
     <div class="bg-gray-50 py-20">
       <div class="max-w-7xl mx-auto px-6">
         <div class="text-center mb-16">
-          <h2 class="text-4xl font-bold text-gray-900 mb-4">Get Started in Minutes</h2>
-          <p class="text-xl text-gray-600">Simple setup, powerful results</p>
+          <h2 class="text-4xl font-bold text-gray-900 mb-4">{{ $t('business.setup_title') }}</h2>
+          <p class="text-xl text-gray-600">{{ $t('business.setup_subtitle') }}</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -149,24 +149,24 @@ function goToDashboard() {
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               1
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">Create Your Account</h3>
-            <p class="text-gray-600">Sign up in seconds and set up your business profile</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-3">{{ $t('business.setup_steps.step1_title') }}</h3>
+            <p class="text-gray-600">{{ $t('business.setup_steps.step1_desc') }}</p>
           </div>
 
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               2
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">Add Your Services</h3>
-            <p class="text-gray-600">List your services, set prices, and configure your availability</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-3">{{ $t('business.setup_steps.step2_title') }}</h3>
+            <p class="text-gray-600">{{ $t('business.setup_steps.step2_desc') }}</p>
           </div>
 
           <div class="text-center">
             <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
               3
             </div>
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">Start Accepting Bookings</h3>
-            <p class="text-gray-600">Go live and start receiving bookings from customers</p>
+            <h3 class="text-xl font-semibold text-gray-900 mb-3">{{ $t('business.setup_steps.step3_title') }}</h3>
+            <p class="text-gray-600">{{ $t('business.setup_steps.step3_desc') }}</p>
           </div>
         </div>
       </div>
@@ -175,15 +175,15 @@ function goToDashboard() {
     <!-- CTA Section -->
     <div class="bg-gradient-to-r from-primary-600 to-purple-600 text-white py-20">
       <div class="max-w-4xl mx-auto px-6 text-center">
-        <h2 class="text-4xl font-bold mb-6">Ready to Grow Your Business?</h2>
+        <h2 class="text-4xl font-bold mb-6">{{ $t('business.cta_title') }}</h2>
         <p class="text-xl mb-8 text-purple-100">
-          Join hundreds of service providers who trust Levi to manage their bookings
+          {{ $t('business.cta_subtitle') }}
         </p>
         <button
           @click="goToRegister"
           class="px-10 py-4 bg-white text-primary-600 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors shadow-lg"
         >
-          Get Started Free
+          {{ $t('business.get_started_free') }}
         </button>
       </div>
     </div>
@@ -192,15 +192,16 @@ function goToDashboard() {
     <div class="bg-gray-900 text-gray-400 py-12">
       <div class="max-w-7xl mx-auto px-6">
         <div class="text-center">
-          <p class="mb-4">&copy; 2025 Levi. All rights reserved.</p>
+          <p class="mb-4">&copy; 2025 Levi. {{ $t('footer.rights') }}</p>
           <div class="flex justify-center gap-6 text-sm">
-            <a href="#" class="hover:text-white transition-colors">About</a>
-            <a href="#" class="hover:text-white transition-colors">Privacy</a>
-            <a href="#" class="hover:text-white transition-colors">Terms</a>
-            <a href="#" class="hover:text-white transition-colors">Contact</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.about') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.privacy') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.terms') }}</a>
+            <a href="#" class="hover:text-white transition-colors">{{ $t('footer.contact') }}</a>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </template>

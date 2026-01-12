@@ -71,31 +71,31 @@ function handleSubmit() {
 <template>
   <Modal
     :is-open="true"
-    :title="service ? 'Edit Service' : 'Add New Service'"
+    :title="service ? $t('modals.service.title_edit') : $t('modals.service.title_new')"
     @close="$emit('close')"
   >
     <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
       <!-- Name -->
       <div>
-        <label class="block text-sm font-medium text-gray-700">Service Name</label>
+        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.name') }}</label>
         <input
           v-model="form.name"
           type="text"
           required
           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          placeholder="e.g. Men's Haircut"
+          :placeholder="$t('modals.service.name_placeholder')"
         />
       </div>
 
       <!-- Category -->
       <div>
-        <label class="block text-sm font-medium text-gray-700">Category</label>
+        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.category') }}</label>
         <select
           v-model="form.category_id"
           required
           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
         >
-          <option value="" disabled>Select a category</option>
+          <option value="" disabled>{{ $t('modals.service.category_placeholder') }}</option>
           <option v-for="cat in categoryStore.categories" :key="cat.id" :value="cat.id">
             {{ cat.name }}
           </option>
@@ -105,7 +105,7 @@ function handleSubmit() {
       <div class="grid grid-cols-2 gap-4">
         <!-- Price -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Price ($)</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.price') }}</label>
           <div class="mt-1 relative rounded-md shadow-sm">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span class="text-gray-500 sm:text-sm">$</span>
@@ -123,7 +123,7 @@ function handleSubmit() {
 
         <!-- Duration -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Duration (min)</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.duration') }}</label>
           <input
             v-model="form.duration"
             type="number"
@@ -137,21 +137,21 @@ function handleSubmit() {
 
       <!-- Description -->
       <div>
-        <label class="block text-sm font-medium text-gray-700">Description</label>
+        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.description') }}</label>
         <textarea
           v-model="form.description"
           rows="3"
           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          placeholder="Describe the service..."
+          :placeholder="$t('modals.service.description_placeholder')"
         ></textarea>
       </div>
 
       <!-- Staff Selection -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Assign Staff</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('modals.service.assign_staff') }}</label>
         <div class="border border-gray-300 rounded-md max-h-48 overflow-y-auto p-2 space-y-2">
           <div v-if="staffStore.staff.length === 0" class="text-sm text-gray-500 italic px-2">
-            No active staff members found.
+            {{ $t('modals.service.no_staff') }}
           </div>
           <div v-for="member in staffStore.staff" :key="member.id" class="flex items-center">
             <input
@@ -166,13 +166,13 @@ function handleSubmit() {
             </label>
           </div>
         </div>
-        <p class="mt-1 text-xs text-gray-500">Select which staff members can perform this service.</p>
+        <p class="mt-1 text-xs text-gray-500">{{ $t('modals.service.assign_staff_help') }}</p>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <!-- Buffer Before -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Buffer Before (min)</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.buffer_before') }}</label>
           <input
             v-model="form.buffer_before"
             type="number"
@@ -184,7 +184,7 @@ function handleSubmit() {
 
         <!-- Buffer After -->
         <div>
-          <label class="block text-sm font-medium text-gray-700">Buffer After (min)</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('modals.service.buffer_after') }}</label>
           <input
             v-model="form.buffer_after"
             type="number"
@@ -206,14 +206,14 @@ function handleSubmit() {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          {{ props.loading ? 'Saving...' : 'Save Service' }}
+          {{ props.loading ? $t('modals.service.saving') : $t('modals.service.save_button') }}
         </button>
         <button
           type="button"
           class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
           @click="$emit('close')"
         >
-          Cancel
+          {{ $t('common.cancel') }}
         </button>
       </div>
     </form>

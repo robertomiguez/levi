@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import type { Staff, ProviderAddress } from '../../types'
 import Modal from '../../components/common/Modal.vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   isOpen: boolean
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   }): void
 }>()
 
+const { t } = useI18n()
 const form = ref({
   name: '',
   email: '',
@@ -65,7 +67,7 @@ watch(() => props.initialAddressIds, (newVal) => {
 })
 
 const isEditMode = computed(() => !!props.staff)
-const title = computed(() => isEditMode.value ? 'Edit Staff Member' : 'Add Staff Member')
+const title = computed(() => isEditMode.value ? t('provider.staff.edit_title') : t('provider.staff.add_button'))
 
 function handleSubmit() {
   emit('save', {
@@ -83,7 +85,7 @@ function handleSubmit() {
   >
     <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700">Name</label>
+        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.staff.name') }}</label>
         <input
           v-model="form.name"
           type="text"
@@ -93,7 +95,7 @@ function handleSubmit() {
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700">Email</label>
+        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.staff.email') }}</label>
         <input
           v-model="form.email"
           type="email"
@@ -103,13 +105,13 @@ function handleSubmit() {
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700">Role</label>
+        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.staff.role') }}</label>
         <select
           v-model="form.role"
           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
         >
-          <option value="staff">Staff</option>
-          <option value="admin">Admin</option>
+          <option value="staff">{{ $t('modals.staff.roles.staff') }}</option>
+          <option value="admin">{{ $t('modals.staff.roles.admin') }}</option>
         </select>
       </div>
 
@@ -119,12 +121,12 @@ function handleSubmit() {
           type="checkbox"
           class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
         />
-        <label class="ml-2 block text-sm text-gray-900">Active</label>
+        <label class="ml-2 block text-sm text-gray-900">{{ $t('modals.staff.active') }}</label>
       </div>
 
       <!-- Work Locations (Branches) -->
       <div v-if="providerAddresses.length > 0">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Work Locations</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('modals.staff.locations') }}</label>
         <div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3">
           <div v-for="address in providerAddresses" :key="address.id" class="flex items-start">
             <input
@@ -135,13 +137,13 @@ function handleSubmit() {
               class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-0.5"
             />
             <label :for="'addr-' + address.id" class="ml-2 text-sm text-gray-700 select-none cursor-pointer">
-              <span class="font-medium">{{ address.label || 'Location' }}</span>
+              <span class="font-medium">{{ address.label || $t('modals.staff.location_fallback') }}</span>
               <span class="text-gray-500 block text-xs">{{ address.street_address }}, {{ address.city }}</span>
             </label>
           </div>
         </div>
         <p v-if="selectedAddressIds.length === 0" class="mt-1 text-xs text-red-500">
-          Please select at least one work location.
+          {{ $t('modals.staff.locations_error') }}
         </p>
       </div>
 
@@ -151,14 +153,14 @@ function handleSubmit() {
           :disabled="loading || (providerAddresses.length > 0 && selectedAddressIds.length === 0)"
           class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ loading ? 'Saving...' : 'Save' }}
+          {{ loading ? $t('common.loading') : $t('common.save') }}
         </button>
         <button
           type="button"
           class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
           @click="$emit('close')"
         >
-          Cancel
+          {{ $t('common.cancel') }}
         </button>
       </div>
     </form>

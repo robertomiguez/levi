@@ -10,6 +10,8 @@ import { format, parseISO } from 'date-fns'
 import type { Staff, ProviderAddress } from '../../types'
 import { useModal } from '../../composables/useModal'
 import { useNotifications } from '../../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '../../stores/useSettingsStore'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 import StaffFormModal from '../../components/provider/StaffFormModal.vue'
 
@@ -17,6 +19,8 @@ const authStore = useAuthStore()
 const staffStore = useStaffStore()
 const appointmentStore = useAppointmentStore()
 const router = useRouter()
+const { t } = useI18n()
+const settingsStore = useSettingsStore()
 const { showSuccess, showError } = useNotifications()
 
 const staff = ref<Staff[]>([])
@@ -54,8 +58,8 @@ const groupedConflicts = computed(() => {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, appointments]) => ({
       date,
-      dayName: format(parseISO(date), 'EEEE'),
-      displayDate: format(parseISO(date), 'MMM d'),
+      dayName: parseISO(date).toLocaleDateString(settingsStore.language, { weekday: 'long' }),
+      displayDate: parseISO(date).toLocaleDateString(settingsStore.language, { month: 'short', day: 'numeric' }),
       appointments
     }))
 })
@@ -187,7 +191,7 @@ async function executeSave(payload: typeof pendingSavePayload.value) {
     // Sync address assignments
     if (staffId) {
       await staffStore.syncStaffAddresses(staffId, payload.addressIds)
-      showSuccess(modal.data.value ? 'Staff member updated successfully' : 'Staff member added successfully')
+      showSuccess(modal.data.value ? t('provider.staff.save_success') : t('provider.staff.add_success'))
     }
 
     modal.close()
@@ -195,7 +199,7 @@ async function executeSave(payload: typeof pendingSavePayload.value) {
     pendingSavePayload.value = null
   } catch (e) {
     console.error('Error saving staff:', e)
-    showError('Failed to save staff member: ' + (e instanceof Error ? e.message : String(e)))
+    showError(t('provider.staff.save_error') + ': ' + (e instanceof Error ? e.message : String(e)))
   }
 }
 
@@ -226,10 +230,11 @@ async function executeToggleActive(staffMember: Staff) {
         staff.value[index] = data
       }
     }
+    showSuccess(t('provider.staff.toggle_success'))
     showConflictModal.value = false
   } catch (e) {
     console.error('Error updating staff status:', e)
-    showError('Failed to update staff status')
+    showError(t('provider.staff.toggle_error'))
   }
 }
 
@@ -256,7 +261,7 @@ async function confirmDeactivation() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
             </button>
-            <h1 class="text-2xl font-bold text-gray-900">Staff Management</h1>
+            <h1 class="text-2xl font-bold text-gray-900">{{ $t('provider.staff.title') }}</h1>
           </div>
           <button
             @click="openAddModal"
@@ -265,7 +270,7 @@ async function confirmDeactivation() {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
-            Add Staff
+            {{ $t('provider.staff.add_button') }}
           </button>
         </div>
       </div>
@@ -276,7 +281,7 @@ async function confirmDeactivation() {
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">Loading staff...</p>
+        <p class="text-gray-500 mt-4">{{ $t('provider.staff.loading') }}</p>
       </div>
 
       <!-- Empty State -->
@@ -284,13 +289,13 @@ async function confirmDeactivation() {
         <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
         </svg>
-        <h3 class="text-lg font-medium text-gray-900">No staff members</h3>
-        <p class="text-gray-500 mt-2">Add your team members to manage their schedules.</p>
+        <h3 class="text-lg font-medium text-gray-900">{{ $t('provider.staff.no_staff') }}</h3>
+        <p class="text-gray-500 mt-2">{{ $t('provider.staff.no_staff_desc') }}</p>
         <button
           @click="openAddModal"
           class="mt-4 text-primary-600 hover:text-primary-700 font-medium"
         >
-          Add Staff →
+          {{ $t('provider.staff.add_button') }} →
         </button>
       </div>
 
@@ -306,7 +311,7 @@ async function confirmDeactivation() {
             <!-- Inactive banner -->
             <div v-if="!member.active" class="mb-3 -mx-6 -mt-6 px-6 py-2 bg-gray-200 border-b border-gray-300">
               <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                ⚠️ Inactive Staff
+                ⚠️ {{ $t('provider.staff.inactive_banner') }}
               </span>
             </div>
 
@@ -330,7 +335,7 @@ async function confirmDeactivation() {
             <div class="flex items-center gap-2 mb-4">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                 :class="member.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'">
-                {{ member.role === 'admin' ? 'Admin' : 'Staff' }}
+                {{ member.role === 'admin' ? $t('modals.staff.roles.admin') : $t('modals.staff.roles.staff') }}
               </span>
             </div>
 
@@ -349,14 +354,14 @@ async function confirmDeactivation() {
                   ></span>
                 </button>
                 <span class="text-sm font-medium" :class="member.active ? 'text-green-600' : 'text-gray-500'">
-                  {{ member.active ? 'Active' : 'Inactive' }}
+                  {{ member.active ? $t('provider.staff.active') : $t('provider.staff.inactive') }}
                 </span>
               </div>
               
               <button
                 @click="openEditModal(member)"
                 class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                title="Edit staff member"
+                :title="$t('provider.staff.edit_title')"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -381,9 +386,9 @@ async function confirmDeactivation() {
     <!-- Conflict Confirmation -->
     <ConfirmationModal
       :isOpen="showConflictModal"
-      title="Important: Schedule Conflict"
-      :message="`You have active bookings with staff ${pendingDeactivationStaff?.name}`"
-      confirmLabel="Confirm"
+      :title="$t('provider.staff.conflict_title')"
+      :message="$t('provider.staff.conflict_msg', { name: pendingDeactivationStaff?.name })"
+      :confirmLabel="$t('common.confirm')"
       :isDestructive="true"
       @close="showConflictModal = false"
       @confirm="confirmDeactivation"
@@ -404,7 +409,7 @@ async function confirmDeactivation() {
           </div>
         </div>
         <p class="mt-6 text-sm text-gray-500 italic">
-          These appointments will remain scheduled. Do you wish to proceed?
+          {{ $t('provider.staff.conflict_notice') }}
         </p>
       </div>
     </ConfirmationModal>

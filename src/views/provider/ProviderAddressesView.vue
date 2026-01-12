@@ -6,12 +6,14 @@ import { useRouter } from 'vue-router'
 import type { ProviderAddress } from '../../types'
 import { useModal } from '../../composables/useModal'
 import { useNotifications } from '../../composables/useNotifications'
+import { useI18n } from 'vue-i18n'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 
 const authStore = useAuthStore()
 const addressStore = useAddressStore()
 const router = useRouter()
+const { t } = useI18n()
 const { showSuccess, showError } = useNotifications()
 
 const modal = useModal<ProviderAddress>()
@@ -24,8 +26,8 @@ const pendingDeleteId = ref<string | null>(null)
 
 function openDeleteConfirm(id: string) {
   pendingDeleteId.value = id
-  confirmTitle.value = 'Delete Location'
-  confirmMessage.value = 'Are you sure you want to delete this address?'
+  confirmTitle.value = t('provider.locations.delete_confirm_title')
+  confirmMessage.value = t('provider.locations.delete_confirm_msg')
   showConfirmModal.value = true
 }
 
@@ -34,10 +36,10 @@ async function handleConfirmDelete() {
   
   try {
     await addressStore.deleteAddress(pendingDeleteId.value)
-    showSuccess('Address deleted successfully')
+    showSuccess(t('provider.locations.delete_success'))
   } catch (error) {
     console.error('Error deleting address:', error)
-    showError('Failed to delete address')
+    showError(t('provider.locations.delete_error'))
   } finally {
     showConfirmModal.value = false
     pendingDeleteId.value = null
@@ -102,10 +104,10 @@ async function handleSave() {
       })
     }
     modal.close()
-    showSuccess('Address saved successfully')
+    showSuccess(t('provider.locations.save_success'))
   } catch (error) {
     console.error('Error saving address:', error)
-    showError('Failed to save address: ' + (error instanceof Error ? error.message : String(error)))
+    showError(t('provider.locations.save_error') + ': ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
@@ -117,10 +119,10 @@ async function handleSetPrimary(id: string) {
   if (!authStore.provider) return
   try {
     await addressStore.setPrimaryAddress(id, authStore.provider.id)
-    showSuccess('Primary address updated')
+    showSuccess(t('provider.locations.primary_update_success'))
   } catch (error) {
     console.error('Error setting primary address:', error)
-    showError('Failed to set primary address')
+    showError(t('provider.locations.primary_update_error'))
   }
 }
 </script>
@@ -137,7 +139,7 @@ async function handleSetPrimary(id: string) {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
               </svg>
             </button>
-            <h1 class="text-2xl font-bold text-gray-900">Service Locations</h1>
+            <h1 class="text-2xl font-bold text-gray-900">{{ $t('provider.locations.title') }}</h1>
           </div>
           <button
             @click="openAddModal"
@@ -146,7 +148,7 @@ async function handleSetPrimary(id: string) {
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
-            Add Location
+            {{ $t('provider.locations.add_button') }}
           </button>
         </div>
       </div>
@@ -157,7 +159,7 @@ async function handleSetPrimary(id: string) {
       <!-- Loading State -->
       <div v-if="addressStore.loading" class="text-center py-12">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">Loading addresses...</p>
+        <p class="text-gray-500 mt-4">{{ $t('provider.locations.loading') }}</p>
       </div>
 
       <!-- Empty State -->
@@ -166,13 +168,13 @@ async function handleSetPrimary(id: string) {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
         </svg>
-        <h3 class="text-lg font-medium text-gray-900">No service locations</h3>
-        <p class="text-gray-500 mt-2">Add your first service location to let customers know where you operate.</p>
+        <h3 class="text-lg font-medium text-gray-900">{{ $t('provider.locations.no_locations') }}</h3>
+        <p class="text-gray-500 mt-2">{{ $t('provider.locations.no_locations_desc') }}</p>
         <button
           @click="openAddModal"
           class="mt-4 text-primary-600 hover:text-primary-700 font-medium"
         >
-          Add Location →
+          {{ $t('provider.locations.add_button') }} →
         </button>
       </div>
 
@@ -188,13 +190,13 @@ async function handleSetPrimary(id: string) {
             <!-- Primary badge -->
             <div v-if="address.is_primary" class="mb-3 -mx-6 -mt-6 px-6 py-2 bg-primary-50 border-b border-primary-200">
               <span class="text-xs font-semibold text-primary-700 uppercase tracking-wide">
-                ⭐ Primary Location
+                ⭐ {{ $t('provider.locations.primary_badge') }}
               </span>
             </div>
 
             <!-- Label -->
             <h3 class="text-lg font-bold text-gray-900 mb-3">
-              {{ address.label || 'Service Location' }}
+              {{ address.label || $t('provider.locations.primary_label') }}
             </h3>
 
             <!-- Address -->
@@ -212,17 +214,17 @@ async function handleSetPrimary(id: string) {
                 @click="handleSetPrimary(address.id)"
                 class="text-sm font-medium text-primary-600 hover:text-primary-700"
               >
-                Set as Primary
+                {{ $t('provider.locations.set_primary') }}
               </button>
               <span v-else class="text-sm text-gray-400">
-                Primary location
+                {{ $t('provider.locations.primary_label') }}
               </span>
               
               <div class="flex gap-2">
                 <button
                   @click="openEditModal(address)"
                   class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit address"
+                  :title="$t('common.edit')"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -231,7 +233,7 @@ async function handleSetPrimary(id: string) {
                 <button
                   @click="handleDelete(address.id)"
                   class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                  title="Delete address"
+                  :title="$t('common.delete')"
                   :disabled="address.is_primary && addressStore.addresses.length > 1"
                   :class="{ 'opacity-50 cursor-not-allowed': address.is_primary && addressStore.addresses.length > 1 }"
                 >
@@ -249,59 +251,59 @@ async function handleSetPrimary(id: string) {
     <!-- Address Modal -->
     <Modal
       :is-open="modal.isOpen.value"
-      :title="modal.data.value ? 'Edit Location' : 'Add Location'"
+      :title="modal.data.value ? $t('provider.locations.form.edit_title') : $t('provider.locations.form.add_title')"
       @close="modal.close()"
     >
       <form @submit.prevent="handleSave" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700">Location Label (Optional)</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.label') }}</label>
           <input
             v-model="form.label"
             type="text"
-            placeholder="e.g., Main Location, Downtown Branch"
+            :placeholder="$t('provider.locations.form.label_placeholder')"
             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700">Street Address *</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.street') }}</label>
           <input
             v-model="form.street_address"
             type="text"
             required
-            placeholder="123 Main St"
+            :placeholder="$t('provider.locations.form.street_placeholder')"
             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700">Apt, Suite, Floor (Optional)</label>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.street2') }}</label>
           <input
             v-model="form.street_address_2"
             type="text"
-            placeholder="Suite 200"
+            :placeholder="$t('provider.locations.form.street2_placeholder')"
             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
           />
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">City *</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.city') }}</label>
             <input
               v-model="form.city"
               type="text"
               required
-              placeholder="New York"
+              :placeholder="$t('provider.locations.form.city_placeholder')"
               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">State/Province</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.state') }}</label>
             <input
               v-model="form.state"
               type="text"
-              placeholder="NY"
+              :placeholder="$t('provider.locations.form.state_placeholder')"
               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             />
           </div>
@@ -309,23 +311,23 @@ async function handleSetPrimary(id: string) {
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">Postal Code *</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.postal') }}</label>
             <input
               v-model="form.postal_code"
               type="text"
               required
-              placeholder="10001"
+              :placeholder="$t('provider.locations.form.postal_placeholder')"
               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Country *</label>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.country') }}</label>
             <input
               v-model="form.country"
               type="text"
               required
-              placeholder="USA"
+              :placeholder="$t('provider.locations.form.country_placeholder')"
               class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             />
           </div>
@@ -336,14 +338,14 @@ async function handleSetPrimary(id: string) {
             type="submit"
             class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm"
           >
-            Save
+            {{ $t('common.save') }}
           </button>
           <button
             type="button"
             class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
             @click="modal.close()"
           >
-            Cancel
+            {{ $t('common.cancel') }}
           </button>
         </div>
       </form>

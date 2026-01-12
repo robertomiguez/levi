@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Provider, ProviderAddress } from '../types'
 
 const props = defineProps<{
@@ -11,6 +12,7 @@ const props = defineProps<{
   categories?: string[]
 }>()
 
+const { t } = useI18n()
 const initials = computed(() => {
   return props.provider.business_name
     .split(' ')
@@ -24,7 +26,7 @@ const initials = computed(() => {
 
 const locationText = computed(() => {
   const addresses = props.provider.provider_addresses || []
-  if (addresses.length === 0) return 'Location TBD'
+  if (addresses.length === 0) return t('provider_card.location_tbd')
 
   // Get unique states
   const states = [...new Set(addresses.map(a => a.state).filter(Boolean))] as string[]
@@ -42,7 +44,7 @@ const locationText = computed(() => {
 
   // Fallback to single location (primary or first)
   const primaryAddress = addresses.find(a => a.is_primary) || addresses[0]
-  if (!primaryAddress) return 'Location TBD'
+  if (!primaryAddress) return t('provider_card.location_tbd')
   return `${primaryAddress.city}, ${primaryAddress.state || primaryAddress.postal_code}`
 })
 
@@ -82,7 +84,7 @@ const ratingStars = computed(() => {
           </svg>
         </div>
         <span class="text-sm font-medium text-gray-700">{{ rating || 5.0 }}</span>
-        <span class="text-sm text-gray-500">({{ reviewCount || 0 }} Reviews)</span>
+        <span class="text-sm text-gray-500">({{ $t('provider_card.reviews', { count: reviewCount || 0 }) }})</span>
       </div>
     </div>
 
@@ -100,7 +102,7 @@ const ratingStars = computed(() => {
           v-if="categories.length > 3"
           class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
         >
-          +{{ categories.length - 3 }} more
+          {{ $t('provider_card.more', { count: categories.length - 3 }) }}
         </span>
       </div>
     </div>

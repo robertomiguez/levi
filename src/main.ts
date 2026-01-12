@@ -4,12 +4,14 @@ import router from './router'
 import './style.css'
 import App from './App.vue'
 import { useAuthStore } from './stores/useAuthStore'
+import i18n from './lib/i18n'
 
 const app = createApp(App)
 const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
+app.use(i18n)
 
 // Initialize auth before mounting
 const authStore = useAuthStore()

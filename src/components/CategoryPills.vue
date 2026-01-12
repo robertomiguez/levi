@@ -24,6 +24,15 @@ function selectCategory(categoryId: string | null) {
 <template>
   <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
     <button
+      @click="selectCategory(null)"
+      class="px-4 py-2 rounded-full border-2 whitespace-nowrap transition-all flex-shrink-0"
+      :class="!selectedCategory 
+        ? 'bg-white bg-opacity-30 border-white text-white font-semibold' 
+        : 'bg-transparent border-white border-opacity-50 text-white hover:bg-white hover:bg-opacity-20'"
+    >
+      {{ $t('category_pills.all') }}
+    </button>
+    <button
       v-for="category in categories"
       :key="category.id"
       @click="selectCategory(category.id)"

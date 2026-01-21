@@ -18,7 +18,7 @@ const staffStore = useStaffStore()
 const appointmentStore = useAppointmentStore()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { errorMessage, showError, clearMessages } = useNotifications()
 
 // Provider filtering
@@ -298,7 +298,8 @@ async function submitBooking() {
               email: authStore.customer.email
             },
             provider: providerInfo.value,
-            staff: selectedStaff.value
+            staff: selectedStaff.value,
+            locale: locale.value
           }
           console.log('Sending booking confirmation payload:', payload)
           

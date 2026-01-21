@@ -35,7 +35,7 @@ Edit `.env` and add your Supabase credentials:
 
 ```
 VITE_SUPABASE_URL=your_project_url
-VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
 ```
 
 ### 4. Run Development Server

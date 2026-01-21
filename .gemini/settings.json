@@ -9,7 +9,7 @@
         "--read-only"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "${VITE_SUPABASE_ANON_KEY}"
+        "SUPABASE_ACCESS_TOKEN": "${VITE_SUPABASE_SECRET_KEY}"
       }
     },
     "context7": {

@@ -196,6 +196,22 @@ export const useStaffStore = defineStore('staff', () => {
         }
     }
 
+    async function fetchStaffMember(staffId: string): Promise<Staff | null> {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('staff')
+                .select('*')
+                .eq('id', staffId)
+                .single()
+
+            if (fetchError) throw fetchError
+            return data
+        } catch (e) {
+            console.error('Error fetching staff member:', e)
+            return null
+        }
+    }
+
     return {
         staff,
         availability,
@@ -209,6 +225,7 @@ export const useStaffStore = defineStore('staff', () => {
         createBlockedDate,
         deleteBlockedDate,
         fetchStaffAddresses,
-        syncStaffAddresses
+        syncStaffAddresses,
+        fetchStaffMember
     }
 })

@@ -5,13 +5,11 @@ import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import type { Staff } from '../../types'
 import { format } from 'date-fns'
-import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import AppointmentDetailsModal from '../../components/provider/AppointmentDetailsModal.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
-const { t } = useI18n()
 const settingsStore = useSettingsStore()
 
 const staff = ref<Staff[]>([])

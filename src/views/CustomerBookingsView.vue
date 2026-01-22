@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { format, isFuture, parseISO, isPast } from 'date-fns'
+import { isFuture, parseISO, isPast } from 'date-fns'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useAppointmentStore } from '../stores/useAppointmentStore'
 import { useSettingsStore } from '../stores/useSettingsStore'

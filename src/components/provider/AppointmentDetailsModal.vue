@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { format, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 import Modal from '../../components/common/Modal.vue'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 
-const props = defineProps<{
+defineProps<{
   isOpen: boolean
-  appointment: any // Using any to match existing pattern, ideally should be typed
+  appointment: any
 }>()
 
 const emit = defineEmits<{

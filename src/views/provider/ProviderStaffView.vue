@@ -72,7 +72,51 @@ function formatTime(time: string) {
   return format(date, 'HH:mm')
 }
 
+const copiedStaffId = ref<string | null>(null)
+// We use this only for UI toggle purposes
+const isShareSupported = ref(false)
+
+async function copyStaffLink(member: Staff) {
+  const url = `${window.location.origin}/booking?staff=${member.id}`
+  
+  // Try native share first (Mobile/Supported Browsers)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `Book with ${member.name}`,
+        text: `Book an appointment with ${member.name}`,
+        url: url
+      })
+      return // Success!
+    } catch (err) {
+       console.log('Share canceled or failed, falling back to copy', err)
+    }
+  }
+
+  // Fallback to strict Clipboard API (simpler, requires HTTPS or Localhost)
+  try {
+    await navigator.clipboard.writeText(url)
+    setCopiedState(member.id)
+  } catch (err) {
+    console.error('Failed to copy link', err)
+    showError('Failed to copy link (requires secure connection)')
+  }
+}
+
+function setCopiedState(id: string) {
+    copiedStaffId.value = id
+    setTimeout(() => {
+      if (copiedStaffId.value === id) {
+        copiedStaffId.value = null
+      }
+    }, 3000)
+}
+
 onMounted(async () => {
+  // Trust the browser OR User Agent for share UI (force share icon on mobile)
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent)
+  isShareSupported.value = (typeof navigator !== 'undefined' && !!navigator.share) || isMobile
+
   if (!authStore.provider) {
     router.push('/booking')
     return
@@ -337,6 +381,29 @@ async function confirmDeactivation() {
                 :class="member.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'">
                 {{ member.role === 'admin' ? $t('modals.staff.roles.admin') : $t('modals.staff.roles.staff') }}
               </span>
+              
+              <button
+                @click="copyStaffLink(member)"
+                class="ml-auto text-sm flex items-center gap-1 transition-colors"
+                :class="copiedStaffId === member.id ? 'text-green-600 font-medium' : 'text-primary-600 hover:text-primary-700'"
+                :title="isShareSupported ? $t('provider.staff.share_link') : $t('provider.staff.copy_link')"
+              >
+                <template v-if="isShareSupported">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+                  </svg>
+                  Share Link
+                </template>
+                <template v-else>
+                  <svg v-if="copiedStaffId === member.id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                  </svg>
+                  {{ copiedStaffId === member.id ? 'Link Copied' : 'Copy Link' }}
+                </template>
+              </button>
             </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-gray-100">

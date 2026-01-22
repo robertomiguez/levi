@@ -46,17 +46,34 @@ const confirmedTime = ref<string>('')
 onMounted(async () => {
   // Check for provider ID in URL
   const providerId = route.query.provider as string
-  if (providerId) {
+  const staffId = route.query.staff as string
+
+  if (staffId) {
+    const staffMember = await staffStore.fetchStaffMember(staffId)
+    if (staffMember && staffMember.provider_id) {
+       selectedProviderId.value = staffMember.provider_id
+       selectedStaffId.value = staffMember.id
+       await fetchProviderInfo(staffMember.provider_id)
+       // Pre-select logic will happen after services are loaded
+    }
+  } else if (providerId) {
     selectedProviderId.value = providerId
     await fetchProviderInfo(providerId)
   }
   
-  await serviceStore.fetchAllServices(providerId)
+  if (selectedProviderId.value) {
+      await serviceStore.fetchAllServices(selectedProviderId.value)
+  }
   await staffStore.fetchStaff()
 
   // Ensure customer profile exists if authenticated
   if (authStore.isAuthenticated && !authStore.customer) {
     await authStore.createCustomerProfile()
+  }
+
+  // Auto-select service if only one available after filtering
+  if (staffId && filteredServices.value.length === 1) {
+      selectService(filteredServices.value[0]!.id)
   }
 })
 
@@ -75,12 +92,25 @@ async function fetchProviderInfo(providerId: string) {
   }
 }
 
-// Filter services by selected provider
+// Filter services by selected provider and optionally by selected staff (if pre-selected via link)
 const filteredServices = computed(() => {
   if (!selectedProviderId.value) {
     return serviceStore.services
   }
-  return serviceStore.services.filter(s => s.provider_id === selectedProviderId.value)
+  
+  let services = serviceStore.services.filter(s => s.provider_id === selectedProviderId.value)
+
+  // If we have a selected staff ID (likely from URL), filter services to only those this staff performs
+  if (selectedStaffId.value) {
+      services = services.filter(service => {
+          // If service has no specific staff assigned, assume all staff (or handled elsewhere, but usually safe to show)
+          // But strict mode: only show services where this staff is listed.
+          if (!service.staff || service.staff.length === 0) return true
+          return service.staff.some(s => s.id === selectedStaffId.value)
+      })
+  }
+
+  return services
 })
 
 const selectedService = computed(() => 
@@ -165,6 +195,18 @@ async function loadAvailableSlots() {
 function selectService(serviceId: string) {
   selectedServiceId.value = serviceId
   const service = serviceStore.services.find(s => s.id === serviceId)
+  
+  // If staff is already selected (e.g. via direct link), skip to next appropriate step
+  if (selectedStaffId.value) {
+      // Check if this staff actually performs this service (double check)
+      const isStaffValid = !service?.staff?.length || service.staff.some(s => s.id === selectedStaffId.value)
+      
+      if (isStaffValid) {
+          // Proceed to location or date selection for this specific staff
+          selectStaff(selectedStaffId.value)
+          return
+      }
+  }
   
   if (service?.staff && service.staff.length === 1 && service.staff[0]) {
     // Single staff: Auto-select but still run through logic to check for branches

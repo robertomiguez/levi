@@ -11,6 +11,7 @@ import { addDays, format, startOfDay } from 'date-fns'
 import type { TimeSlot, Provider, ProviderAddress } from '../types'
 import { useNotifications } from '../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
+import LoginForm from '../components/auth/LoginForm.vue'
 
 const route = useRoute()
 const serviceStore = useServiceStore()
@@ -39,6 +40,7 @@ const notes = ref('')
 
 // Confirmation state
 const bookingConfirmed = ref(false)
+const showLogin = ref(false)
 const confirmedAppointmentId = ref<string>('')
 const confirmedDate = ref<Date | null>(null)
 const confirmedTime = ref<string>('')
@@ -260,6 +262,14 @@ function goBack() {
       // Otherwise go back to Staff Selection (Step 2)
       currentStep.value = 2
     }
+  } else if (currentStep.value === 4) {
+      if (showLogin.value) {
+          // If viewing login form, go back to confirm button
+          showLogin.value = false
+      } else {
+          // go back to date selection
+          currentStep.value = 3
+      }
   } else if (currentStep.value > 1) {
     currentStep.value--
   }
@@ -277,12 +287,19 @@ async function submitBooking() {
 
   clearMessages()
 
+  // Just-in-Time Login Check
+  if (!authStore.isAuthenticated) {
+     showLogin.value = true
+     return
+  }
+
+  // Double check profile existence (should be handled by auth flow but good for safety)
   if (!authStore.customer) {
-    // Try to create profile if it doesn't exist
+    // Try to create profile if it doesn't exist (e.g. fresh login)
     await authStore.createCustomerProfile()
     
     if (!authStore.customer) {
-      showError('Please log in to book an appointment')
+      showError('Please log in to book an appointment') // Fallback
       return
     }
   }
@@ -565,6 +582,17 @@ function resetBooking() {
   selectedDate.value = new Date()
   selectedTime.value = ''
   notes.value = ''
+  showLogin.value = false
+}
+
+async function handleLoginSuccess() {
+    // Login successful, authStore state should be updated
+    // Hide login form (not strictly needed if we redirect/refresh, but good UI)
+    // IMPORTANT: We need to ensure customer profile exists before submitting
+    // The submitBooking function checks creation, but let's make sure authStore is fresh
+    
+    // Attempt to auto-submit the booking now that we are logged in
+    await submitBooking()
 }
 </script>
 
@@ -947,7 +975,14 @@ function resetBooking() {
               </div>
             </div>
 
-            <form @submit.prevent="submitBooking" class="space-y-4">
+            <div v-if="showLogin" class="mt-8 pt-8 border-t border-gray-200">
+               <LoginForm 
+                 :embedded="true" 
+                 @success="handleLoginSuccess" 
+               />
+            </div>
+
+            <form v-else @submit.prevent="submitBooking" class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ $t('booking.notes_label') }}</label>
                 <textarea
@@ -961,6 +996,7 @@ function resetBooking() {
               <button
                 type="submit"
                 class="w-full bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                id="confirm-booking-btn"
               >
                 {{ $t('booking.confirm_button') }}
               </button>

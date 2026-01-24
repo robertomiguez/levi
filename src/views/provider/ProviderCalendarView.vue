@@ -7,6 +7,10 @@ import type { Staff } from '../../types'
 import { format } from 'date-fns'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import AppointmentDetailsModal from '../../components/provider/AppointmentDetailsModal.vue'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -114,7 +118,6 @@ async function fetchAppointments() {
       end.setDate(end.getDate() + (6 - end.getDay()))
     } else {
       // Day view
-      // No change needed for start/end points, they are just reference points for the query
     }
 
     const { data, error } = await query
@@ -173,6 +176,11 @@ function today() {
   fetchAppointments()
 }
 
+function handleViewChange(newView: string) {
+  view.value = newView as 'month' | 'week' | 'day'
+  fetchAppointments()
+}
+
 // Appointment Details Modal
 const selectedAppointment = ref<any>(null)
 const showDetailsModal = ref(false)
@@ -206,211 +214,194 @@ async function updateStatus(status: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white border-b border-gray-200">
-      <div class="max-w-7xl mx-auto px-6 py-4">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <button @click="router.push('/provider/dashboard')" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-              </svg>
-            </button>
-            <h1 class="text-2xl font-bold text-gray-900">{{ $t('calendar.title') }}</h1>
-          </div>
-          
-          <div class="flex items-center gap-4">
-            <!-- Staff Filter -->
-            <select 
+  <div class="min-h-screen bg-gray-50/50 p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+      
+      <!-- Header Controls -->
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4 self-start md:self-auto">
+          <Button variant="ghost" size="icon" @click="router.push('/provider/dashboard')">
+            <ArrowLeft class="h-5 w-5" />
+          </Button>
+          <h1 class="text-2xl font-bold tracking-tight">{{ $t('calendar.title') }}</h1>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4">
+          <!-- Staff Filter -->
+          <div class="relative w-48">
+            <select
               v-model="selectedStaffId" 
               @change="fetchAppointments"
-              class="border border-gray-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="all">{{ $t('category_pills.all') }} {{ $t('modals.appointment_details.staff') }}</option>
               <option v-for="member in staff" :key="member.id" :value="member.id">
                 {{ member.name }}
               </option>
             </select>
-
-            <!-- View Switcher -->
-            <div class="flex bg-gray-100 rounded-lg p-1">
-              <button 
-                @click="view = 'month'; fetchAppointments()"
-                class="px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors"
-                :class="view === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-              >
-                {{ $t('calendar.month') }}
-              </button>
-              <button 
-                @click="view = 'week'; fetchAppointments()"
-                class="px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors"
-                :class="view === 'week' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-              >
-                {{ $t('calendar.week') }}
-              </button>
-              <button 
-                @click="view = 'day'; fetchAppointments()"
-                class="px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors"
-                :class="view === 'day' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-              >
-                {{ $t('calendar.day') }}
-              </button>
-            </div>
           </div>
+
+          <!-- View Tabs -->
+          <Tabs :model-value="view" @update:model-value="handleViewChange" class="w-[300px]">
+            <TabsList class="grid w-full grid-cols-3">
+              <TabsTrigger value="month">{{ $t('calendar.month') }}</TabsTrigger>
+              <TabsTrigger value="week">{{ $t('calendar.week') }}</TabsTrigger>
+              <TabsTrigger value="day">{{ $t('calendar.day') }}</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
-    </div>
 
-    <!-- Calendar Controls -->
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <button @click="prevPeriod" class="p-2 hover:bg-gray-200 rounded-full">
-          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-          </svg>
-        </button>
-        <h2 class="text-xl font-semibold text-gray-900">
-          <span v-if="view === 'day'">
-             {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', day: 'numeric', year: 'numeric' }) }}
-          </span>
-          <span v-else>
-            {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', year: 'numeric' }) }}
-          </span>
-        </h2>
-        <button @click="nextPeriod" class="p-2 hover:bg-gray-200 rounded-full">
-          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-          </svg>
-        </button>
-        <button @click="today" class="text-sm font-medium text-primary-600 hover:text-primary-700">
-          {{ $t('calendar.today') }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Calendar Grid -->
-    <div class="max-w-7xl mx-auto px-6 pb-8">
-      <div class="bg-white rounded-lg shadow overflow-hidden min-h-[600px]">
-        <!-- Week View (Default) -->
-        <div v-if="view === 'week'" class="flex flex-col h-full">
-          <div class="grid grid-cols-7 border-b border-gray-200">
-            <div 
-              v-for="day in weekDays" 
-              :key="day.toISOString()" 
-              class="p-4 text-center border-r border-gray-100 last:border-r-0"
-              :class="{'bg-blue-50': day.toDateString() === new Date().toDateString()}"
-            >
-              <p class="text-xs font-medium text-gray-500 uppercase">{{ day.toLocaleDateString(settingsStore.language, { weekday: 'short' }) }}</p>
-              <p class="text-lg font-bold text-gray-900 mt-1">{{ day.getDate() }}</p>
+      <!-- Calendar Card -->
+      <Card class="overflow-hidden">
+        <CardHeader class="border-b bg-gray-50/40 p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Button variant="outline" size="icon" @click="prevPeriod">
+                <ChevronLeft class="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" @click="nextPeriod">
+                <ChevronRight class="h-4 w-4" />
+              </Button>
+              <h2 class="text-lg font-semibold ml-2">
+                <span v-if="view === 'day'">
+                   {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', day: 'numeric', year: 'numeric' }) }}
+                </span>
+                <span v-else>
+                  {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', year: 'numeric' }) }}
+                </span>
+              </h2>
             </div>
+            <Button variant="secondary" @click="today">
+              {{ $t('calendar.today') }}
+            </Button>
           </div>
-          <div class="grid grid-cols-7 flex-1">
-            <div 
-              v-for="day in weekDays" 
-              :key="day.toISOString()" 
-              class="border-r border-gray-100 last:border-r-0 p-2 min-h-[500px]"
-            >
-              <div class="space-y-2">
-                <button
-                  v-for="apt in getAppointmentsForDate(day)"
-                  :key="apt.id"
-                  @click="openAppointmentDetails(apt)"
-                  class="w-full text-left p-2 rounded text-xs border-l-4 shadow-sm hover:shadow-md transition-shadow"
+        </CardHeader>
+
+        <CardContent class="p-0">
+          <div class="min-h-[600px]">
+            <!-- Week View -->
+            <div v-if="view === 'week'" class="flex flex-col h-full">
+              <div class="grid grid-cols-7 border-b">
+                <div 
+                  v-for="day in weekDays" 
+                  :key="day.toISOString()" 
+                  class="p-4 text-center border-r last:border-r-0 bg-gray-50/40"
+                  :class="{'bg-primary/5 text-primary': day.toDateString() === new Date().toDateString()}"
+                >
+                  <p class="text-xs font-medium uppercase text-muted-foreground">{{ day.toLocaleDateString(settingsStore.language, { weekday: 'short' }) }}</p>
+                  <p class="text-lg font-bold mt-1">{{ day.getDate() }}</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-7 flex-1">
+                <div 
+                  v-for="day in weekDays" 
+                  :key="day.toISOString()" 
+                  class="border-r last:border-r-0 p-2 min-h-[500px]"
+                >
+                  <div class="space-y-2">
+                    <button
+                      v-for="apt in getAppointmentsForDate(day)"
+                      :key="apt.id"
+                      @click="openAppointmentDetails(apt)"
+                      class="w-full text-left p-2.5 rounded-md text-xs border border-l-4 shadow-sm transition-all hover:bg-accent"
+                      :class="{
+                        'border-l-blue-500 bg-blue-50/50': apt.status === 'confirmed',
+                        'border-l-yellow-500 bg-yellow-50/50': apt.status === 'pending',
+                        'border-l-green-500 bg-green-50/50': apt.status === 'completed',
+                        'border-l-red-500 bg-red-50/50': apt.status === 'cancelled'
+                      }"
+                    >
+                      <p class="font-bold truncate">{{ formatTime(apt.start_time) }}</p>
+                      <p class="font-medium truncate">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</p>
+                      <p class="text-muted-foreground truncate">{{ apt.services?.name }}</p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Month View -->
+            <div v-else-if="view === 'month'" class="grid grid-cols-7">
+              <div v-for="d in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="d" class="p-2 text-center text-xs font-medium text-muted-foreground uppercase border-b border-r last:border-r-0 bg-gray-50/40">
+                {{ d }}
+              </div>
+              <div 
+                v-for="(day, idx) in calendarDays" 
+                :key="idx"
+                class="min-h-[120px] p-2 border-b border-r last:border-r-0 relative transition-colors hover:bg-gray-50/30"
+                :class="{'bg-gray-50/50': !day.isCurrentMonth}"
+              >
+                <span 
+                  class="text-sm font-medium inline-flex w-7 h-7 items-center justify-center rounded-full"
                   :class="{
-                    'bg-blue-50 border-blue-500': apt.status === 'confirmed',
-                    'bg-yellow-50 border-yellow-500': apt.status === 'pending',
-                    'bg-green-50 border-green-500': apt.status === 'completed',
-                    'bg-red-50 border-red-500': apt.status === 'cancelled'
+                    'text-muted-foreground': !day.isCurrentMonth,
+                    'text-primary-foreground bg-primary': day.date.toDateString() === new Date().toDateString()
                   }"
                 >
-                  <p class="font-bold truncate">{{ formatTime(apt.start_time) }}</p>
-                  <p class="truncate">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</p>
-                  <p class="text-gray-500 truncate">{{ apt.services?.name }}</p>
-                  <p class="text-xs text-primary-600 truncate mt-1">{{ $t('calendar.with') }} {{ apt.staff?.name }}</p>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Month View -->
-        <div v-else-if="view === 'month'" class="grid grid-cols-7 border-b border-gray-200">
-          <div v-for="d in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="d" class="p-2 text-center text-xs font-medium text-gray-500 uppercase border-b border-gray-200">
-            {{ d }}
-          </div>
-          <div 
-            v-for="(day, idx) in calendarDays" 
-            :key="idx"
-            class="min-h-[100px] p-2 border-b border-r border-gray-100 relative"
-            :class="{'bg-gray-50': !day.isCurrentMonth}"
-          >
-            <span 
-              class="text-sm font-medium"
-              :class="{
-                'text-gray-400': !day.isCurrentMonth,
-                'text-primary-600 bg-primary-50 w-6 h-6 rounded-full flex items-center justify-center': day.date.toDateString() === new Date().toDateString()
-              }"
-            >
-              {{ day.date.getDate() }}
-            </span>
-            <div class="mt-1 space-y-1">
-              <div 
-                v-for="apt in getAppointmentsForDate(day.date)" 
-                :key="apt.id"
-                class="w-2 h-2 rounded-full inline-block mr-1"
-                :class="{
-                  'bg-blue-500': apt.status === 'confirmed',
-                  'bg-yellow-500': apt.status === 'pending',
-                  'bg-green-500': apt.status === 'completed',
-                  'bg-red-500': apt.status === 'cancelled'
-                }"
-                :title="`${apt.customers?.name} - ${apt.services?.name}`"
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Day View -->
-        <div v-else class="flex flex-col h-full p-4">
-          <div class="space-y-4">
-            <div 
-              v-for="apt in getAppointmentsForDate(currentDate)" 
-              :key="apt.id"
-              @click="openAppointmentDetails(apt)"
-              class="flex items-center p-4 rounded-lg border-l-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer bg-white border border-gray-100"
-              :class="{
-                'border-l-blue-500': apt.status === 'confirmed',
-                'border-l-yellow-500': apt.status === 'pending',
-                'border-l-green-500': apt.status === 'completed',
-                'border-l-red-500': apt.status === 'cancelled'
-              }"
-            >
-              <div class="w-24 font-bold text-lg text-gray-900">
-                {{ formatTime(apt.start_time) }}
-              </div>
-              <div class="flex-1">
-                <h3 class="font-bold text-gray-900">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</h3>
-                <p class="text-gray-600">{{ apt.services?.name }} {{ $t('calendar.with') }} {{ apt.staff?.name }}</p>
-              </div>
-              <div class="text-right">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
-                  :class="{
-                    'bg-blue-100 text-blue-800': apt.status === 'confirmed',
-                    'bg-yellow-100 text-yellow-800': apt.status === 'pending',
-                    'bg-green-100 text-green-800': apt.status === 'completed',
-                    'bg-red-100 text-red-800': apt.status === 'cancelled'
-                  }">
-                  {{ $t(`status.${apt.status}`) }}
+                  {{ day.date.getDate() }}
                 </span>
+                <div class="mt-2 space-y-1">
+                  <div 
+                    v-for="apt in getAppointmentsForDate(day.date)" 
+                    :key="apt.id"
+                    class="text-[10px] px-2 py-1 rounded truncate w-full border-l-2 cursor-pointer hover:opacity-80"
+                    :class="{
+                      'border-blue-500 bg-blue-100 text-blue-700': apt.status === 'confirmed',
+                      'border-yellow-500 bg-yellow-100 text-yellow-700': apt.status === 'pending',
+                      'border-green-500 bg-green-100 text-green-700': apt.status === 'completed',
+                      'border-red-500 bg-red-100 text-red-700': apt.status === 'cancelled'
+                    }"
+                    @click="openAppointmentDetails(apt)"
+                  >
+                    {{ formatTime(apt.start_time) }} {{ apt.customers?.name }}
+                  </div>
+                </div>
               </div>
             </div>
-            <div v-if="getAppointmentsForDate(currentDate).length === 0" class="text-center py-12 text-gray-500">
-              {{ $t('calendar.no_appointments') }}
+
+            <!-- Day View -->
+            <div v-else class="flex flex-col h-full p-4">
+              <div class="space-y-4 max-w-3xl mx-auto w-full">
+                <div 
+                  v-for="apt in getAppointmentsForDate(currentDate)" 
+                  :key="apt.id"
+                  @click="openAppointmentDetails(apt)"
+                  class="flex items-center p-4 rounded-lg border border-l-4 bg-card shadow-sm transition-all hover:bg-accent cursor-pointer"
+                  :class="{
+                    'border-l-blue-500': apt.status === 'confirmed',
+                    'border-l-yellow-500': apt.status === 'pending',
+                    'border-l-green-500': apt.status === 'completed',
+                    'border-l-red-500': apt.status === 'cancelled'
+                  }"
+                >
+                  <div class="w-32 font-bold text-xl text-foreground">
+                    {{ formatTime(apt.start_time) }}
+                  </div>
+                  <div class="flex-1">
+                    <h3 class="font-bold text-lg">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</h3>
+                    <p class="text-muted-foreground">{{ apt.services?.name }} • {{ apt.staff?.name }}</p>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+                      :class="{
+                        'bg-blue-100 text-blue-800': apt.status === 'confirmed',
+                        'bg-yellow-100 text-yellow-800': apt.status === 'pending',
+                        'bg-green-100 text-green-800': apt.status === 'completed',
+                        'bg-red-100 text-red-800': apt.status === 'cancelled'
+                      }">
+                      {{ $t(`status.${apt.status}`) }}
+                    </span>
+                  </div>
+                </div>
+                <div v-if="getAppointmentsForDate(currentDate).length === 0" class="text-center py-20 text-muted-foreground">
+                  <p class="text-lg">{{ $t('calendar.no_appointments') }}</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
 
     <!-- Appointment Details Modal -->

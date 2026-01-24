@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  PinInput,
+  PinInputGroup,
+  PinInputSlot,
+} from '@/components/ui/pin-input'
+import { Loader2, Mail, ArrowLeft, RefreshCw } from 'lucide-vue-next'
 
 const props = defineProps<{
   redirect?: string
@@ -18,8 +28,14 @@ const router = useRouter()
 useI18n()
 
 const email = ref('')
-const otpCode = ref('')
+const otpValue = ref<string[]>([])
 const codeSent = ref(false)
+
+watch(otpValue, (newVal) => {
+  if (newVal.length === 6 && newVal.every(v => v !== '')) {
+    verifyCode()
+  }
+})
 
 async function sendCode() {
   if (!email.value) return
@@ -33,141 +49,119 @@ async function sendCode() {
 }
 
 async function verifyCode() {
-  if (!email.value || !otpCode.value) return
+  const code = otpValue.value.join('')
+  if (!email.value || code.length !== 6) return
   
   try {
-    await authStore.verifyOtpCode(email.value, otpCode.value)
+    await authStore.verifyOtpCode(email.value, code)
     
-    // Provide a small delay to ensure state updates propagate
-    // Checks if redirect prop is present
     if (props.redirect) {
          router.push(props.redirect)
     } else {
-        // Emit success for parent to handle (e.g., embedded in booking)
         emit('success')
     }
   } catch (error) {
     console.error('Verification failed:', error)
+    otpValue.value = []
   }
 }
 
 function goBack() {
   codeSent.value = false
-  otpCode.value = ''
+  otpValue.value = []
 }
 </script>
 
 <template>
   <div :class="embedded ? 'w-full' : 'max-w-md w-full'">
-    <!-- Login Card -->
-    <div :class="[
-      'bg-white rounded-lg',
-      embedded ? '' : 'border border-gray-200 shadow-sm p-8'
-    ]">
-      <!-- Step 1: Email Input -->
-      <div v-if="!codeSent">
-        <h2 v-if="!embedded" class="text-2xl font-bold text-gray-900 mb-6 text-center">{{ $t('auth.login') }}</h2>
-        <h2 v-else class="text-xl font-bold text-gray-900 mb-4">{{ $t('auth.login_to_continue') }}</h2>
+    <Alert v-if="authStore.error" variant="destructive" class="mb-6">
+      <AlertDescription>{{ authStore.error }}</AlertDescription>
+    </Alert>
 
-        <!-- Error Message -->
-        <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
-          {{ authStore.error }}
-        </div>
-
-        <form @submit.prevent="sendCode" class="space-y-6">
-          <div>
+    <div v-if="!codeSent" class="grid gap-6">
+      <form @submit.prevent="sendCode">
+        <div class="grid gap-4">
+          <div class="grid gap-2">
+            <Label for="email">{{ $t('auth.email') }}</Label>
             <div class="relative">
-              <input
+              <Input
+                id="email"
                 v-model="email"
                 type="email"
+                placeholder="name@example.com"
                 required
-                :placeholder="$t('auth.email')"
-                class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400"
                 :disabled="authStore.loading"
+                class="bg-background pr-10"
               />
-              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-muted-foreground">
+                <Mail class="h-4 w-4" />
               </div>
             </div>
           </div>
+          <Button type="submit" :disabled="authStore.loading || !email">
+            <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ authStore.loading ? $t('common.sending') : $t('auth.send_code') }}
+          </Button>
+        </div>
+      </form>
 
-          <button
-            type="submit"
-            :disabled="authStore.loading || !email"
-            class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            <div v-if="authStore.loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>{{ authStore.loading ? $t('common.sending') : $t('auth.send_code') }}</span>
-          </button>
-        </form>
-
-        <!-- Divider -->
-        <div class="relative my-8">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-300"></div>
-          </div>
-          <div class="relative flex justify-center text-sm">
-            <span class="px-4 bg-white text-gray-500">{{ $t('auth.verification_email_notice') }}</span>
-          </div>
+      <div class="relative">
+        <div class="absolute inset-0 flex items-center">
+          <span class="w-full border-t" />
+        </div>
+        <div class="relative flex justify-center text-xs uppercase">
+          <span class="bg-background px-2 text-muted-foreground">
+            {{ $t('auth.verification_email_notice') }}
+          </span>
         </div>
       </div>
+    </div>
 
-      <!-- Step 2: Code Input -->
-      <div v-else>
-        <button
-          @click="goBack"
-          class="text-primary-600 hover:text-primary-700 font-medium mb-4 flex items-center text-sm"
+    <div v-else class="grid gap-6">
+      <div class="flex flex-col space-y-2 text-center">
+        <h2 class="text-2xl font-semibold tracking-tight">{{ $t('auth.enter_code') }}</h2>
+        <p class="text-sm text-muted-foreground" v-html="$t('auth.code_sent_to', { email: `<span class='font-medium text-foreground'>${email}</span>` })"></p>
+      </div>
+
+      <div class="flex justify-center py-4">
+        <PinInput
+          v-model="otpValue"
+          placeholder="○"
+          class="flex gap-2 items-center justify-center"
+          :disabled="authStore.loading"
+          type="number"
+          :otp="true"
         >
-          ← {{ $t('auth.change_email') }}
-        </button>
-
-        <h2 v-if="!embedded" class="text-2xl font-bold text-gray-900 mb-2 text-center">{{ $t('auth.enter_code') }}</h2>
-        <h2 v-else class="text-xl font-bold text-gray-900 mb-2">{{ $t('auth.enter_code') }}</h2>
-        
-        <p class="text-gray-600 mb-6" :class="embedded ? '' : 'text-center'" v-html="$t('auth.code_sent_to', { email: `<span class='font-semibold'>${email}</span>` })"></p>
-
-        <!-- Error Message -->
-        <div v-if="authStore.error" class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
-          {{ authStore.error }}
-        </div>
-
-        <form @submit.prevent="verifyCode" class="space-y-6">
-          <div>
-            <input
-              v-model="otpCode"
-              type="text"
-              required
-              :placeholder="$t('auth.enter_6_digit')"
-              maxlength="6"
-              pattern="[0-9]{6}"
-              class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500 placeholder-gray-400 text-center text-2xl tracking-widest font-mono"
-              :disabled="authStore.loading"
-              autofocus
+          <PinInputGroup class="gap-2">
+            <PinInputSlot
+              v-for="(n, index) in 6"
+              :key="index"
+              :index="index"
+              class="w-10 h-12 text-lg border rounded-md text-center focus:ring-2 focus:ring-primary-500"
             />
-          </div>
+          </PinInputGroup>
+        </PinInput>
+      </div>
 
-          <button
-            type="submit"
-            :disabled="authStore.loading || otpCode.length !== 6"
-            class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            <div v-if="authStore.loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>{{ authStore.loading ? $t('common.verifying') : $t('auth.verify_code') }}</span>
-          </button>
-        </form>
+      <Button 
+        @click="verifyCode" 
+        :disabled="authStore.loading || otpValue.length !== 6 || otpValue.some(v => v === '')"
+        class="w-full"
+      >
+        <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
+        {{ authStore.loading ? $t('common.verifying') : $t('auth.verify_code') }}
+      </Button>
 
-        <!-- Resend Code -->
-        <div class="mt-6 text-center">
-          <button
-            @click="sendCode"
-            :disabled="authStore.loading"
-            class="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
-          >
-            {{ $t('auth.resend_code') }}
-          </button>
-        </div>
+      <div class="flex flex-col space-y-4">
+        <Button variant="outline" @click="sendCode" :disabled="authStore.loading">
+          <RefreshCw class="mr-2 h-4 w-4" />
+          {{ $t('auth.resend_code') }}
+        </Button>
+        
+        <Button variant="ghost" @click="goBack" class="text-sm text-muted-foreground">
+          <ArrowLeft class="mr-2 h-4 w-4" />
+          {{ $t('auth.change_email') }}
+        </Button>
       </div>
     </div>
   </div>

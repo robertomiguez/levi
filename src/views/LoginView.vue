@@ -102,7 +102,7 @@ function handleLoginSuccess() {
             {{ $t('auth.login') }}
           </h1>
           <p class="text-sm text-muted-foreground">
-            Enter your email below to receive a one-time password
+            {{ subtitle }}
           </p>
         </div>
         

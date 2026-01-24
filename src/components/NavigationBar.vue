@@ -11,7 +11,6 @@ import {
   LogOut, 
   Menu, 
   X,
-  Globe,
   ChevronDown
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'

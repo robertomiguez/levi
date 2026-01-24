@@ -129,14 +129,13 @@ function goBack() {
           placeholder="○"
           class="flex gap-2 items-center justify-center"
           :disabled="authStore.loading"
-          type="number"
           :otp="true"
         >
           <PinInputGroup class="gap-2">
             <PinInputSlot
-              v-for="(n, index) in 6"
-              :key="index"
-              :index="index"
+              v-for="n in 6"
+              :key="n"
+              :index="n - 1"
               class="w-10 h-12 text-lg border rounded-md text-center focus:ring-2 focus:ring-primary-500"
             />
           </PinInputGroup>

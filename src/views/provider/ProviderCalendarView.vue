@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import AppointmentDetailsModal from '../../components/provider/AppointmentDetailsModal.vue'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-vue-next'
 
@@ -242,7 +242,7 @@ async function updateStatus(status: string) {
           </div>
 
           <!-- View Tabs -->
-          <Tabs :model-value="view" @update:model-value="handleViewChange" class="w-[300px]">
+          <Tabs :model-value="view" @update:model-value="(v) => handleViewChange(v as string)" class="w-[300px]">
             <TabsList class="grid w-full grid-cols-3">
               <TabsTrigger value="month">{{ $t('calendar.month') }}</TabsTrigger>
               <TabsTrigger value="week">{{ $t('calendar.week') }}</TabsTrigger>

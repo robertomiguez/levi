@@ -861,9 +861,16 @@ async function handleLoginSuccess() {
               </div>
 
               <!-- Login Gate -->
-              <div v-if="showLogin" class="mt-8">
-                 <h3 class="font-semibold mb-4">Please log in to complete your booking</h3>
-                 <LoginForm :embedded="true" @success="handleLoginSuccess" />
+              <div v-if="showLogin" class="mt-8 animate-in fade-in zoom-in duration-300 max-w-md mx-auto">
+                 <Card class="border-2 border-primary-100 shadow-md">
+                   <CardHeader>
+                     <CardTitle class="text-xl">Authentication Required</CardTitle>
+                     <CardDescription>Please log in to finalize your booking</CardDescription>
+                   </CardHeader>
+                   <CardContent>
+                     <LoginForm :embedded="true" @success="handleLoginSuccess" />
+                   </CardContent>
+                 </Card>
               </div>
 
               <!-- Final Form -->

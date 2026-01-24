@@ -29,8 +29,7 @@ const subtitle = computed(() => {
 
 onMounted(async () => {
   if (authStore.isAuthenticated) {
-    const redirect = route.query.redirect as string
-    router.push(redirect || '/')
+    handleLoginSuccess()
   }
 })
 

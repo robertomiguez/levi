@@ -145,16 +145,17 @@ function goToAvailability() {
       <div class="bg-white rounded-lg shadow p-6 mb-8">
         <h2 class="text-xl font-semibold text-gray-900 mb-4">{{ $t('dashboard.quick_actions.title') }}</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
           <button
-            @click="goToServices"
-            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+            @click="goToAddresses"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all"
           >
-            <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-              <Plus class="w-6 h-6 text-primary-600" />
+            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <MapPin class="w-6 h-6 text-orange-600" />
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.services_title') }}</p>
-              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.services_desc') }}</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.locations_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.locations_desc') }}</p>
             </div>
           </button>
 
@@ -172,15 +173,28 @@ function goToAvailability() {
           </button>
 
           <button
-            @click="goToAddresses"
-            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all"
+            @click="goToAvailability"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
           >
-            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <MapPin class="w-6 h-6 text-orange-600" />
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Clock class="w-6 h-6 text-blue-600" />
             </div>
             <div class="text-left">
-              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.locations_title') }}</p>
-              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.locations_desc') }}</p>
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.availability_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.availability_desc') }}</p>
+            </div>
+          </button>
+
+          <button
+            @click="goToServices"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+          >
+            <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Plus class="w-6 h-6 text-primary-600" />
+            </div>
+            <div class="text-left">
+              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.services_title') }}</p>
+              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.services_desc') }}</p>
             </div>
           </button>
 
@@ -197,18 +211,6 @@ function goToAvailability() {
             </div>
           </button>
 
-          <button
-            @click="goToAvailability"
-            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
-          >
-            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Clock class="w-6 h-6 text-blue-600" />
-            </div>
-            <div class="text-left">
-              <p class="font-semibold text-gray-900">{{ $t('dashboard.quick_actions.availability_title') }}</p>
-              <p class="text-sm text-gray-600">{{ $t('dashboard.quick_actions.availability_desc') }}</p>
-            </div>
-          </button>
         </div>
       </div>
 

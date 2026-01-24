@@ -743,8 +743,8 @@ async function handleLoginSuccess() {
                         format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
                           ? 'border-primary-600 bg-primary-50 ring-1 ring-primary-600 text-primary-900'
                           : isDateAvailable(date)
-                            ? 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            : 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                            ? 'border-gray-200 hover:border-primary-300'
+                            : 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'
                       ]"
                     >
                       <div class="flex items-center gap-3">
@@ -785,7 +785,7 @@ async function handleLoginSuccess() {
                           ? 'bg-primary-600 text-white border-primary-600 shadow-md'
                           : slot.available
                             ? 'bg-white border-gray-200 hover:border-primary-300 hover:shadow-sm'
-                            : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed'
+                            : 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'
                       ]"
                     >
                       {{ slot.time }}

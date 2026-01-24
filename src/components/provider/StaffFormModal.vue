@@ -3,6 +3,10 @@ import { ref, watch, computed } from 'vue'
 import type { Staff, ProviderAddress } from '../../types'
 import Modal from '../../components/common/Modal.vue'
 import { useI18n } from 'vue-i18n'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   isOpen: boolean
@@ -84,50 +88,52 @@ function handleSubmit() {
     @close="$emit('close')"
   >
     <form @submit.prevent="handleSubmit" class="mt-4 space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.staff.name') }}</label>
-        <input
+      <div class="space-y-2">
+        <Label for="staff-name">{{ $t('modals.staff.name') }}</Label>
+        <Input
+          id="staff-name"
           v-model="form.name"
           type="text"
           required
-          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
         />
       </div>
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.staff.email') }}</label>
-        <input
+      <div class="space-y-2">
+        <Label for="staff-email">{{ $t('modals.staff.email') }}</Label>
+        <Input
+          id="staff-email"
           v-model="form.email"
           type="email"
           required
-          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
         />
       </div>
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700">{{ $t('modals.staff.role') }}</label>
+      <div class="space-y-2">
+        <Label for="staff-role">{{ $t('modals.staff.role') }}</Label>
         <select
+          id="staff-role"
           v-model="form.role"
-          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <option value="staff">{{ $t('modals.staff.roles.staff') }}</option>
           <option value="admin">{{ $t('modals.staff.roles.admin') }}</option>
         </select>
       </div>
 
-      <div class="flex items-center">
+      <div class="flex items-center gap-2">
         <input
+          id="staff-active"
           v-model="form.active"
           type="checkbox"
           class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
         />
-        <label class="ml-2 block text-sm text-gray-900">{{ $t('modals.staff.active') }}</label>
+        <Label for="staff-active" class="cursor-pointer">{{ $t('modals.staff.active') }}</Label>
       </div>
 
       <!-- Work Locations (Branches) -->
-      <div v-if="providerAddresses.length > 0">
-        <label class="block text-sm font-medium text-gray-700 mb-2">{{ $t('modals.staff.locations') }}</label>
-        <div class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3">
+      <div v-if="providerAddresses.length > 0" class="space-y-2">
+        <Label>{{ $t('modals.staff.locations') }}</Label>
+        <div class="space-y-2 max-h-40 overflow-y-auto border border-input rounded-md p-3">
           <div v-for="address in providerAddresses" :key="address.id" class="flex items-start">
             <input
               :id="'addr-' + address.id"
@@ -136,32 +142,33 @@ function handleSubmit() {
               v-model="selectedAddressIds"
               class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-0.5"
             />
-            <label :for="'addr-' + address.id" class="ml-2 text-sm text-gray-700 select-none cursor-pointer">
+            <label :for="'addr-' + address.id" class="ml-2 text-sm text-foreground select-none cursor-pointer">
               <span class="font-medium">{{ address.label || $t('modals.staff.location_fallback') }}</span>
-              <span class="text-gray-500 block text-xs">{{ address.street_address }}, {{ address.city }}</span>
+              <span class="text-muted-foreground block text-xs">{{ address.street_address }}, {{ address.city }}</span>
             </label>
           </div>
         </div>
-        <p v-if="selectedAddressIds.length === 0" class="mt-1 text-xs text-red-500">
+        <p v-if="selectedAddressIds.length === 0" class="text-xs text-destructive">
           {{ $t('modals.staff.locations_error') }}
         </p>
       </div>
 
-      <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-        <button
-          type="submit"
-          :disabled="loading || (providerAddresses.length > 0 && selectedAddressIds.length === 0)"
-          class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:col-start-2 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ loading ? $t('common.loading') : $t('common.save') }}
-        </button>
-        <button
+      <div class="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+        <Button
           type="button"
-          class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+          variant="outline"
           @click="$emit('close')"
         >
           {{ $t('common.cancel') }}
-        </button>
+        </Button>
+        <Button
+          type="submit"
+          :disabled="loading || (providerAddresses.length > 0 && selectedAddressIds.length === 0)"
+          class="bg-primary-600 hover:bg-primary-700"
+        >
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ loading ? $t('common.loading') : $t('common.save') }}
+        </Button>
       </div>
     </form>
   </Modal>

@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Provider, ProviderAddress } from '../types'
+import { Badge } from '@/components/ui/badge'
+import { Star } from 'lucide-vue-next'
 
 const props = defineProps<{
   provider: Provider & {
@@ -21,8 +23,6 @@ const initials = computed(() => {
     .toUpperCase()
     .slice(0, 2)
 })
-
-
 
 const locationText = computed(() => {
   const addresses = props.provider.provider_addresses || []
@@ -55,7 +55,7 @@ const ratingStars = computed(() => {
 </script>
 
 <template>
-  <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden cursor-pointer">
+  <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden cursor-pointer group">
     <!-- Provider Avatar/Logo -->
     <div class="flex items-center gap-4 p-6 border-b border-gray-100">
       <div class="w-16 h-16 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0 overflow-hidden">
@@ -63,7 +63,7 @@ const ratingStars = computed(() => {
         <span v-else>{{ initials }}</span>
       </div>
       <div class="flex-1 min-w-0">
-        <h3 class="font-bold text-lg text-gray-900 truncate">{{ provider.business_name }}</h3>
+        <h3 class="font-bold text-lg text-gray-900 truncate group-hover:text-primary-600 transition-colors">{{ provider.business_name }}</h3>
         <p class="text-sm text-gray-500 truncate">{{ locationText }}</p>
       </div>
     </div>
@@ -72,16 +72,12 @@ const ratingStars = computed(() => {
     <div class="px-6 py-3 bg-gray-50">
       <div class="flex items-center gap-2">
         <div class="flex">
-          <svg
+          <Star
             v-for="(filled, index) in ratingStars"
             :key="index"
             class="w-4 h-4"
-            :class="filled ? 'text-yellow-400' : 'text-gray-300'"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-          </svg>
+            :class="filled ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'"
+          />
         </div>
         <span class="text-sm font-medium text-gray-700">{{ rating || 5.0 }}</span>
         <span class="text-sm text-gray-500">({{ $t('provider_card.reviews', { count: reviewCount || 0 }) }})</span>
@@ -91,19 +87,21 @@ const ratingStars = computed(() => {
     <!-- Categories/Services -->
     <div v-if="categories && categories.length > 0" class="px-6 py-4">
       <div class="flex flex-wrap gap-2">
-        <span
+        <Badge
           v-for="(category, index) in categories.slice(0, 3)"
           :key="index"
-          class="px-3 py-1 bg-primary-100 text-primary-700 text-xs font-medium rounded-full"
+          variant="secondary"
+          class="bg-primary-100 text-primary-700 hover:bg-primary-200"
         >
           {{ category }}
-        </span>
-        <span
+        </Badge>
+        <Badge
           v-if="categories.length > 3"
-          class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full"
+          variant="outline"
+          class="bg-gray-100 text-gray-600 hover:bg-gray-200 border-transparent"
         >
           {{ $t('provider_card.more', { count: categories.length - 3 }) }}
-        </span>
+        </Badge>
       </div>
     </div>
   </div>

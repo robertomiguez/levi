@@ -6,6 +6,7 @@ import CategoryPills from '../components/CategoryPills.vue'
 import ProviderCard from '../components/ProviderCard.vue'
 import { supabase } from '../lib/supabase'
 import type { Provider, ProviderAddress, Category } from '../types'
+import { Search } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -202,9 +203,7 @@ function handleCategorySelect(categoryId: string | null) {
 
       <!-- Empty State -->
       <div v-else-if="filteredProviders.length === 0" class="text-center py-12">
-        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-        </svg>
+        <Search class="w-16 h-16 text-gray-400 mx-auto mb-4" />
         <h3 class="text-lg font-medium text-gray-900 mb-2">{{ $t('landing.no_providers_found') }}</h3>
         <p class="text-gray-600">{{ $t('landing.adjust_search') }}</p>
       </div>

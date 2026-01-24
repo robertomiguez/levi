@@ -6,6 +6,13 @@ import ImageUpload from '../../components/ImageUpload.vue'
 import { saveProvider } from '../../services/providerService'
 import { useNotifications } from '../../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea' // Assuming Textarea component exists or use native
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Loader2, CheckCircle2, Building, Phone, FileText } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -19,11 +26,29 @@ const form = ref({
 })
 
 const logoFile = ref<File | null>(null)
-
 const loading = ref(false)
-const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { showSuccess, showError, errorMessage, clearMessages } = useNotifications()
 
 const isEditing = computed(() => !!authStore.provider)
+
+// Stepper State
+const currentStep = ref(1)
+const totalSteps = 3
+
+function nextStep() {
+  if (currentStep.value < totalSteps) {
+    currentStep.value++
+  }
+}
+
+function prevStep() {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  } else {
+    router.push('/provider/dashboard')
+  }
+}
 
 // Populate form when data is available
 function populateForm() {
@@ -72,160 +97,168 @@ async function handleSubmit() {
 
     await authStore.fetchProviderProfile()
 
-    if (!isEditing.value) {
-      router.push('/provider/dashboard')
-    }
+    router.push('/provider/dashboard')
   } catch (e) {
     showError(e instanceof Error ? e.message : t('provider_profile.save_error'))
   } finally {
     loading.value = false
   }
 }
-
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-    <div class="sm:mx-auto sm:w-full sm:max-w-md">
-      <div class="flex justify-center">
-        <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-          <svg class="w-10 h-10 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-          </svg>
+  <div class="min-h-screen bg-gray-50/50 flex flex-col items-center justify-center p-6">
+    <div class="w-full max-w-2xl">
+      <!-- Steps Indicator -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between text-sm font-medium text-gray-500 mb-2">
+          <span>Step {{ currentStep }} of {{ totalSteps }}</span>
+          <span>{{ Math.round((currentStep / totalSteps) * 100) }}% Completed</span>
+        </div>
+        <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+          <div 
+            class="h-full bg-primary-600 transition-all duration-500 ease-in-out"
+            :style="{ width: `${(currentStep / totalSteps) * 100}%` }"
+          ></div>
         </div>
       </div>
-      <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-        {{ isEditing ? $t('provider_profile.title_edit') : $t('provider_profile.title_new') }}
-      </h2>
-      <p class="mt-2 text-center text-sm text-gray-600">
-        {{ isEditing ? $t('provider_profile.subtitle_edit') : $t('provider_profile.subtitle_new') }}
-      </p>
-    </div>
 
-    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-      <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-        <form class="space-y-6" @submit.prevent="handleSubmit">
-           <div v-if="successMessage" class="rounded-md bg-green-50 p-4 mb-4">
-              <div class="flex">
-                <div class="ml-3">
-                  <h3 class="text-sm font-medium text-green-800">{{ successMessage }}</h3>
+      <Card>
+        <CardHeader>
+          <CardTitle>{{ isEditing ? $t('provider_profile.title_edit') : $t('provider_profile.title_new') }}</CardTitle>
+          <CardDescription>
+            {{ isEditing ? $t('provider_profile.subtitle_edit') : $t('provider_profile.subtitle_new') }}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <form @submit.prevent="handleSubmit" id="profile-form">
+            <!-- Step 1: Basic Info -->
+            <div v-show="currentStep === 1" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div class="flex items-center gap-2 mb-4 text-primary-600">
+                <Building class="h-5 w-5" />
+                <h3 class="font-semibold">{{ $t('provider_profile.business_name') }}</h3>
+              </div>
+              
+              <div class="grid gap-4">
+                <div class="grid gap-2">
+                  <Label for="business_name">{{ $t('provider_profile.business_name') }}</Label>
+                  <Input
+                    id="business_name"
+                    v-model="form.business_name"
+                    required
+                    placeholder="e.g. Elite Cuts"
+                  />
+                </div>
+
+                <div class="grid gap-2">
+                  <Label>{{ $t('provider_profile.logo_label') }}</Label>
+                  <ImageUpload
+                    v-model="form.logo_url"
+                    :label="$t('provider_profile.logo_label')"
+                    :help-text="$t('provider_profile.logo_help')"
+                    :processing="loading"
+                    @change="file => logoFile = file"
+                  />
                 </div>
               </div>
             </div>
 
-            <div>
-              <ImageUpload
-                v-model="form.logo_url"
-                :label="$t('provider_profile.logo_label')"
-                :help-text="$t('provider_profile.logo_help')"
-                :processing="loading"
-                @change="file => logoFile = file"
-              />
-            </div>
-
-          <div>
-            <label for="business_name" class="block text-sm font-medium text-gray-700">
-              {{ $t('provider_profile.business_name') }}
-            </label>
-            <div class="mt-1">
-              <input
-                id="business_name"
-                v-model="form.business_name"
-                name="business_name"
-                type="text"
-                required
-                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="e.g. Elite Cuts"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label for="phone" class="block text-sm font-medium text-gray-700">
-              {{ $t('provider_profile.phone_number') }}
-            </label>
-            <div class="mt-1">
-              <input
-                id="phone"
-                v-model="form.phone"
-                name="phone"
-                type="tel"
-                required
-                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="(555) 123-4567"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label for="description" class="block text-sm font-medium text-gray-700">
-              {{ $t('provider_profile.description') }}
-            </label>
-            <div class="mt-1">
-              <textarea
-                id="description"
-                v-model="form.description"
-                name="description"
-                rows="3"
-                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                :placeholder="$t('provider_profile.description_placeholder')"
-              ></textarea>
-            </div>
-          </div>
-
-          <div v-if="errorMessage" class="rounded-md bg-red-50 p-4">
-            <div class="flex">
-              <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                </svg>
+            <!-- Step 2: Details & Contact -->
+            <div v-show="currentStep === 2" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div class="flex items-center gap-2 mb-4 text-primary-600">
+                <FileText class="h-5 w-5" />
+                <h3 class="font-semibold">{{ $t('provider_profile.description') }} & Contact</h3>
               </div>
-              <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">{{ errorMessage }}</h3>
+
+              <div class="grid gap-4">
+                <div class="grid gap-2">
+                  <Label for="description">{{ $t('provider_profile.description') }}</Label>
+                  <Textarea
+                    id="description"
+                    v-model="form.description"
+                    rows="4"
+                    :placeholder="$t('provider_profile.description_placeholder')"
+                  />
+                </div>
+
+                <div class="grid gap-2">
+                  <Label for="phone">{{ $t('provider_profile.phone_number') }}</Label>
+                  <div class="relative">
+                    <Phone class="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="phone"
+                      v-model="form.phone"
+                      type="tel"
+                      required
+                      class="pl-9"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div>
-            <!-- New Provider: Save and Continue -->
-            <button
-              v-if="!isEditing"
-              type="submit"
-              :disabled="loading"
-              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-            >
-              <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {{ loading ? $t('common.sending') : $t('profile.save_and_continue') }}
-            </button>
+            <!-- Step 3: Review & Submit -->
+            <div v-show="currentStep === 3" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div class="text-center py-6">
+                <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle2 class="h-8 w-8 text-green-600" />
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Ready to Launch!</h3>
+                <p class="text-gray-600 mb-6">Review your details below before saving.</p>
+                
+                <div class="bg-gray-50 rounded-lg p-6 text-left max-w-md mx-auto border border-gray-200">
+                  <dl class="space-y-3">
+                    <div class="flex justify-between">
+                      <dt class="text-sm font-medium text-gray-500">Business</dt>
+                      <dd class="text-sm font-semibold text-gray-900">{{ form.business_name }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                      <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                      <dd class="text-sm font-semibold text-gray-900">{{ form.phone }}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
 
-            <!-- Existing Provider: Save & Close -->
-            <template v-else>
-              <button
-                type="submit"
-                :disabled="loading"
-                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-              >
-                <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {{ loading ? $t('common.sending') : $t('common.save') }}
-              </button>
-              
-              <button
-                type="button"
-                @click="router.push('/provider/dashboard')"
-                class="mt-3 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                {{ $t('common.close') }}
-              </button>
-            </template>
-          </div>
-        </form>
-      </div>
+              <!-- Error Alert -->
+              <Alert v-if="errorMessage" variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{{ errorMessage }}</AlertDescription>
+              </Alert>
+            </div>
+          </form>
+        </CardContent>
+
+        <CardFooter class="flex justify-between">
+          <Button 
+            variant="outline" 
+            @click="prevStep" 
+            :disabled="loading"
+          >
+            Back
+          </Button>
+
+          <Button 
+            v-if="currentStep < totalSteps" 
+            @click="nextStep"
+            :disabled="currentStep === 1 && !form.business_name"
+          >
+            Continue
+          </Button>
+
+          <Button 
+            v-else 
+            @click="handleSubmit" 
+            :disabled="loading"
+            class="min-w-[120px]"
+          >
+            <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ loading ? 'Saving...' : (isEditing ? 'Update Profile' : 'Create Profile') }}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   </div>
 </template>

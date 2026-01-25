@@ -24,6 +24,10 @@
     "enter_6_digit": "Digite o código de 6 dígitos",
     "resend_code": "Não recebeu? Reenviar código",
     "verification_email_notice": "Enviaremos um código de verificação por e-mail",
+    "terms_acceptance_prefix": "Eu concordo com os",
+    "terms_of_service": "Termos de Serviço",
+    "terms_acceptance_and": "e a",
+    "privacy_policy": "Política de Privacidade",
     "context": {
       "provider": "Gestão de Negócios",
       "customer": "Agendamento de Compromissos"

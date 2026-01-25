@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   PinInput,
   PinInputGroup,
@@ -25,11 +26,24 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 useI18n()
+
+// Compute legal document URLs with redirect context preserved
+const termsUrl = computed(() => {
+  const redirect = route.query.redirect || props.redirect
+  return redirect ? `/terms?from=${encodeURIComponent(redirect as string)}` : '/terms'
+})
+
+const privacyUrl = computed(() => {
+  const redirect = route.query.redirect || props.redirect
+  return redirect ? `/privacy?from=${encodeURIComponent(redirect as string)}` : '/privacy'
+})
 
 const email = ref('')
 const otpValue = ref<string[]>([])
 const codeSent = ref(false)
+const termsAccepted = ref(false)
 
 watch(otpValue, (newVal) => {
   if (newVal.length === 6 && newVal.every(v => v !== '')) {
@@ -98,7 +112,39 @@ function goBack() {
               </div>
             </div>
           </div>
-          <Button type="submit" :disabled="authStore.loading || !email">
+          
+          <!-- Terms and Privacy Acceptance -->
+          <div class="flex items-start space-x-3">
+            <Checkbox 
+              id="terms-acceptance"
+              v-model="termsAccepted"
+              :disabled="authStore.loading"
+              class="mt-0.5"
+            />
+            <label 
+              for="terms-acceptance" 
+              class="text-sm text-muted-foreground leading-relaxed cursor-pointer"
+            >
+              {{ $t('auth.terms_acceptance_prefix') }}
+              <router-link 
+                :to="termsUrl" 
+                target="_blank"
+                class="text-primary hover:underline font-medium"
+              >
+                {{ $t('auth.terms_of_service') }}
+              </router-link>
+              {{ $t('auth.terms_acceptance_and') }}
+              <router-link 
+                :to="privacyUrl" 
+                target="_blank"
+                class="text-primary hover:underline font-medium"
+              >
+                {{ $t('auth.privacy_policy') }}
+              </router-link>
+            </label>
+          </div>
+          
+          <Button type="submit" :disabled="authStore.loading || !email || !termsAccepted">
             <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
             {{ authStore.loading ? $t('common.sending') : $t('auth.send_code') }}
           </Button>

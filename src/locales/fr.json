@@ -24,6 +24,10 @@
     "enter_6_digit": "Entrez le code à 6 chiffres",
     "resend_code": "Vous ne l'avez pas reçu ? Renvoyer le code",
     "verification_email_notice": "Nous vous enverrons un code de vérification par e-mail",
+    "terms_acceptance_prefix": "J'accepte les",
+    "terms_of_service": "Conditions d'Utilisation",
+    "terms_acceptance_and": "et la",
+    "privacy_policy": "Politique de Confidentialité",
     "context": {
       "provider": "Gestion d'entreprise",
       "customer": "Prise de rendez-vous"

@@ -24,6 +24,10 @@
     "enter_6_digit": "Enter 6-digit code",
     "resend_code": "Didn't receive it? Resend code",
     "verification_email_notice": "We'll email you a verification code",
+    "terms_acceptance_prefix": "I agree to the",
+    "terms_of_service": "Terms of Service",
+    "terms_acceptance_and": "and",
+    "privacy_policy": "Privacy Policy",
     "context": {
       "provider": "Business Management",
       "customer": "Appointment Scheduling"

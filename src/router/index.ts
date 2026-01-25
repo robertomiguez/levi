@@ -10,6 +10,16 @@ const router = createRouter({
             component: () => import('../views/LandingView.vue')
         },
         {
+            path: '/terms',
+            name: 'TermsOfService',
+            component: () => import('../views/TermsOfServiceView.vue')
+        },
+        {
+            path: '/privacy',
+            name: 'PrivacyPolicy',
+            component: () => import('../views/PrivacyPolicyView.vue')
+        },
+        {
             path: '/for-business',
             name: 'ForBusiness',
             component: () => import('../views/ForBusinessView.vue')

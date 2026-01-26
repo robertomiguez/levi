@@ -28,6 +28,11 @@
     "terms_of_service": "Termos de Serviço",
     "terms_acceptance_and": "e a",
     "privacy_policy": "Política de Privacidade",
+    "login_testimonial": "Esta plataforma mudou completamente a forma como gerimos a nossa barbearia. Os agendamentos são automáticos, sem o caos do WhatsApp, e os clientes adoram a facilidade de agendar. Reduzimos as faltas e preenchemos mais horários sem trabalho extra.",
+    "login_testimonial_author": "Carlos M., Dono da Barbearia Urban Cut.",
+    "agree_notice": "Ao clicar em continuar, você concorda com nossos",
+    "login_required_title": "Autenticação Necessária",
+    "login_required_desc": "Por favor, faça login para finalizar seu agendamento",
     "context": {
       "provider": "Gestão de Negócios",
       "customer": "Agendamento de Compromissos"
@@ -72,6 +77,9 @@
     "logout": "Sair",
     "dashboard": "Painel",
     "for_business": "Para Empresas",
+    "my_bookings": "Meus Agendamentos",
+    "business_profile": "Perfil Comercial",
+    "profile": "Perfil",
     "book_now": "Agendar Agora",
     "see_all": "Ver todos"
   },
@@ -181,7 +189,10 @@
     "notes_placeholder": "Quaisquer pedidos especiais ou notas...",
     "confirm_button": "Confirmar Agendamento",
     "slot_taken_error": "Este horário acabou de ser reservado por outro cliente. Por favor, escolha outro horário.",
-    "booking_failed": "Falha ao agendar compromisso. Por favor, tente novamente."
+    "booking_failed": "Falha ao agendar compromisso. Por favor, tente novamente.",
+    "summary_title": "Resumo do Agendamento",
+    "closed": "Fechado",
+    "available_times_header": "Horários Disponíveis"
   },
   "calendar": {
     "title": "Calendário",
@@ -206,6 +217,7 @@
   "my_bookings": {
     "title": "Meus Agendamentos",
     "subtitle": "Gerencie seus próximos compromissos e veja disponibilidade.",
+    "nav_title": "Meus Agendamentos",
     "upcoming": "Próximos",
     "past": "Passados e Cancelados",
     "loading": "Carregando seus agendamentos...",
@@ -262,6 +274,9 @@
       "loading": "Carregando equipe...",
       "no_staff": "Nenhum membro da equipe",
       "no_staff_desc": "Adicione membros à equipe para gerenciar suas agendas.",
+      "share_link": "Compartilhar Link",
+      "copy_link": "Copiar Link",
+      "link_copied": "Link Copiado",
       "inactive_banner": "Equipe Inativa",
       "edit_title": "Editar membro da equipe",
       "active": "Ativo",
@@ -429,7 +444,10 @@
     "time_morning": "Manhã",
     "time_afternoon": "Tarde",
     "time_evening": "Noite",
-    "button": "Buscar"
+    "button": "Buscar",
+    "location_label": "Localização",
+    "service_label": "Serviço",
+    "time_label": "Horário"
   },
   "provider_card": {
     "location_tbd": "Localização a definir",
@@ -445,5 +463,10 @@
     "privacy": "Privacidade",
     "terms": "Termos",
     "contact": "Contato"
+  },
+  "roles": {
+    "provider": "Prestador",
+    "customer": "Cliente",
+    "both": "Ambos"
   }
 }

@@ -35,7 +35,7 @@ function handleSearch() {
     <div class="flex-1 flex items-center px-4 py-3 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
       <MapPin class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
       <div class="flex-1">
-        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Location</label>
+        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.location_label') }}</label>
         <input
           v-model="location"
           type="text"
@@ -49,7 +49,7 @@ function handleSearch() {
     <div class="flex-1 flex items-center px-4 py-3 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
       <Search class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
       <div class="flex-1">
-        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Service</label>
+        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.service_label') }}</label>
         <input
           v-model="service"
           type="text"
@@ -63,7 +63,7 @@ function handleSearch() {
     <div class="flex-1 flex items-center px-4 py-3 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
       <Clock class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
       <div class="flex-1 relative">
-        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Time</label>
+        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.time_label') }}</label>
         <select
           v-model="time"
           class="w-full outline-none text-gray-900 bg-transparent cursor-pointer appearance-none text-sm font-medium pr-4"

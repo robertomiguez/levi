@@ -86,9 +86,9 @@ function handleLoginSuccess() {
       <div class="relative z-20 mt-auto">
         <blockquote class="space-y-2">
           <p class="text-lg">
-            &ldquo;This platform completely changed how we run our barbershop. Bookings are automatic, no more WhatsApp chaos, and clients love how easy it is to schedule. We’ve reduced no-shows and filled more slots without extra work. Honestly, it paid for itself in the first month.&rdquo;
+            &ldquo;{{ $t('auth.login_testimonial') }}&rdquo;
           </p>
-          <footer class="text-sm">Carlos M., Owner of Urban Cut Barbershop.</footer>
+          <footer class="text-sm">{{ $t('auth.login_testimonial_author') }}</footer>
         </blockquote>
       </div>
     </div>
@@ -108,13 +108,13 @@ function handleLoginSuccess() {
         <LoginForm @success="handleLoginSuccess" :embedded="true" />
         
         <p class="px-8 text-center text-sm text-muted-foreground">
-          By clicking continue, you agree to our
+          {{ $t('auth.agree_notice') }}
           <a href="/terms" class="underline underline-offset-4 hover:text-primary">
-            Terms of Service
+            {{ $t('auth.terms_of_service') }}
           </a>
-          and
+          {{ $t('auth.terms_acceptance_and') }}
           <a href="/privacy" class="underline underline-offset-4 hover:text-primary">
-            Privacy Policy
+            {{ $t('auth.privacy_policy') }}
           </a>
           .
         </p>

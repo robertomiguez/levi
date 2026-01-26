@@ -529,17 +529,17 @@ async function handleDeleteBlockedDate(id: string) {
             >
           </div>
         </div>
-        <div class="mt-5 sm:mt-6 flex justify-end gap-3">
+        <div class="mt-5 flex gap-3 sm:justify-end">
           <button 
             type="button" 
-            class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm" 
+            class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm" 
             @click="timeOffModal.close()"
           >
             {{ $t('common.cancel') }}
           </button>
           <button 
             type="submit" 
-            class="inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm"
+            class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm"
           >
             {{ $t('common.save') }}
           </button>

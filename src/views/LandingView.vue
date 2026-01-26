@@ -8,6 +8,12 @@ import { supabase } from '../lib/supabase'
 import type { Provider, ProviderAddress, Category } from '../types'
 import { Search } from 'lucide-vue-next'
 
+// Import images
+import heroManicure from '@/assets/images/hero_background_manicure_1765115664380.png'
+import heroBarber from '@/assets/images/hero_barber_service_1765116285430.png'
+import heroMassage from '@/assets/images/hero_massage_service_1765116300777.png'
+import heroSpa from '@/assets/images/hero_spa_service_1765116318055.png'
+
 const router = useRouter()
 
 const providers = ref<(Provider & { provider_addresses?: ProviderAddress[]; categories?: string[] })[]>([])
@@ -20,19 +26,19 @@ const loading = ref(false)
 const heroOptions = [
   {
     service: 'manicure',
-    image: '/src/assets/images/hero_background_manicure_1765115664380.png'
+    image: heroManicure
   },
   {
     service: 'haircut',
-    image: '/src/assets/images/hero_barber_service_1765116285430.png'
+    image: heroBarber
   },
   {
     service: 'massage',
-    image: '/src/assets/images/hero_massage_service_1765116300777.png'
+    image: heroMassage
   },
   {
     service: 'spa',
-    image: '/src/assets/images/hero_spa_service_1765116318055.png'
+    image: heroSpa
   }
 ]
 
@@ -40,6 +46,10 @@ const currentHeroIndex = ref(0)
 let rotationInterval: number | null = null
 
 const currentHero = computed(() => (heroOptions[currentHeroIndex.value] ?? heroOptions[0])!)
+
+const heroBackgroundImage = computed(() => 
+  `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('${currentHero.value.image}')`
+)
 
 function rotateHero() {
   // Get random index different from current
@@ -170,7 +180,7 @@ function handleCategorySelect(categoryId: string | null) {
     <!-- Hero Section with Background Image -->
     <div 
       class="relative bg-cover bg-center min-h-[600px] md:h-[500px] flex items-center transition-all duration-1000"
-      :style="`background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('${currentHero.image}')`"
+      :style="{ backgroundImage: heroBackgroundImage }"
     >
       <div class="max-w-7xl mx-auto px-6 w-full py-16 md:py-0">
         <div class="max-w-3xl">

@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import NavigationBar from './components/NavigationBar.vue'
+import { useSettingsStore } from './stores/useSettingsStore'
 
 const route = useRoute()
+const settingsStore = useSettingsStore()
+
+onMounted(() => {
+  settingsStore.initializeSettings()
+})
 
 // Hide navigation on certain pages
 const hideNavigation = computed(() => {

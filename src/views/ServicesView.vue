@@ -111,13 +111,7 @@ function handleDelete(id: string) {
   openDeleteConfirm(id)
 }
 
-function formatPrice(price?: number) {
-  if (!price) return 'Free'
-  return new Intl.NumberFormat(settingsStore.language, {
-    style: 'currency',
-    currency: 'USD'
-  }).format(price)
-}
+
 </script>
 
 <template>
@@ -160,7 +154,7 @@ function formatPrice(price?: number) {
               <h3 class="text-lg font-semibold text-gray-900">{{ service.name }}</h3>
               <p v-if="service.categories?.name" class="text-sm text-gray-500">{{ service.categories.name }}</p>
             </div>
-            <span class="text-lg font-bold text-primary-600">{{ formatPrice(service.price) }}</span>
+            <span class="text-lg font-bold text-primary-600">{{ settingsStore.formatPrice(service.price || 0) }}</span>
           </div>
           
           <div class="space-y-2 mb-4">

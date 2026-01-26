@@ -349,13 +349,7 @@ async function submitBooking() {
   }
 }
 
-function formatPrice(price?: number) {
-  if (!price) return 'Free'
-  return new Intl.NumberFormat(settingsStore.language, {
-    style: 'currency',
-    currency: 'USD'
-  }).format(price)
-}
+
 
 function formatDateDisplay(date: Date) {
   return date.toLocaleDateString(settingsStore.language, {
@@ -626,10 +620,10 @@ async function handleLoginSuccess() {
                 >
                   <div class="min-w-0 flex-1">
                     <span class="absolute inset-0" aria-hidden="true" />
-                    <div class="flex justify-between">
-                      <p class="text-sm font-medium text-gray-900">{{ service.name }}</p>
-                      <p class="text-sm font-bold text-primary-600">{{ formatPrice(service.price) }}</p>
-                    </div>
+                      <div class="flex justify-between">
+                        <p class="text-sm font-medium text-gray-900">{{ service.name }}</p>
+                        <p class="text-sm font-bold text-primary-600">{{ settingsStore.formatPrice(service.price || 0) }}</p>
+                      </div>
                     <p class="truncate text-sm text-gray-500">{{ service.duration }} {{ $t('common.minutes') }}</p>
                   </div>
                 </div>

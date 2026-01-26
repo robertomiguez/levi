@@ -1,25 +1,28 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { format, parseISO } from 'date-fns'
+import { useI18n } from 'vue-i18n'
 import { useServiceStore } from '../../stores/useServiceStore'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useCategoryStore } from '../../stores/useCategoryStore'
-import { useRouter } from 'vue-router'
-import { format, parseISO } from 'date-fns'
-import type { Service } from '../../types'
-import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
+import { useAppointmentStore } from '../../stores/useAppointmentStore'
+import { useSettingsStore } from '../../stores/useSettingsStore'
 import { useModal } from '../../composables/useModal'
 import { useNotifications } from '../../composables/useNotifications'
-import { useI18n } from 'vue-i18n'
+import type { Service } from '../../types'
+import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
-import { useAppointmentStore } from '../../stores/useAppointmentStore'
+
+const router = useRouter()
+const { t } = useI18n()
+const { showSuccess, showError } = useNotifications()
 
 const serviceStore = useServiceStore()
 const authStore = useAuthStore()
 const categoryStore = useCategoryStore()
 const appointmentStore = useAppointmentStore()
-const router = useRouter()
-const { t } = useI18n()
-const { showSuccess, showError } = useNotifications()
+const settingsStore = useSettingsStore()
 
 const modal = useModal<Service>()
 const searchQuery = ref('')
@@ -179,12 +182,6 @@ async function confirmDeactivation() {
   }
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount)
-}
 </script>
 
 <template>
@@ -289,7 +286,7 @@ function formatCurrency(amount: number) {
               </div>
               <div class="flex flex-col items-end">
                 <span class="text-lg font-bold" :class="service.active ? 'text-primary-600' : 'text-gray-500'">
-                  {{ formatCurrency(service.price || 0) }}
+                  {{ settingsStore.formatPrice(service.price || 0) }}
                 </span>
                 <span class="text-sm" :class="service.active ? 'text-gray-500' : 'text-gray-400'">
                   {{ service.duration }} min

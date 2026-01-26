@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { 
@@ -25,10 +25,15 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 
 const showMobileMenu = ref(false)
+
+watch(() => route.path, () => {
+  showMobileMenu.value = false
+})
 
 const languages = [
   { code: 'en', flag: '🇺🇸', label: 'English' },
@@ -84,6 +89,7 @@ const roleBadgeColor = computed(() => {
 })
 
 function navigateToForBusiness() {
+  showMobileMenu.value = false
   if (authStore.provider) {
     router.push('/provider/dashboard')
   } else {
@@ -92,10 +98,12 @@ function navigateToForBusiness() {
 }
 
 function navigateToLogin() {
+  showMobileMenu.value = false
   router.push('/login')
 }
 
 function navigateToDashboard() {
+  showMobileMenu.value = false
   if (authStore.provider) {
     router.push('/provider/dashboard')
   } else {
@@ -104,6 +112,7 @@ function navigateToDashboard() {
 }
 
 function navigateToProfile() {
+  showMobileMenu.value = false
   if (authStore.provider) {
     router.push('/provider/profile')
   } else {
@@ -112,8 +121,14 @@ function navigateToProfile() {
 }
 
 async function handleLogout() {
+  showMobileMenu.value = false
   await authStore.signOut()
   router.push('/')
+}
+
+function navigateToMyBookings() {
+  showMobileMenu.value = false
+  router.push('/my-bookings')
 }
 
 function changeLanguage(lang: string) {
@@ -128,7 +143,7 @@ function changeLanguage(lang: string) {
       <div class="flex h-16 items-center justify-between">
         <!-- Logo -->
         <div class="flex items-center">
-          <a class="flex items-center space-x-2 cursor-pointer" @click="router.push('/')">
+          <a class="flex items-center space-x-2 cursor-pointer" @click="router.push('/'); showMobileMenu = false">
             <span class="font-bold text-2xl text-primary-600 inline-block">Levi</span>
           </a>
         </div>
@@ -196,7 +211,7 @@ function changeLanguage(lang: string) {
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   v-if="userRole === 'Customer' || userRole === 'Both'" 
-                  @click="router.push('/my-bookings')"
+                  @click="navigateToMyBookings"
                   class="cursor-pointer"
                 >
                   <CalendarDays class="mr-2 h-4 w-4" />
@@ -285,7 +300,7 @@ function changeLanguage(lang: string) {
             v-if="userRole === 'Customer' || userRole === 'Both'"
             variant="ghost" 
             class="justify-start h-12"
-            @click="router.push('/my-bookings')"
+            @click="navigateToMyBookings"
           >
             <CalendarDays class="mr-2 h-5 w-5" />
             {{ $t('nav.my_bookings') }}

@@ -32,7 +32,7 @@ function handleSearch() {
 <template>
   <div class="flex flex-col md:flex-row gap-3 items-stretch p-2 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30 shadow-2xl">
     <!-- Location Input -->
-    <div class="flex-1 flex items-center px-4 py-3 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
+    <div class="flex-1 flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
       <MapPin class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
       <div class="flex-1">
         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.location_label') }}</label>
@@ -46,7 +46,7 @@ function handleSearch() {
     </div>
 
     <!-- Service Input -->
-    <div class="flex-1 flex items-center px-4 py-3 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
+    <div class="flex-1 flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
       <Search class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
       <div class="flex-1">
         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.service_label') }}</label>
@@ -60,7 +60,7 @@ function handleSearch() {
     </div>
 
     <!-- Time Select -->
-    <div class="flex-1 flex items-center px-4 py-3 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
+    <div class="flex-1 flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
       <Clock class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
       <div class="flex-1 relative">
         <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.time_label') }}</label>
@@ -81,7 +81,7 @@ function handleSearch() {
       <Button
         @click="handleSearch"
         size="lg"
-        class="h-full w-full md:w-auto bg-primary-600 hover:bg-primary-700 text-white px-8 rounded-lg font-bold shadow-lg transition-all hover:scale-105"
+        class="h-14 w-full md:w-auto bg-primary-600 hover:bg-primary-700 text-white px-8 rounded-lg font-bold shadow-lg transition-all hover:scale-105"
       >
         <Search class="w-5 h-5 mr-2" />
         {{ $t('search.button') }}

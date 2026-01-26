@@ -146,12 +146,22 @@ const filteredProviders = computed(() => {
   return result
 })
 
+const resultsSection = ref<HTMLElement | null>(null)
+
+function scrollToResults() {
+  if (resultsSection.value && window.innerWidth < 768) {
+    resultsSection.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
 function handleSearch(params: { location: string; service: string; time: string }) {
   searchParams.value = params
+  scrollToResults()
 }
 
 function handleCategorySelect(categoryId: string | null) {
   selectedCategory.value = categoryId
+  scrollToResults()
 }
 </script>
 
@@ -159,12 +169,12 @@ function handleCategorySelect(categoryId: string | null) {
   <div class="min-h-screen bg-white">
     <!-- Hero Section with Background Image -->
     <div 
-      class="relative bg-cover bg-center h-[500px] flex items-center transition-all duration-1000"
+      class="relative bg-cover bg-center min-h-[600px] md:h-[500px] flex items-center transition-all duration-1000"
       :style="`background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('${currentHero.image}')`"
     >
-      <div class="max-w-7xl mx-auto px-6 w-full">
+      <div class="max-w-7xl mx-auto px-6 w-full py-16 md:py-0">
         <div class="max-w-3xl">
-          <h1 class="text-5xl lg:text-6xl font-bold text-white mb-6">
+          <h1 class="text-5xl lg:text-6xl font-bold text-white mb-6 min-h-[3.6em] lg:min-h-[2.4em] flex flex-col justify-center">
             {{ $t('landing.hero_title') }} 
             <span class="inline-block transition-all duration-500">{{ $t(`landing.hero_services.${currentHero.service}`) }}</span>
           </h1>
@@ -173,7 +183,7 @@ function handleCategorySelect(categoryId: string | null) {
           <SearchBar @search="handleSearch" />
           
           <!-- Category Pills -->
-          <div class="mt-6">
+          <div class="mt-10">
             <CategoryPills 
               :categories="categories"
               :selected-category="selectedCategory"
@@ -185,7 +195,7 @@ function handleCategorySelect(categoryId: string | null) {
     </div>
 
     <!-- Popular Providers Section -->
-    <div class="max-w-7xl mx-auto px-6 py-12">
+    <div ref="resultsSection" class="max-w-7xl mx-auto px-6 py-12 scroll-mt-24">
       <div class="mb-8">
         <h2 class="text-3xl font-bold text-gray-900 mb-2">
           {{ $t('landing.popular_in', { location: 'San Francisco, CA' }) }}

@@ -71,13 +71,7 @@ function formatTime(time: string) {
   return time.substring(0, 5)
 }
 
-function formatCurrency(price?: number) {
-  if (!price) return 'Free'
-  return new Intl.NumberFormat(settingsStore.language, {
-    style: 'currency',
-    currency: 'USD'
-  }).format(price)
-}
+
 
 function getStatusColor(status: string) {
   const colors = {
@@ -219,7 +213,7 @@ async function handleCancel() {
                 <div>
                   <span class="block text-gray-500">Price</span>
                   <span class="font-medium text-gray-900">
-                    {{ formatCurrency(booking.service?.price) }}
+                    {{ settingsStore.formatPrice(booking.service?.price || 0) }}
                   </span>
                 </div>
               </div>

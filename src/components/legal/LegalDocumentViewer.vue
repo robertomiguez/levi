@@ -16,7 +16,7 @@ const documentContent = computed(() => {
     const fileName = props.documentType === 'terms' ? 'terms-of-service' : 'privacy-policy'
     
     // Import the markdown file
-    const modules = import.meta.glob('@/legal/*.md', { as: 'raw', eager: true })
+    const modules = import.meta.glob('@/legal/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
     const path = `/src/legal/${fileName}.${lang}.md`
     
     return modules[path] || modules[`/src/legal/${fileName}.en.md`] || ''

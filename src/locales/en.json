@@ -28,6 +28,11 @@
     "terms_of_service": "Terms of Service",
     "terms_acceptance_and": "and",
     "privacy_policy": "Privacy Policy",
+    "login_testimonial": "This platform completely changed how we run our barbershop. Bookings are automatic, no more WhatsApp chaos, and clients love how easy it is to schedule. We’ve reduced no-shows and filled more slots without extra work.",
+    "login_testimonial_author": "Carlos M., Owner of Urban Cut Barbershop.",
+    "agree_notice": "By clicking continue, you agree to our",
+    "login_required_title": "Authentication Required",
+    "login_required_desc": "Please log in to finalize your booking",
     "context": {
       "provider": "Business Management",
       "customer": "Appointment Scheduling"
@@ -72,6 +77,9 @@
     "logout": "Logout",
     "dashboard": "Dashboard",
     "for_business": "For Business",
+    "my_bookings": "My Bookings",
+    "business_profile": "Business Profile",
+    "profile": "Profile",
     "book_now": "Book Now",
     "see_all": "See all"
   },
@@ -181,7 +189,10 @@
     "notes_placeholder": "Any special requests or notes...",
     "confirm_button": "Confirm Booking",
     "slot_taken_error": "This time slot was just booked by another customer. Please choose another time.",
-    "booking_failed": "Failed to book appointment. Please try again."
+    "booking_failed": "Failed to book appointment. Please try again.",
+    "summary_title": "Booking Summary",
+    "closed": "Closed",
+    "available_times_header": "Available Times"
   },
   "calendar": {
     "title": "Calendar",
@@ -206,6 +217,7 @@
   "my_bookings": {
     "title": "My Bookings",
     "subtitle": "Manage your upcoming appointments and view availability.",
+    "nav_title": "My Bookings",
     "upcoming": "Upcoming",
     "past": "Past & Cancelled",
     "loading": "Loading your bookings...",
@@ -262,6 +274,9 @@
       "loading": "Loading staff...",
       "no_staff": "No staff members",
       "no_staff_desc": "Add your team members to manage their schedules.",
+      "share_link": "Share Link",
+      "copy_link": "Copy Link",
+      "link_copied": "Link Copied",
       "inactive_banner": "Inactive Staff",
       "edit_title": "Edit staff member",
       "active": "Active",
@@ -429,7 +444,10 @@
     "time_morning": "Morning",
     "time_afternoon": "Afternoon",
     "time_evening": "Evening",
-    "button": "Search"
+    "button": "Search",
+    "location_label": "Location",
+    "service_label": "Service",
+    "time_label": "Time"
   },
   "provider_card": {
     "location_tbd": "Location TBD",
@@ -445,5 +463,10 @@
     "privacy": "Privacy",
     "terms": "Terms",
     "contact": "Contact"
+  },
+  "roles": {
+    "provider": "Provider",
+    "customer": "Customer",
+    "both": "Both"
   }
 }

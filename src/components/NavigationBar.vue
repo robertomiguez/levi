@@ -174,7 +174,7 @@ function changeLanguage(lang: string) {
                   <div class="flex flex-col items-start text-left mr-1">
                     <span class="text-sm font-medium leading-none">{{ userName }}</span>
                     <span v-if="userRole" :class="['text-[10px] px-1.5 py-0.5 rounded-full font-medium mt-1', roleBadgeColor]">
-                      {{ userRole }}
+                      {{ $t('roles.' + userRole.toLowerCase()) }}
                     </span>
                   </div>
                   <ChevronDown class="h-4 w-4 text-muted-foreground opacity-50" />
@@ -200,11 +200,11 @@ function changeLanguage(lang: string) {
                   class="cursor-pointer"
                 >
                   <CalendarDays class="mr-2 h-4 w-4" />
-                  My Bookings
+                  {{ $t('nav.my_bookings') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem @click="navigateToProfile" class="cursor-pointer">
                   <User class="mr-2 h-4 w-4" />
-                  {{ authStore.provider ? 'Business Profile' : 'Profile' }}
+                  {{ authStore.provider ? $t('nav.business_profile') : $t('nav.profile') }}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem @click="handleLogout" class="text-destructive focus:text-destructive cursor-pointer">
@@ -240,7 +240,7 @@ function changeLanguage(lang: string) {
            <p class="text-sm font-medium">{{ userName }}</p>
            <p class="text-xs text-muted-foreground">{{ authStore.user?.email }}</p>
            <span v-if="userRole" :class="['inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1', roleBadgeColor]">
-             {{ userRole }}
+             {{ $t('roles.' + userRole.toLowerCase()) }}
            </span>
         </div>
       </div>
@@ -288,7 +288,7 @@ function changeLanguage(lang: string) {
             @click="router.push('/my-bookings')"
           >
             <CalendarDays class="mr-2 h-5 w-5" />
-            My Bookings
+            {{ $t('nav.my_bookings') }}
           </Button>
 
            <Button 
@@ -297,7 +297,7 @@ function changeLanguage(lang: string) {
             @click="navigateToProfile"
           >
             <User class="mr-2 h-5 w-5" />
-            {{ authStore.provider ? 'Business Profile' : 'Profile' }}
+            {{ authStore.provider ? $t('nav.business_profile') : $t('nav.profile') }}
           </Button>
 
            <Button 

@@ -28,6 +28,11 @@
     "terms_of_service": "Conditions d'Utilisation",
     "terms_acceptance_and": "et la",
     "privacy_policy": "Politique de Confidentialité",
+    "login_testimonial": "Cette plateforme a complètement changé notre façon de gérer notre salon de coiffure. Les réservations sont automatiques, fini le chaos de WhatsApp, et les clients adorent la facilité de prise de rendez-vous. Nous avons réduit les absences et rempli plus de créneaux sans travail supplémentaire.",
+    "login_testimonial_author": "Carlos M., Propriétaire de Urban Cut Barbershop.",
+    "agree_notice": "En cliquant sur continuer, vous acceptez nos",
+    "login_required_title": "Authentification requise",
+    "login_required_desc": "Veuillez vous connecter pour finaliser votre réservation",
     "context": {
       "provider": "Gestion d'entreprise",
       "customer": "Prise de rendez-vous"
@@ -72,6 +77,9 @@
     "logout": "Déconnexion",
     "dashboard": "Tableau de bord",
     "for_business": "Pour les entreprises",
+    "my_bookings": "Mes réservations",
+    "business_profile": "Profil professionnel",
+    "profile": "Profil",
     "book_now": "Réserver",
     "see_all": "Tout voir"
   },
@@ -181,7 +189,10 @@
     "notes_placeholder": "Demandes spéciales ou notes...",
     "confirm_button": "Confirmer la réservation",
     "slot_taken_error": "Ce créneau vient d'être réservé par un autre client. Veuillez choisir une autre heure.",
-    "booking_failed": "Échec de la réservation. Veuillez réessayer."
+    "booking_failed": "Échec de la réservation. Veuillez réessayer.",
+    "summary_title": "Résumé de la réservation",
+    "closed": "Fermé",
+    "available_times_header": "Temps disponibles"
   },
   "calendar": {
     "title": "Calendrier",
@@ -206,6 +217,7 @@
   "my_bookings": {
     "title": "Mes réservations",
     "subtitle": "Gérez vos prochains rendez-vous et consultez vos disponibilités.",
+    "nav_title": "Mes réservations",
     "upcoming": "À venir",
     "past": "Passés et annulés",
     "loading": "Chargement de vos réservations...",
@@ -262,6 +274,9 @@
       "loading": "Chargement du personnel...",
       "no_staff": "Aucun membre du personnel",
       "no_staff_desc": "Ajoutez les membres de votre équipe pour gérer leurs horaires.",
+      "share_link": "Partager le lien",
+      "copy_link": "Copier le lien",
+      "link_copied": "Lien copié",
       "inactive_banner": "Personnel inactif",
       "edit_title": "Modifier le membre du personnel",
       "active": "Actif",
@@ -429,7 +444,10 @@
     "time_morning": "Matin",
     "time_afternoon": "Après-midi",
     "time_evening": "Soirée",
-    "button": "Rechercher"
+    "button": "Rechercher",
+    "location_label": "Emplacement",
+    "service_label": "Service",
+    "time_label": "Heure"
   },
   "provider_card": {
     "location_tbd": "Lieu à déterminer",
@@ -445,5 +463,10 @@
     "privacy": "Confidentialité",
     "terms": "Conditions",
     "contact": "Contact"
+  },
+  "roles": {
+    "provider": "Prestataire",
+    "customer": "Client",
+    "both": "Tous les deux"
   }
 }

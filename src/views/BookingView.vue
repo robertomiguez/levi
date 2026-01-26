@@ -756,7 +756,7 @@ async function handleLoginSuccess() {
                       </div>
                       
                       <div v-if="!isDateAvailable(date)" class="text-xs font-medium text-gray-400">
-                        {{ getDateStatus(date) === 'Busy' ? $t('status.busy') : 'Closed' }}
+                        {{ getDateStatus(date) === 'Busy' ? $t('status.busy') : $t('booking.closed') }}
                       </div>
                     </button>
                   </div>
@@ -766,7 +766,7 @@ async function handleLoginSuccess() {
                 <div>
                   <h3 class="font-medium text-gray-900 mb-3 ml-1 flex items-center gap-2">
                     <Clock class="h-4 w-4" />
-                    Available Times
+                    {{ $t('booking.available_times_header') }}
                   </h3>
                   
                   <div v-if="loadingSlots" class="flex justify-center py-12">
@@ -834,7 +834,7 @@ async function handleLoginSuccess() {
               </Alert>
 
               <div class="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-4 border-b pb-2">Booking Summary</h3>
+                <h3 class="font-semibold text-gray-900 mb-4 border-b pb-2">{{ $t('booking.summary_title') }}</h3>
                 <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-sm">
                   <div>
                     <dt class="text-gray-500">{{ $t('booking.steps.service') }}</dt>

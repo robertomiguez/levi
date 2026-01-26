@@ -32,16 +32,17 @@ const emit = defineEmits<{
       </slot>
     </div>
 
-    <div class="mt-6 flex justify-end gap-3">
+    <div class="mt-6 flex gap-3 sm:justify-end">
       <Button
         variant="outline"
+        class="flex-1 sm:flex-none"
         @click="emit('close')"
       >
         {{ cancelLabel || $t('common.cancel') }}
       </Button>
       <Button
         :variant="isDestructive ? 'destructive' : 'default'"
-        :class="!isDestructive ? 'bg-primary-600 hover:bg-primary-700' : ''"
+        :class="[!isDestructive ? 'bg-primary-600 hover:bg-primary-700' : '', 'flex-1 sm:flex-none']"
         @click="emit('confirm')"
       >
         {{ confirmLabel || $t('common.confirm') }}

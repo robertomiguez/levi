@@ -201,10 +201,11 @@ function handleSubmit() {
       </div>
 
       <!-- Actions -->
-      <div class="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+      <div class="mt-5 flex gap-3 sm:justify-end">
         <Button
           type="button"
           variant="outline"
+          class="flex-1 sm:flex-none"
           @click="$emit('close')"
         >
           {{ $t('common.cancel') }}
@@ -212,7 +213,7 @@ function handleSubmit() {
         <Button
           type="submit"
           :disabled="props.loading"
-          class="bg-primary-600 hover:bg-primary-700"
+          class="flex-1 sm:flex-none bg-primary-600 hover:bg-primary-700"
         >
           <Loader2 v-if="props.loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ props.loading ? $t('modals.service.saving') : $t('modals.service.save_button') }}

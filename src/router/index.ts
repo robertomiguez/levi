@@ -3,6 +3,13 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 const router = createRouter({
     history: createWebHistory(),
+    scrollBehavior(_to, _from, savedPosition) {
+        if (savedPosition) {
+            return savedPosition
+        } else {
+            return { top: 0 }
+        }
+    },
     routes: [
         {
             path: '/',

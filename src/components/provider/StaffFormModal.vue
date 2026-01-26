@@ -153,10 +153,11 @@ function handleSubmit() {
         </p>
       </div>
 
-      <div class="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+      <div class="mt-5 flex gap-3 sm:justify-end">
         <Button
           type="button"
           variant="outline"
+          class="flex-1 sm:flex-none"
           @click="$emit('close')"
         >
           {{ $t('common.cancel') }}
@@ -164,7 +165,7 @@ function handleSubmit() {
         <Button
           type="submit"
           :disabled="loading || (providerAddresses.length > 0 && selectedAddressIds.length === 0)"
-          class="bg-primary-600 hover:bg-primary-700"
+          class="flex-1 sm:flex-none bg-primary-600 hover:bg-primary-700"
         >
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ loading ? $t('common.loading') : $t('common.save') }}

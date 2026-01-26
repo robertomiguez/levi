@@ -146,12 +146,22 @@ const filteredProviders = computed(() => {
   return result
 })
 
+const resultsSection = ref<HTMLElement | null>(null)
+
+function scrollToResults() {
+  if (resultsSection.value && window.innerWidth < 768) {
+    resultsSection.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
 function handleSearch(params: { location: string; service: string; time: string }) {
   searchParams.value = params
+  scrollToResults()
 }
 
 function handleCategorySelect(categoryId: string | null) {
   selectedCategory.value = categoryId
+  scrollToResults()
 }
 </script>
 
@@ -185,7 +195,7 @@ function handleCategorySelect(categoryId: string | null) {
     </div>
 
     <!-- Popular Providers Section -->
-    <div class="max-w-7xl mx-auto px-6 py-12">
+    <div ref="resultsSection" class="max-w-7xl mx-auto px-6 py-12 scroll-mt-24">
       <div class="mb-8">
         <h2 class="text-3xl font-bold text-gray-900 mb-2">
           {{ $t('landing.popular_in', { location: 'San Francisco, CA' }) }}

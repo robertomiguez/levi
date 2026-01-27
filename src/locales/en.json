@@ -11,7 +11,9 @@
     "back": "Back",
     "sending": "Sending...",
     "verifying": "Verifying...",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "select": "Select",
+    "remove": "Remove"
   },
   "auth": {
     "login": "Log In",
@@ -434,7 +436,8 @@
       "buffer_before": "Buffer Before (min)",
       "buffer_after": "Buffer After (min)",
       "save_button": "Save Service",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "images": "Images"
     }
   },
   "search": {

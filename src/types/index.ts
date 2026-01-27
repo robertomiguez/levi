@@ -4,6 +4,14 @@ export interface Category {
     created_at?: string
 }
 
+export interface ServiceImage {
+    id: string
+    service_id: string
+    url: string
+    display_order: number
+    created_at?: string
+}
+
 export interface Service {
     id: string
     name: string
@@ -21,6 +29,7 @@ export interface Service {
     updated_at?: string
     provider?: Provider // Joined data
     staff?: Staff[] // Joined data
+    images?: ServiceImage[] // Joined data
 }
 
 export interface Customer {

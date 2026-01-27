@@ -11,7 +11,9 @@
     "back": "Retour",
     "sending": "Envoi...",
     "verifying": "Vérification...",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "select": "Sélectionner",
+    "remove": "Supprimer"
   },
   "auth": {
     "login": "Connexion",
@@ -428,6 +430,7 @@
       "duration": "Durée (min)",
       "description": "Description",
       "description_placeholder": "Décrivez le service...",
+      "images": "Images",
       "assign_staff": "Assigner du personnel",
       "no_staff": "Aucun membre du personnel actif trouvé.",
       "assign_staff_help": "Sélectionnez les membres du personnel qui peuvent effectuer ce service.",

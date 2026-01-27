@@ -99,6 +99,7 @@ async function fetchProviderInfo(providerId: string) {
       .single()
     
     if (error) throw error
+    console.log('Provider Info loaded:', data)
     providerInfo.value = data
   } catch (error) {
     console.error('Error fetching provider:', error)
@@ -195,7 +196,10 @@ async function loadAvailableSlots() {
 
 function selectService(serviceId: string) {
   selectedServiceId.value = serviceId
-  const service = serviceStore.services.find(s => s.id === serviceId)
+}
+
+function confirmService() {
+  const service = serviceStore.services.find(s => s.id === selectedServiceId.value)
   
   if (selectedStaffId.value) {
       const isStaffValid = !service?.staff?.length || service.staff.some(s => s.id === selectedStaffId.value)
@@ -525,9 +529,14 @@ async function handleLoginSuccess() {
     <div class="max-w-4xl mx-auto">
       
       <!-- Provider Header -->
+      <!-- Provider Header -->
       <header v-if="providerInfo" class="mb-8 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+        <div v-if="providerInfo.logo_url" class="mb-4">
+            <img :src="providerInfo.logo_url" :alt="providerInfo.business_name" class="h-24 w-24 rounded-full mx-auto object-cover shadow-md border-4 border-white" />
+        </div>
         <h1 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl mb-2">{{ providerInfo.business_name }}</h1>
-        <p class="text-lg text-gray-600">{{ $t('booking.subtitle') }}</p>
+        <p v-if="providerInfo.description" class="text-lg text-gray-600 max-w-2xl mx-auto mb-2">{{ providerInfo.description }}</p>
+        <p class="text-sm text-gray-500">{{ $t('booking.subtitle') }}</p>
       </header>
 
       <!-- Confirmation Success -->
@@ -615,18 +624,46 @@ async function handleLoginSuccess() {
                 <div
                   v-for="service in filteredServices"
                   :key="service.id"
+                  class="bg-white rounded-lg border overflow-hidden shadow-sm transition-all cursor-pointer"
+                  :class="selectedServiceId === service.id ? 'border-primary-600 ring-1 ring-primary-600 shadow-md' : 'border-gray-300 hover:border-primary-400 hover:shadow-md'"
                   @click="selectService(service.id)"
-                  class="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:border-primary-400 hover:bg-gray-50 cursor-pointer transition-all"
                 >
-                  <div class="min-w-0 flex-1">
-                    <span class="absolute inset-0" aria-hidden="true" />
-                      <div class="flex justify-between">
-                        <p class="text-sm font-medium text-gray-900">{{ service.name }}</p>
-                        <p class="text-sm font-bold text-primary-600">{{ settingsStore.formatPrice(service.price || 0) }}</p>
+                  <div class="flex flex-col sm:flex-row">
+                      <!-- Service Images -->
+                      <div v-if="service.images && service.images.length > 0" class="sm:w-1/3 h-48 sm:h-auto relative bg-gray-100">
+                          <img :src="service.images?.[0]?.url" class="w-full h-full object-cover absolute inset-0" :class="{'opacity-0': false}" />
+                          
+                          <!-- Simple Overlay count if more than 1 -->
+                          <div v-if="service.images.length > 1" class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                              +{{ service.images.length - 1 }}
+                          </div>
                       </div>
-                    <p class="truncate text-sm text-gray-500">{{ service.duration }} {{ $t('common.minutes') }}</p>
+
+                      <div class="p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="text-lg font-bold text-gray-900">{{ service.name }}</h3>
+                                <div class="text-right">
+                                    <p class="text-lg font-bold text-primary-600">{{ settingsStore.formatPrice(service.price || 0) }}</p>
+                                    <p class="text-xs text-gray-500">{{ service.duration }} {{ $t('common.minutes') }}</p>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 line-clamp-2 mb-4">{{ service.description }}</p>
+                        </div>
+                      </div>
                   </div>
                 </div>
+              </div>
+              
+              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                <Button 
+                  size="lg" 
+                  @click="confirmService" 
+                  :disabled="!selectedServiceId"
+                  class="font-semibold px-8"
+                >
+                  Continue <span class="ml-2">→</span>
+                </Button>
               </div>
             </div>
 

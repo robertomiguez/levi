@@ -116,10 +116,11 @@ async function handleSave(serviceData: any) {
 }
 
 async function executeSave(serviceData: any) {
+  
   saving.value = true
   try {
-    if (modal.data.value) {
-      await serviceStore.updateService(modal.data.value.id, serviceData)
+    if (serviceData.id) {
+      await serviceStore.updateService(serviceData.id, serviceData)
       showSuccess(t('provider.services.save_success'))
     } else {
       const newService = {

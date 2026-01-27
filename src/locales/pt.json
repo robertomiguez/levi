@@ -11,7 +11,9 @@
     "back": "Voltar",
     "sending": "Enviando...",
     "verifying": "Verificando...",
-    "minutes": "minutos"
+    "minutes": "minutos",
+    "select": "Selecionar",
+    "remove": "Remover"
   },
   "auth": {
     "login": "Entrar",
@@ -428,6 +430,7 @@
       "duration": "Duração (min)",
       "description": "Descrição",
       "description_placeholder": "Descreva o serviço...",
+      "images": "Imagens",
       "assign_staff": "Atribuir Equipe",
       "no_staff": "Nenhum membro da equipe ativo encontrado.",
       "assign_staff_help": "Selecione quais membros da equipe podem realizar este serviço.",

@@ -13,11 +13,18 @@ export async function fetchServices(providerId?: string) {
                     name,
                     email
                 )
+            ),
+            service_images (
+                id,
+                url,
+                display_order
             )
         `)
         .order('active', { ascending: false })
         .order('name', { foreignTable: 'categories', ascending: true })
         .order('name', { ascending: true })
+        // Order images by display_order
+        .order('display_order', { foreignTable: 'service_images', ascending: true })
 
     if (providerId) {
         query = query.eq('provider_id', providerId)
@@ -29,12 +36,15 @@ export async function fetchServices(providerId?: string) {
     // Transform the nested data structure to match the Service interface
     return (data || []).map((service: any) => ({
         ...service,
-        staff: service.service_staff?.map((item: any) => item.staff).filter(Boolean) || []
+        staff: service.service_staff?.map((item: any) => item.staff).filter(Boolean) || [],
+        images: service.service_images || []
     }))
 }
 
-export async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories' | 'staff' | 'provider'> & { staff_ids?: string[] }) {
-    const { staff_ids, ...serviceData } = service
+export async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories' | 'staff' | 'provider' | 'images'> & { staff_ids?: string[], image_urls?: string[] }) {
+    // Explicitly remove 'id' if it exists in the runtime object to avoid violating NOT NULL constraint
+    // @ts-ignore
+    const { staff_ids, image_urls, id, ...serviceData } = service
 
     // 1. Insert the service
     const { data: insertedData, error: createError } = await supabase
@@ -57,9 +67,25 @@ export async function createService(service: Omit<Service, 'id' | 'created_at' |
             .insert(staffRelations)
 
         if (staffError) throw staffError
+        if (staffError) throw staffError
     }
 
-    // 3. Fetch the complete service with relations
+    // 3. Insert images if present
+    if (insertedData && image_urls && image_urls.length > 0) {
+        const imageRecords = image_urls.map((url, index) => ({
+            service_id: insertedData.id,
+            url: url,
+            display_order: index
+        }))
+
+        const { error: imageError } = await supabase
+            .from('service_images')
+            .insert(imageRecords)
+
+        if (imageError) throw imageError
+    }
+
+    // 4. Fetch the complete service with relations
     if (insertedData) {
         const { data: completeData, error: fetchError } = await supabase
             .from('services')
@@ -72,25 +98,38 @@ export async function createService(service: Omit<Service, 'id' | 'created_at' |
                         name,
                         email
                     )
+                ),
+                service_images (
+                    id,
+                    url,
+                    display_order
                 )
             `)
             .eq('id', insertedData.id)
             .single()
+            // Order images
+            // Note: ordering in single select with inner join usually works if we could apply order to the foreign table resource, 
+            // but supabase-js syntax for nested ordering is tricky. 
+            // Usually we rely on the client or subsequent fetch if it's complex.
+            // But let's try to assume it returns them. 
+            // To ensure order we might need .order('display_order', { foreignTable: 'service_images', ascending: true }) but keys might conflict in single().
+            // We'll sort in the transform.
 
         if (fetchError) throw fetchError
 
         // Transform
         return {
             ...completeData,
-            staff: completeData.service_staff?.map((item: any) => item.staff).filter(Boolean) || []
+            staff: completeData.service_staff?.map((item: any) => item.staff).filter(Boolean) || [],
+            images: completeData.service_images?.sort((a: any, b: any) => a.display_order - b.display_order) || []
         }
     }
     return insertedData
 }
 
-export async function updateService(id: string, updates: Partial<Service> & { staff_ids?: string[] }) {
+export async function updateService(id: string, updates: Partial<Service> & { staff_ids?: string[], image_urls?: string[] }) {
     // Remove joined data from updates if present
-    const { categories, staff, provider, staff_ids, ...cleanUpdates } = updates
+    const { categories, staff, provider, images, staff_ids, image_urls, ...cleanUpdates } = updates
 
     // 1. Update basic service info
     if (Object.keys(cleanUpdates).length > 0) {
@@ -124,10 +163,37 @@ export async function updateService(id: string, updates: Partial<Service> & { st
                 .insert(staffRelations)
 
             if (insertError) throw insertError
+            if (insertError) throw insertError
         }
     }
 
-    // 3. Fetch updated service with all relations
+    // 3. Update images if provided
+    if (image_urls !== undefined) {
+        // Delete existing images
+        const { error: deleteError } = await supabase
+            .from('service_images')
+            .delete()
+            .eq('service_id', id)
+        
+        if (deleteError) throw deleteError
+
+        // Insert new images
+        if (image_urls.length > 0) {
+             const imageRecords = image_urls.map((url, index) => ({
+                service_id: id,
+                url: url,
+                display_order: index
+            }))
+
+             const { error: insertError } = await supabase
+                .from('service_images')
+                .insert(imageRecords)
+
+            if (insertError) throw insertError
+        }
+    }
+
+    // 4. Fetch updated service with all relations
     const { data: completeData, error } = await supabase
         .from('services')
         .select(`
@@ -139,6 +205,11 @@ export async function updateService(id: string, updates: Partial<Service> & { st
                     name,
                     email
                 )
+            ),
+            service_images (
+                id,
+                url,
+                display_order
             )
         `)
         .eq('id', id)
@@ -149,7 +220,8 @@ export async function updateService(id: string, updates: Partial<Service> & { st
     // Transform
     return {
         ...completeData,
-        staff: completeData.service_staff?.map((item: any) => item.staff).filter(Boolean) || []
+        staff: completeData.service_staff?.map((item: any) => item.staff).filter(Boolean) || [],
+        images: completeData.service_images?.sort((a: any, b: any) => a.display_order - b.display_order) || []
     }
 }
 

@@ -7,7 +7,9 @@ import Modal from '../../components/common/Modal.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, Trash2, ImagePlus } from 'lucide-vue-next'
+import { supabase } from '../../lib/supabase'
+import { MAX_SERVICE_IMAGES, MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_MB, SERVICE_IMAGES_BUCKET } from '../../constants'
 
 const props = defineProps<{
   service: any // Temporarily using any to debug potential type import issues
@@ -20,6 +22,10 @@ const emit = defineEmits(['close', 'save'])
 const categoryStore = useCategoryStore()
 const staffStore = useStaffStore()
 const authStore = useAuthStore()
+
+const uploading = ref(false)
+const imageError = ref<string | null>(null)
+const images = ref<{ id: string, url: string, file?: File }[]>([])
 
 const form = ref({
   name: '',
@@ -57,6 +63,13 @@ onMounted(async () => {
       buffer_after: props.service.buffer_after || 0,
       staff_ids: props.service.staff?.map((s: any) => s.id) || []
     }
+    
+    if (props.service.images) {
+      images.value = props.service.images.map((img: any) => ({
+        id: img.id,
+        url: img.url
+      }))
+    }
   } else {
     // For new services, verify we have a valid initial state
     if (categoryStore.categories.length > 0) {
@@ -66,9 +79,97 @@ onMounted(async () => {
   }
 })
 
-function handleSubmit() {
-  console.log('Submitting form:', form.value)
-  emit('save', form.value)
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files?.length) return
+
+  imageError.value = null
+  const remainingSlots = MAX_SERVICE_IMAGES - images.value.length
+  
+  if (remainingSlots <= 0) {
+      imageError.value = `Maximum ${MAX_SERVICE_IMAGES} images allowed`
+      return
+  }
+
+  const files = Array.from(input.files).slice(0, remainingSlots)
+  
+  for (const file of files) {
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        imageError.value = `Image ${file.name} exceeds ${MAX_IMAGE_SIZE_MB}MB limit`
+        continue
+    }
+    // simple type check
+    if (!file.type.startsWith('image/')) {
+        imageError.value = `File ${file.name} is not an image`
+        continue
+    }
+
+    images.value.push({
+      id: `temp-${Date.now()}-${Math.random()}`,
+      url: URL.createObjectURL(file), // Preview URL
+      file
+    })
+  }
+  input.value = ''
+}
+
+function removeImage(index: number) {
+    images.value.splice(index, 1)
+}
+
+async function handleSubmit() {
+  uploading.value = true
+  imageError.value = null
+  
+  try {
+    const finalUrls: string[] = []
+    
+    for (const img of images.value) {
+      if (img.file) {
+        // Upload new file
+        const fileExt = img.file.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const filePath = `${fileName}` // Upload to root of bucket for simplicity
+
+        const { error } = await supabase.storage
+          .from(SERVICE_IMAGES_BUCKET)
+          .upload(filePath, img.file)
+
+        if (error) throw error
+
+        const { data: { publicUrl } } = supabase.storage
+            .from(SERVICE_IMAGES_BUCKET)
+            .getPublicUrl(filePath)
+            
+        finalUrls.push(publicUrl)
+      } else {
+        // Existing URL
+        finalUrls.push(img.url)
+      }
+    }
+    
+    console.log('Submitting form with images:', finalUrls)
+    emit('save', { 
+        ...form.value, 
+        id: props.service?.id,
+        image_urls: finalUrls 
+    })
+  } catch (error: any) {
+      console.error('Error uploading images:', error)
+      imageError.value = 'Failed to upload images: ' + error.message
+      uploading.value = false // Stop loading if error, otherwise parent handles loading state
+      // If parent handles loading, we should probably not set loading=true in parent if we fail here?
+      // But parent sets saving=true ONLY when 'save' is emitted. 
+      // So if we don't emit save, parent doesn't show loading.
+  } finally {
+      // If successful, uploading remains true until parent finishes? 
+      // No, we set uploading=false, then emit save. Parent reads props.loading.
+      // Wait, if we set uploading=false before emit, and parent sets loading=true on emit, there might be a flicker?
+      // Actually 'uploading' handles our local async work.
+      // Once we emit, 'props.loading' takes over for the save operation.
+      // So we should set uploading=false.
+      uploading.value = false
+  }
 }
 </script>
 
@@ -89,6 +190,51 @@ function handleSubmit() {
           required
           :placeholder="$t('modals.service.name_placeholder')"
         />
+      </div>
+
+      <!-- Images -->
+      <div class="space-y-2">
+        <Label>{{ $t('modals.service.images') }} (Max {{ MAX_SERVICE_IMAGES }})</Label>
+        
+        <div class="flex flex-wrap gap-4">
+            <!-- Existing/Preview Images -->
+            <div v-for="(img, index) in images" :key="img.id" class="relative group w-24 h-24 rounded-md overflow-hidden border border-gray-200">
+                <img :src="img.url" class="w-full h-full object-cover" />
+                <button 
+                    type="button"
+                    @click="removeImage(index)"
+                    class="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    :title="$t('common.remove')"
+                >
+                    <Trash2 class="w-3 h-3" />
+                </button>
+            </div>
+
+            <!-- Upload Button -->
+            <div 
+                v-if="images.length < MAX_SERVICE_IMAGES"
+                class="relative w-24 h-24 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-md hover:border-primary-500 transition-colors cursor-pointer bg-gray-50 hover:bg-white"
+            >
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    class="absolute inset-0 opacity-0 cursor-pointer" 
+                    @change="handleFileSelect"
+                />
+                <div class="text-center p-2">
+                    <ImagePlus class="w-6 h-6 mx-auto text-gray-400" />
+                    <span class="text-xs text-gray-500 mt-1 block">Add Image</span>
+                </div>
+            </div>
+        </div>
+        
+        <div v-if="imageError" class="text-sm text-red-600 mt-1">
+            {{ imageError }}
+        </div>
+        <p class="text-xs text-muted-foreground">
+            Max {{ MAX_IMAGE_SIZE_MB }}MB per image.
+        </p>
       </div>
 
       <!-- Category -->
@@ -212,11 +358,11 @@ function handleSubmit() {
         </Button>
         <Button
           type="submit"
-          :disabled="props.loading"
+          :disabled="props.loading || uploading"
           class="flex-1 sm:flex-none bg-primary-600 hover:bg-primary-700"
         >
-          <Loader2 v-if="props.loading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ props.loading ? $t('modals.service.saving') : $t('modals.service.save_button') }}
+          <Loader2 v-if="props.loading || uploading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ props.loading || uploading ? $t('modals.service.saving') : $t('modals.service.save_button') }}
         </Button>
       </div>
     </form>

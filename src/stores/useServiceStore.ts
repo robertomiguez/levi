@@ -25,7 +25,7 @@ export const useServiceStore = defineStore('service', () => {
         }
     }
 
-    async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories' | 'staff' | 'provider'> & { staff_ids?: string[] }) {
+    async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at' | 'categories' | 'staff' | 'provider' | 'images'> & { staff_ids?: string[], image_urls?: string[] }) {
         // loading.value = true // Removed
         error.value = null
         try {
@@ -41,7 +41,7 @@ export const useServiceStore = defineStore('service', () => {
         }
     }
 
-    async function updateService(id: string, updates: Partial<Service> & { staff_ids?: string[] }) {
+    async function updateService(id: string, updates: Partial<Service> & { staff_ids?: string[], image_urls?: string[] }) {
         error.value = null
         try {
             const updatedService = await serviceService.updateService(id, updates)

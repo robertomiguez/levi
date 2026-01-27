@@ -131,6 +131,16 @@ const selectedStaff = computed(() =>
   staffStore.staff.find(s => s.id === selectedStaffId.value)
 )
 
+const selectedAddressObject = computed(() => {
+  if (selectedAddressId.value && staffAddresses.value.length > 0) {
+    return staffAddresses.value.find(a => a.id === selectedAddressId.value)
+  }
+  if (providerInfo.value?.provider_addresses?.length) {
+      return providerInfo.value.provider_addresses[0]
+  }
+  return null
+})
+
 
 
 const availableDates = computed(() => {
@@ -198,20 +208,22 @@ function selectService(serviceId: string) {
   selectedServiceId.value = serviceId
 }
 
-function confirmService() {
+async function confirmService() {
   const service = serviceStore.services.find(s => s.id === selectedServiceId.value)
   
   if (selectedStaffId.value) {
       const isStaffValid = !service?.staff?.length || service.staff.some(s => s.id === selectedStaffId.value)
       
       if (isStaffValid) {
-          selectStaff(selectedStaffId.value)
+          await selectStaff(selectedStaffId.value)
+          confirmStaff()
           return
       }
   }
   
   if (service?.staff && service.staff.length === 1 && service.staff[0]) {
-    selectStaff(service.staff[0].id)
+    await selectStaff(service.staff[0].id)
+    confirmStaff()
   } else {
     selectedStaffId.value = ''
     currentStep.value = 2
@@ -226,8 +238,11 @@ function selectDateTime() {
 
 async function selectStaff(staffId: string) {
   selectedStaffId.value = staffId
+  // Remove auto-advance logic from here
   staffAddresses.value = await staffStore.fetchStaffAddresses(staffId)
-  
+}
+
+function confirmStaff() {
   if (staffAddresses.value.length === 1 && staffAddresses.value[0]) {
     selectedAddressId.value = staffAddresses.value[0].id
     currentStep.value = 3 
@@ -240,7 +255,12 @@ async function selectStaff(staffId: string) {
 
 function selectBranch(addressId: string) {
   selectedAddressId.value = addressId
-  currentStep.value = 3
+}
+
+function confirmLocation() {
+  if (selectedAddressId.value) {
+    currentStep.value = 3
+  }
 }
 
 function goBack() {
@@ -330,7 +350,8 @@ async function submitBooking() {
             },
             provider: providerInfo.value,
             staff: selectedStaff.value,
-            locale: locale.value
+            locale: locale.value,
+            selectedAddress: selectedAddressObject.value
           }
           
           try {
@@ -499,6 +520,17 @@ const dayStatusMap = computed(() => {
   return map
 })
 
+function getMapUrl(address: ProviderAddress): string {
+  const query = [
+    address.street_address,
+    address.city,
+    address.state,
+    address.postal_code
+  ].filter(Boolean).join(', ')
+  
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+}
+
 function isDateAvailable(date: Date): boolean {
   return getDateStatus(date) === 'Available'
 }
@@ -570,6 +602,19 @@ async function handleLoginSuccess() {
               <div class="border-t pt-2 mt-2 flex justify-between items-center">
                 <span class="text-gray-500">{{ $t('booking.location_label') }}</span>
                 <span class="font-medium text-right max-w-[200px] truncate" :title="formatAddress(providerInfo)">{{ formatAddress(providerInfo) }}</span>
+              </div>
+              
+              <div v-if="selectedAddressObject" class="mt-4 w-full h-40 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                <iframe 
+                  :src="getMapUrl(selectedAddressObject)" 
+                  width="100%" 
+                  height="100%" 
+                  style="border:0;" 
+                  allowfullscreen 
+                  loading="lazy" 
+                  referrerpolicy="no-referrer-when-downgrade"
+                  class="w-full h-full"
+                ></iframe>
               </div>
             </div>
             <Button class="w-full mt-4" @click="resetBooking">{{ $t('booking.book_another') }}</Button>
@@ -695,9 +740,12 @@ async function handleLoginSuccess() {
                   v-for="staff in selectedService.staff"
                   :key="staff.id"
                   @click="selectStaff(staff.id)"
-                  class="group relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:border-primary-400 hover:bg-gray-50 cursor-pointer transition-all"
+                  class="group relative flex items-center space-x-3 rounded-lg border px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 cursor-pointer transition-all"
+                  :class="selectedStaffId === staff.id ? 'border-primary-600 ring-1 ring-primary-600 bg-primary-50' : 'border-gray-300 bg-white hover:border-primary-400 hover:bg-gray-50'"
                 >
-                  <div class="h-10 w-10 flex-shrink-0 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold">
+                  <div class="h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold"
+                    :class="selectedStaffId === staff.id ? 'bg-primary-600 text-white' : 'bg-primary-100 text-primary-700'"
+                  >
                     {{ staff.name.charAt(0) }}
                   </div>
                   <div class="min-w-0 flex-1">
@@ -706,6 +754,17 @@ async function handleLoginSuccess() {
                     <p class="truncate text-xs text-gray-500">{{ staff.role === 'admin' ? 'Provider' : 'Staff Member' }}</p>
                   </div>
                 </div>
+              </div>
+              
+              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                <Button 
+                  size="lg" 
+                  @click="confirmStaff" 
+                  :disabled="!selectedStaffId"
+                  class="font-semibold px-8"
+                >
+                  Continue <span class="ml-2">→</span>
+                </Button>
               </div>
             </div>
 
@@ -724,17 +783,45 @@ async function handleLoginSuccess() {
                   v-for="address in staffAddresses"
                   :key="address.id"
                   @click="selectBranch(address.id)"
-                  class="group relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-primary-400 hover:bg-gray-50 cursor-pointer transition-all"
+                  class="group relative rounded-lg border px-6 py-5 shadow-sm cursor-pointer transition-all hover:bg-gray-50 bg-white"
+                  :class="selectedAddressId === address.id ? 'border-primary-600 ring-1 ring-primary-600' : 'border-gray-300 hover:border-primary-400'"
                 >
-                  <div class="flex items-start gap-4">
-                    <MapPin class="h-6 w-6 text-gray-400 group-hover:text-primary-600 mt-1" />
-                    <div>
-                      <h3 class="font-semibold text-gray-900 group-hover:text-primary-600">{{ address.label || 'Location' }}</h3>
-                      <p class="text-gray-600 text-sm mt-1">{{ address.street_address }}</p>
-                      <p class="text-gray-500 text-xs">{{ address.city }}, {{ address.state }} {{ address.postal_code }}</p>
+                  <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1 flex items-start gap-4">
+                      <MapPin class="h-6 w-6 mt-1 flex-shrink-0" :class="selectedAddressId === address.id ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600'" />
+                      <div>
+                        <h3 class="font-semibold text-gray-900" :class="{'group-hover:text-primary-600': selectedAddressId !== address.id}">{{ address.label || 'Location' }}</h3>
+                        <p class="text-gray-600 text-sm mt-1">{{ address.street_address }}</p>
+                        <p class="text-gray-500 text-xs">{{ address.city }}, {{ address.state }} {{ address.postal_code }}</p>
+                      </div>
+                    </div>
+                    
+                    <!-- Map Preview -->
+                    <div class="w-full md:w-80 h-40 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                      <iframe 
+                        :src="getMapUrl(address)" 
+                        width="100%" 
+                        height="100%" 
+                        style="border:0;" 
+                        allowfullscreen 
+                        loading="lazy" 
+                        referrerpolicy="no-referrer-when-downgrade"
+                        class="w-full h-full"
+                      ></iframe>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                <Button 
+                  size="lg" 
+                  @click="confirmLocation" 
+                  :disabled="!selectedAddressId"
+                  class="font-semibold px-8"
+                >
+                  Continue <span class="ml-2">→</span>
+                </Button>
               </div>
             </div>
 
@@ -887,6 +974,19 @@ async function handleLoginSuccess() {
                     <dt class="text-gray-500">{{ $t('booking.location_label') }}</dt>
                     <dd class="font-medium text-gray-900">{{ providerInfo?.business_name }}</dd>
                     <dd class="text-gray-500 text-xs mt-1">{{ formatAddress(providerInfo) }}</dd>
+                    
+                    <div v-if="selectedAddressObject" class="mt-4 w-full h-48 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                      <iframe 
+                        :src="getMapUrl(selectedAddressObject)" 
+                        width="100%" 
+                        height="100%" 
+                        style="border:0;" 
+                        allowfullscreen 
+                        loading="lazy" 
+                        referrerpolicy="no-referrer-when-downgrade"
+                        class="w-full h-full"
+                      ></iframe>
+                    </div>
                   </div>
                 </dl>
               </div>

@@ -7,7 +7,7 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-api-key",
 };
 const FROM_EMAIL = "Levi Booking System <noreply@mail.kenoslabs.com>";
 const REPLY_TO = "kenoslabs@gmail.com";
@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const { booking, customer, provider, staff, locale = 'en' } = body;
+    const { booking, customer, provider, staff, locale = 'en', selectedAddress } = body;
     const t = translations[locale] || translations.en;
 
     // Validate payload
@@ -231,11 +231,18 @@ Deno.serve(async (req) => {
     const providerName = provider.business_name;
     const notes = booking.notes;
     
-    // Get formatted address
-    const addressObj = provider.provider_addresses?.[0];
+    // Get formatted address - ONLY use selectedAddress from payload, never guess
+    const addressObj = selectedAddress;
+    
+    // Build complete address for display
     const address = addressObj
-      ? `${addressObj.street_address}, ${addressObj.city}`
-      : (locale === 'pt' ? "Nenhum endereço fornecido" : locale === 'fr' ? "Aucune adresse fournie" : "No address provided");
+      ? [addressObj.street_address, addressObj.city, addressObj.state, addressObj.postal_code].filter(Boolean).join(', ')
+      : (locale === 'pt' ? "Verifique o endereço no app" : locale === 'fr' ? "Vérifiez l'adresse dans l'app" : "Please verify location in the app");
+    
+    // Build full address for map URL (include country for better accuracy)
+    const fullAddressForMap = addressObj
+      ? [addressObj.street_address, addressObj.city, addressObj.state, addressObj.postal_code, addressObj.country].filter(Boolean).join(', ')
+      : '';
       
     const emailQueue: (() => Promise<any>)[] = [];
     
@@ -247,9 +254,14 @@ Deno.serve(async (req) => {
       </div>
     ` : '';
     
+    // Helper for map URL
+    const getMapLink = (addr: string) => 
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+
     // 1. Email to Customer
     emailQueue.push(async () => {
       const ct = t.customer;
+      const mapUrl = fullAddressForMap ? getMapLink(fullAddressForMap) : '';
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -288,6 +300,7 @@ Deno.serve(async (req) => {
                 <span style="display: block; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">${ct.location}</span>
                 <span style="font-size: 16px; font-weight: 600; color: #111827;">${providerName}</span>
                 <span style="display: block; font-size: 14px; color: #4b5563;">${address}</span>
+                <a href="${mapUrl}" target="_blank" style="display: ${mapUrl ? 'inline-block' : 'none'}; margin-top: 8px; font-size: 14px; color: ${PRIMARY_COLOR}; text-decoration: none;">📍 ${locale === 'pt' ? 'Ver no Mapa' : locale === 'fr' ? 'Voir sur la carte' : 'View on Map'} →</a>
               </div>
               ${getNotesHtml(ct.notes)}
             </div>

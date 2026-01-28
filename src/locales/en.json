@@ -38,7 +38,15 @@
     "context": {
       "provider": "Business Management",
       "customer": "Appointment Scheduling"
-    }
+    },
+    "provider_login_title": "Levi for Professionals",
+    "provider_login_subtitle": "Create an account or log in to manage your business.",
+    "customer_login_title": "Levi for Customers",
+    "customer_login_subtitle": "Create an account or log in to book and manage your appointments.",
+    "customer_redirect_question": "Are you a customer looking to book an appointment?",
+    "customer_redirect_link": "Go to Levi for customers",
+    "provider_redirect_question": "Have a business account?",
+    "provider_redirect_link": "Sign in as a professional"
   },
   "business": {
     "hero_title": "Grow Your Business with Levi",

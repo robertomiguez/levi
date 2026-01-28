@@ -19,6 +19,12 @@ const loginContext = computed(() => {
   return route.query.context as string || 'customer'
 })
 
+// Check if user is in booking flow - should hide business redirect
+const isBookingContext = computed(() => {
+  const redirect = route.query.redirect as string
+  return redirect && redirect.startsWith('/booking')
+})
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const subtitle = computed(() => {
   if (loginContext.value === 'provider') {
@@ -96,12 +102,23 @@ function handleLoginSuccess() {
     <!-- Right Panel (Login Form) -->
     <div class="p-8 lg:p-8">
       <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-        <div class="flex flex-col space-y-2 text-center">
-          <h1 class="text-2xl font-semibold tracking-tight">
-            {{ $t('auth.login') }}
+        <!-- Provider-specific header -->
+        <div v-if="loginContext === 'provider'" class="flex flex-col space-y-2 text-center">
+          <h1 class="text-3xl font-bold tracking-tight">
+            {{ $t('auth.provider_login_title') }}
           </h1>
-          <p class="text-sm text-muted-foreground">
-            {{ subtitle }}
+          <p class="text-base text-muted-foreground whitespace-nowrap">
+            {{ $t('auth.provider_login_subtitle') }}
+          </p>
+        </div>
+        
+        <!-- Customer header -->
+        <div v-else class="flex flex-col space-y-2 text-center">
+          <h1 class="text-3xl font-bold tracking-tight">
+            {{ $t('auth.customer_login_title') }}
+          </h1>
+          <p class="text-base text-muted-foreground text-center">
+            {{ $t('auth.customer_login_subtitle') }}
           </p>
         </div>
         
@@ -118,6 +135,32 @@ function handleLoginSuccess() {
           </a>
           .
         </p>
+        
+        <!-- Customer redirect for provider login -->
+        <div v-if="loginContext === 'provider'" class="pt-4 border-t text-center">
+          <p class="text-sm font-semibold text-foreground whitespace-nowrap">
+            {{ $t('auth.customer_redirect_question') }}
+          </p>
+          <router-link 
+            to="/" 
+            class="text-sm font-medium text-primary hover:underline underline-offset-4"
+          >
+            {{ $t('auth.customer_redirect_link') }} →
+          </router-link>
+        </div>
+        
+        <!-- Provider redirect for customer login (hidden during booking flow) -->
+        <div v-else-if="!isBookingContext" class="pt-4 border-t text-center">
+          <p class="text-sm font-semibold text-foreground whitespace-nowrap">
+            {{ $t('auth.provider_redirect_question') }}
+          </p>
+          <router-link 
+            to="/login?redirect=/provider" 
+            class="text-sm font-medium text-primary hover:underline underline-offset-4"
+          >
+            {{ $t('auth.provider_redirect_link') }} →
+          </router-link>
+        </div>
       </div>
     </div>
   </div>

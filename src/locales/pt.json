@@ -38,7 +38,15 @@
     "context": {
       "provider": "Gestão de Negócios",
       "customer": "Agendamento de Compromissos"
-    }
+    },
+    "provider_login_title": "Levi para Profissionais",
+    "provider_login_subtitle": "Crie uma conta ou faça login para gerenciar seu negócio.",
+    "customer_login_title": "Levi para Clientes",
+    "customer_login_subtitle": "Crie uma conta ou faça login para agendar e gerenciar seus compromissos.",
+    "customer_redirect_question": "Você é um cliente procurando agendar um compromisso?",
+    "customer_redirect_link": "Ir para Levi para clientes",
+    "provider_redirect_question": "Tem uma conta comercial?",
+    "provider_redirect_link": "Entrar como profissional"
   },
   "business": {
     "hero_title": "Expanda seu Negócio com o Levi",

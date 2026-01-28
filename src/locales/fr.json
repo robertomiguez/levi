@@ -38,7 +38,15 @@
     "context": {
       "provider": "Gestion d'entreprise",
       "customer": "Prise de rendez-vous"
-    }
+    },
+    "provider_login_title": "Levi pour les Professionnels",
+    "provider_login_subtitle": "Créez un compte ou connectez-vous pour gérer votre entreprise.",
+    "customer_login_title": "Levi pour les Clients",
+    "customer_login_subtitle": "Créez un compte ou connectez-vous pour réserver et gérer vos rendez-vous.",
+    "customer_redirect_question": "Êtes-vous un client cherchant à prendre rendez-vous ?",
+    "customer_redirect_link": "Aller à Levi pour les clients",
+    "provider_redirect_question": "Vous avez un compte professionnel ?",
+    "provider_redirect_link": "Se connecter en tant que professionnel"
   },
   "business": {
     "hero_title": "Développez votre activité avec Levi",

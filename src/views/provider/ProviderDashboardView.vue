@@ -107,6 +107,7 @@ function goToAvailability() {
             <div>
               <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.week_revenue') }}</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ formatCurrency(providerStore.stats.weekRevenue) }}</p>
+              <p class="text-xs text-gray-400 mt-1 italic">{{ $t('dashboard.stats.revenue_projected_hint') }}</p>
             </div>
             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
               <DollarSign class="w-6 h-6 text-green-600" />

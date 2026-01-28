@@ -329,6 +329,7 @@ async function submitBooking() {
       start_time: selectedTime.value,
       end_time: endTime,
       status: 'confirmed',
+      booked_price: selectedService.value.price,
       notes: notes.value || undefined
     })
 
@@ -602,6 +603,10 @@ async function handleLoginSuccess() {
               <div class="border-t pt-2 mt-2 flex justify-between items-center">
                 <span class="text-gray-500">{{ $t('booking.location_label') }}</span>
                 <span class="font-medium text-right max-w-[200px] truncate" :title="formatAddress(providerInfo)">{{ formatAddress(providerInfo) }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-500">{{ $t('booking.price_label') }}</span>
+                <span class="font-bold text-primary-600">{{ settingsStore.formatPrice(selectedService?.price || 0) }}</span>
               </div>
               
               <div v-if="selectedAddressObject" class="mt-4 w-full h-40 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
@@ -969,6 +974,10 @@ async function handleLoginSuccess() {
                   <div>
                     <dt class="text-gray-500">{{ $t('booking.time_label') }}</dt>
                     <dd class="font-medium text-gray-900">{{ selectedTime }}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-gray-500">{{ $t('booking.price_label') }}</dt>
+                    <dd class="font-bold text-primary-600 text-lg">{{ settingsStore.formatPrice(selectedService?.price || 0) }}</dd>
                   </div>
                   <div class="sm:col-span-2 pt-2 mt-2 border-t border-gray-200">
                     <dt class="text-gray-500">{{ $t('booking.location_label') }}</dt>

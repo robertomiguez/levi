@@ -50,6 +50,7 @@ function formatDate(dateStr: string) {
           <p class="text-sm text-gray-500">{{ $t('modals.appointment_details.service') }}</p>
           <p class="font-medium">{{ appointment.services?.name }}</p>
           <p class="text-sm text-gray-600">{{ $t('modals.appointment_details.duration', { min: appointment.services?.duration }) }}</p>
+          <p class="text-sm font-medium text-primary-600">{{ settingsStore.formatPrice(appointment.booked_price || 0) }}</p>
         </div>
         <div>
           <p class="text-sm text-gray-500">{{ $t('modals.appointment_details.staff') }}</p>

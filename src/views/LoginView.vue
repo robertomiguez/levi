@@ -2,13 +2,11 @@
 import { computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useRouter, useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import LoginForm from '../components/auth/LoginForm.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
-const { t } = useI18n()
 
 // Determine context from redirect URL
 const loginContext = computed(() => {
@@ -23,14 +21,6 @@ const loginContext = computed(() => {
 const isBookingContext = computed(() => {
   const redirect = route.query.redirect as string
   return redirect && redirect.startsWith('/booking')
-})
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const subtitle = computed(() => {
-  if (loginContext.value === 'provider') {
-    return t('auth.context.provider')
-  }
-  return t('auth.context.customer')
 })
 
 onMounted(async () => {

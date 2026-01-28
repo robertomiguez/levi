@@ -195,7 +195,8 @@
     "booking_failed": "Échec de la réservation. Veuillez réessayer.",
     "summary_title": "Résumé de la réservation",
     "closed": "Fermé",
-    "available_times_header": "Temps disponibles"
+    "available_times_header": "Temps disponibles",
+    "get_directions": "Itinéraire"
   },
   "calendar": {
     "title": "Calendrier",

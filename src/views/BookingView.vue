@@ -25,7 +25,8 @@ import {
   Clock, 
   ArrowLeft,
   Calendar as CalendarIcon,
-  DollarSign
+  DollarSign,
+  Navigation
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -532,6 +533,20 @@ function getMapUrl(address: ProviderAddress): string {
   return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
 }
 
+function getDirectionsUrl(address: ProviderAddress): string {
+  const destination = [
+    address.street_address,
+    address.city,
+    address.state,
+    address.postal_code
+  ].filter(Boolean).join(', ')
+  
+  // Opens Google Maps centered on the destination
+  // On mobile, this opens the Maps app where user can easily tap "Directions"
+  // On desktop, user can click "Directions" button on the left panel
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`
+}
+
 function isDateAvailable(date: Date): boolean {
   return getDateStatus(date) === 'Available'
 }
@@ -621,6 +636,16 @@ async function handleLoginSuccess() {
                   class="w-full h-full"
                 ></iframe>
               </div>
+              <a 
+                v-if="selectedAddressObject"
+                :href="getDirectionsUrl(selectedAddressObject)" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+              >
+                <Navigation class="h-4 w-4" />
+                {{ $t('booking.get_directions') }}
+              </a>
             </div>
             <Button class="w-full mt-4" @click="resetBooking">{{ $t('booking.book_another') }}</Button>
           </CardContent>
@@ -815,6 +840,16 @@ async function handleLoginSuccess() {
                       ></iframe>
                     </div>
                   </div>
+                  <a 
+                    :href="getDirectionsUrl(address)" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                    @click.stop
+                  >
+                    <Navigation class="h-4 w-4" />
+                    {{ $t('booking.get_directions') }}
+                  </a>
                 </div>
               </div>
 
@@ -996,6 +1031,16 @@ async function handleLoginSuccess() {
                         class="w-full h-full"
                       ></iframe>
                     </div>
+                    <a 
+                      v-if="selectedAddressObject"
+                      :href="getDirectionsUrl(selectedAddressObject)" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                    >
+                      <Navigation class="h-4 w-4" />
+                      {{ $t('booking.get_directions') }}
+                    </a>
                   </div>
                 </dl>
               </div>

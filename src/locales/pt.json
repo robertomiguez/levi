@@ -195,7 +195,8 @@
     "booking_failed": "Falha ao agendar compromisso. Por favor, tente novamente.",
     "summary_title": "Resumo do Agendamento",
     "closed": "Fechado",
-    "available_times_header": "Horários Disponíveis"
+    "available_times_header": "Horários Disponíveis",
+    "get_directions": "Como Chegar"
   },
   "calendar": {
     "title": "Calendário",

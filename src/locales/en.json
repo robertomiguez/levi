@@ -195,7 +195,8 @@
     "booking_failed": "Failed to book appointment. Please try again.",
     "summary_title": "Booking Summary",
     "closed": "Closed",
-    "available_times_header": "Available Times"
+    "available_times_header": "Available Times",
+    "get_directions": "Get Directions"
   },
   "calendar": {
     "title": "Calendar",

@@ -113,6 +113,7 @@
     "stats": {
       "today_appointments": "Agendamentos de Hoje",
       "week_revenue": "Receita da Semana",
+      "revenue_projected_hint": "Total projetado com base nos agendamentos",
       "active_services": "Serviços Ativos",
       "staff_members": "Membros da Equipe"
     },

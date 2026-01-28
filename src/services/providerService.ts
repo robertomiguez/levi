@@ -124,9 +124,9 @@ export async function fetchDashboardStats(providerId: string) {
     
     if (staffError) throw staffError
 
-    // Calculate revenue
-    const weekRevenue = weekAppts?.reduce((sum, apt: any) => sum + (apt.services?.price || 0), 0) || 0
-    const monthRevenue = monthAppts?.reduce((sum, apt: any) => sum + (apt.services?.price || 0), 0) || 0
+    // Calculate revenue using booked_price (locked at time of booking)
+    const weekRevenue = weekAppts?.reduce((sum, apt: any) => sum + (apt.booked_price || 0), 0) || 0
+    const monthRevenue = monthAppts?.reduce((sum, apt: any) => sum + (apt.booked_price || 0), 0) || 0
 
     return {
         todayAppointments: todayAppts?.length || 0,

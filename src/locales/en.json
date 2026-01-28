@@ -113,6 +113,7 @@
     "stats": {
       "today_appointments": "Today's Appointments",
       "week_revenue": "This Week Revenue",
+      "revenue_projected_hint": "Projected total based on scheduled bookings",
       "active_services": "Active Services",
       "staff_members": "Staff Members"
     },

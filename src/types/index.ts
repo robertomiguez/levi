@@ -131,6 +131,7 @@ export interface Appointment {
     start_time: string // HH:mm format
     end_time: string // HH:mm format
     status: AppointmentStatus
+    booked_price?: number // Service price locked at time of booking
     notes?: string
     created_at?: string
     updated_at?: string

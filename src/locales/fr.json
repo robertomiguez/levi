@@ -113,6 +113,7 @@
     "stats": {
       "today_appointments": "Rendez-vous du jour",
       "week_revenue": "Revenu de la semaine",
+      "revenue_projected_hint": "Total prévu selon les réservations programmées",
       "active_services": "Services actifs",
       "staff_members": "Membres du personnel"
     },

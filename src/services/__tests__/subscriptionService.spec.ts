@@ -38,7 +38,11 @@ describe('subscriptionService', () => {
           providerEmail: 'test@example.com',
           locale: 'pt-BR',
           successUrl: undefined,
-          cancelUrl: undefined
+          cancelUrl: undefined,
+          mode: 'subscription',
+          termsAccepted: undefined,
+          termsVersion: undefined,
+          userId: undefined
         }
       })
     })

@@ -34,9 +34,11 @@ function handleLoginSuccess() {
   
   if (redirect === '/provider') {
     if (authStore.provider) {
+      // Existing provider - go to dashboard
       router.push('/provider/dashboard')
     } else {
-      router.push('/provider/profile')
+      // New provider - go to pricing first to select a plan
+      router.push('/provider/pricing')
     }
   } else if (redirect === '/customer') {
     if (authStore.customer && authStore.customer.name && authStore.customer.phone) {

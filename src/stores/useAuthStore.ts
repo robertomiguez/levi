@@ -18,8 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
     const userRole = computed<UserRole>(() => {
         if (!user.value) return 'customer'
 
-        // Check if user is an approved provider
-        if (provider.value?.status === 'approved') {
+        // Check if user has a provider profile
+        if (provider.value) {
             return 'provider'
         }
 

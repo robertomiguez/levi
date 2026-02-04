@@ -1,16 +1,52 @@
 import { supabase } from '../lib/supabase'
 import { uploadLogo, deleteLogo } from '../lib/storage'
 
+import { getPlanByName } from './subscriptionService'
+
+/**
+ * Create a minimal provider record for checkout flow.
+ * This allows users to checkout before completing their full profile.
+ */
+export async function createMinimalProvider(user: { id: string; email: string }): Promise<string> {
+    // Check if provider already exists
+    const { data: existingProvider } = await supabase
+        .from('providers')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single()
+
+    if (existingProvider) {
+        return existingProvider.id
+    }
+
+    // Create minimal provider record
+    const { data: newProvider, error } = await supabase
+        .from('providers')
+        .insert({
+            auth_user_id: user.id,
+            email: user.email,
+            business_name: '', // Will be filled in profile completion
+            status: 'pending', // Not approved until profile is complete
+        })
+        .select('id')
+        .single()
+
+    if (error) throw error
+    return newProvider.id
+}
+
 export async function saveProvider({
     user,
     provider,
     form,
-    logoFile
+    logoFile,
+    planName // Optional plan name to create subscription
 }: {
     user: any
     provider?: any
     form: any
     logoFile?: File | null
+    planName?: string | null
 }) {
     let logo_url = provider?.logo_url ?? null
     let logo_path = provider?.logo_path ?? null
@@ -25,23 +61,33 @@ export async function saveProvider({
         logo_path = uploaded.path
     }
 
+    let newProviderId = provider?.id
+
     if (provider) {
         // UPDATE
+        const updateData: any = {
+            business_name: form.business_name,
+            phone: form.phone,
+            description: form.description,
+            logo_url,
+            logo_path
+        }
+
+        // Auto-approve if currently pending
+        if (provider.status === 'pending') {
+            updateData.status = 'approved'
+            updateData.approved_at = new Date().toISOString()
+        }
+
         const { error } = await supabase
             .from('providers')
-            .update({
-                business_name: form.business_name,
-                phone: form.phone,
-                description: form.description,
-                logo_url,
-                logo_path
-            })
+            .update(updateData)
             .eq('id', provider.id)
 
         if (error) throw error
     } else {
         // INSERT
-        const { error } = await supabase
+        const { data: newProvider, error } = await supabase
             .from('providers')
             .insert({
                 auth_user_id: user.id,
@@ -54,8 +100,72 @@ export async function saveProvider({
                 status: 'approved',
                 approved_at: new Date().toISOString()
             })
+            .select()
+            .single()
 
         if (error) throw error
+        newProviderId = newProvider.id
+    }
+
+    // Create subscription if planName is provided
+    // We check if a subscription already exists to avoid duplicates or handle upgrades mainly for new onboarding
+    if (planName && newProviderId) {
+        const plan = await getPlanByName(planName)
+        
+        // Check if subscription already exists
+        const { data: existingSub } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('provider_id', newProviderId)
+            .single()
+
+        if (plan && !existingSub) {
+            // Calculate discount end date if applicable
+            const now = new Date()
+            let discountEndsAt: Date | undefined
+            if (plan.discount_duration_months && plan.discount_duration_months > 0) {
+                discountEndsAt = new Date(now)
+                discountEndsAt.setMonth(discountEndsAt.getMonth() + plan.discount_duration_months)
+            }
+
+            const { data: subData, error: subError } = await supabase
+                .from('subscriptions')
+                .insert({
+                    provider_id: newProviderId,
+                    plan_id: plan.id,
+                    status: 'active',
+                    current_period_start: now.toISOString(),
+                    current_period_end: new Date(now.setMonth(now.getMonth() + 1)).toISOString(),
+                    locked_price: plan.price_monthly,
+                    locked_discount_percent: plan.discount_percent || 0,
+                    discount_ends_at: discountEndsAt?.toISOString()
+                })
+                .select()
+                .single()
+            
+            if (subError) {
+                console.error('Failed to create initial subscription:', subError)
+            } else if (subData) {
+                 // Create initial payment record (Simulated)
+                 // In a real app complexity, this comes from Stripe webhook
+                 const amount = plan.discount_percent 
+                    ? plan.price_monthly * (1 - plan.discount_percent / 100) 
+                    : plan.price_monthly
+
+                 const { error: payError } = await supabase
+                    .from('payments')
+                    .insert({
+                        subscription_id: subData.id,
+                        amount: amount,
+                        currency: 'usd',
+                        status: 'succeeded',
+                        payment_method: 'card',
+                        paid_at: new Date().toISOString()
+                    })
+                
+                if (payError) console.error('Failed to create initial payment record:', payError)
+            }
+        }
     }
 }
 

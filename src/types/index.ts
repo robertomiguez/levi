@@ -148,3 +148,66 @@ export interface TimeSlot {
 }
 
 export type UserRole = 'customer' | 'provider' | 'admin'
+
+// Subscription types
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired'
+export type PaymentStatus = 'succeeded' | 'pending' | 'failed'
+
+export interface Plan {
+    id: string
+    name: string                    // 'solo', 'solo_plus', 'store', 'chain'
+    display_name: string
+    description?: string
+    price_monthly: number
+    price_yearly?: number           // null = coming soon
+    discount_percent?: number       // 0-100
+    discount_duration_months?: number // e.g. 3 for 3 months
+    max_staff?: number              // null = unlimited
+    max_locations?: number          // null = unlimited
+    max_services?: number           // null = unlimited
+    features: string[]
+    is_active: boolean
+    sort_order: number
+    created_at?: string
+    updated_at?: string
+}
+
+export interface Subscription {
+    id: string
+    provider_id: string
+    plan_id: string
+    status: SubscriptionStatus
+    trial_ends_at?: string
+    current_period_start?: string
+    current_period_end?: string
+    locked_price?: number           // Snapshot of plan price at signup
+    locked_discount_percent?: number // Snapshot of plan discount at signup
+    discount_ends_at?: string       // When the discount expires
+    cancel_at_period_end: boolean
+    cancelled_at?: string
+    pending_downgrade_plan_id?: string // Scheduled downgrade for next cycle
+    trial_plan_change_count?: number   // Track plan changes during trial
+    stripe_subscription_id?: string
+    stripe_customer_id?: string
+    created_at?: string
+    updated_at?: string
+    plan?: Plan                     // Joined data
+    pending_downgrade_plan?: Plan   // Joined data for UI
+}
+
+export interface Payment {
+    id: string
+    subscription_id: string
+    amount: number
+    currency: string
+    status: PaymentStatus
+    payment_method?: string
+    stripe_payment_intent_id?: string
+    invoice_url?: string
+    paid_at?: string
+    proration_credit?: number       // Credit for old plan's unused time
+    proration_charge?: number       // Charge for new plan's remaining time
+    description?: string            // Description of the payment (e.g., "Upgrade: Solo → Store")
+    created_at?: string
+    subscription?: Subscription     // Joined data
+}

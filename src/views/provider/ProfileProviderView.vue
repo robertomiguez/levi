@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea' // Assuming Textarea component exists or use native
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, CheckCircle2, Building, Phone, FileText } from 'lucide-vue-next'
+import { Loader2, Building, Phone, FileText } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -32,23 +32,6 @@ const { showSuccess, showError, errorMessage, clearMessages } = useNotifications
 
 const isEditing = computed(() => !!authStore.provider)
 
-// Stepper State
-const currentStep = ref(1)
-const totalSteps = 3
-
-function nextStep() {
-  if (currentStep.value < totalSteps) {
-    currentStep.value++
-  }
-}
-
-function prevStep() {
-  if (currentStep.value > 1) {
-    currentStep.value--
-  } else {
-    router.push('/provider/dashboard')
-  }
-}
 
 // Populate form when data is available
 function populateForm() {
@@ -82,6 +65,15 @@ async function handleSubmit() {
 
   loading.value = true
   clearMessages()
+  
+  // Validate form
+  if (!form.value.business_name || !form.value.business_name.trim()) {
+    showError(t('provider_profile.business_name_required'))
+    loading.value = false
+    return
+  }
+
+  // Capture if we are editing (provider exists) before saving and potentially updating store
 
   try {
     await saveProvider({
@@ -109,20 +101,6 @@ async function handleSubmit() {
 <template>
   <div class="min-h-screen bg-gray-50/50 flex flex-col items-center justify-center p-6">
     <div class="w-full max-w-2xl">
-      <!-- Steps Indicator -->
-      <div class="mb-8">
-        <div class="flex items-center justify-between text-sm font-medium text-gray-500 mb-2">
-          <span>Step {{ currentStep }} of {{ totalSteps }}</span>
-          <span>{{ Math.round((currentStep / totalSteps) * 100) }}% Completed</span>
-        </div>
-        <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-          <div 
-            class="h-full bg-primary-600 transition-all duration-500 ease-in-out"
-            :style="{ width: `${(currentStep / totalSteps) * 100}%` }"
-          ></div>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>{{ isEditing ? $t('provider_profile.title_edit') : $t('provider_profile.title_new') }}</CardTitle>
@@ -132,9 +110,10 @@ async function handleSubmit() {
         </CardHeader>
 
         <CardContent>
-          <form @submit.prevent="handleSubmit" id="profile-form">
-            <!-- Step 1: Basic Info -->
-            <div v-show="currentStep === 1" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+          <form @submit.prevent="handleSubmit" id="profile-form" class="space-y-6">
+            
+            <!-- Business Details -->
+            <div class="space-y-4">
               <div class="flex items-center gap-2 mb-4 text-primary-600">
                 <Building class="h-5 w-5" />
                 <h3 class="font-semibold">{{ $t('provider_profile.business_name') }}</h3>
@@ -142,7 +121,7 @@ async function handleSubmit() {
               
               <div class="grid gap-4">
                 <div class="grid gap-2">
-                  <Label for="business_name">{{ $t('provider_profile.business_name') }}</Label>
+                  <Label for="business_name">{{ $t('provider_profile.business_name') }} <span class="text-red-500">*</span></Label>
                   <Input
                     id="business_name"
                     v-model="form.business_name"
@@ -164,8 +143,8 @@ async function handleSubmit() {
               </div>
             </div>
 
-            <!-- Step 2: Details & Contact -->
-            <div v-show="currentStep === 2" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <!-- Contact & Description -->
+            <div class="space-y-4 pt-4 border-t border-gray-100">
               <div class="flex items-center gap-2 mb-4 text-primary-600">
                 <FileText class="h-5 w-5" />
                 <h3 class="font-semibold">{{ $t('provider_profile.description') }} & Contact</h3>
@@ -199,63 +178,23 @@ async function handleSubmit() {
               </div>
             </div>
 
-            <!-- Step 3: Review & Submit -->
-            <div v-show="currentStep === 3" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div class="text-center py-6">
-                <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 class="h-8 w-8 text-green-600" />
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Ready to Launch!</h3>
-                <p class="text-gray-600 mb-6">Review your details below before saving.</p>
-                
-                <div class="bg-gray-50 rounded-lg p-6 text-left max-w-md mx-auto border border-gray-200">
-                  <dl class="space-y-3">
-                    <div class="flex justify-between">
-                      <dt class="text-sm font-medium text-gray-500">Business</dt>
-                      <dd class="text-sm font-semibold text-gray-900">{{ form.business_name }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                      <dt class="text-sm font-medium text-gray-500">Phone</dt>
-                      <dd class="text-sm font-semibold text-gray-900">{{ form.phone }}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
+            <!-- Error Alert -->
+            <Alert v-if="errorMessage" variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{{ errorMessage }}</AlertDescription>
+            </Alert>
 
-              <!-- Error Alert -->
-              <Alert v-if="errorMessage" variant="destructive">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{{ errorMessage }}</AlertDescription>
-              </Alert>
-            </div>
           </form>
         </CardContent>
 
-        <CardFooter class="flex justify-between">
+        <CardFooter class="flex justify-end">
           <Button 
-            variant="outline" 
-            @click="prevStep" 
-            :disabled="loading"
-          >
-            Back
-          </Button>
-
-          <Button 
-            v-if="currentStep < totalSteps" 
-            @click="nextStep"
-            :disabled="currentStep === 1 && !form.business_name"
-          >
-            Continue
-          </Button>
-
-          <Button 
-            v-else 
             @click="handleSubmit" 
             :disabled="loading"
-            class="min-w-[120px]"
+            class="min-w-[150px]"
           >
             <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
-            {{ loading ? 'Saving...' : (isEditing ? 'Update Profile' : 'Create Profile') }}
+            {{ loading ? $t('common.loading') : $t('common.save_profile') }}
           </Button>
         </CardFooter>
       </Card>

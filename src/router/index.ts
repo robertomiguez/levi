@@ -66,6 +66,31 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
+            path: '/provider/pricing',
+            name: 'ProviderPricing',
+            component: () => import('../views/provider/PricingView.vue'),
+            meta: { requiresAuth: true }
+        },
+
+        {
+            path: '/provider/checkout/success',
+            name: 'CheckoutSuccess',
+            component: () => import('../views/provider/CheckoutSuccessView.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/provider/checkout/cancel',
+            name: 'CheckoutCancel',
+            component: () => import('../views/provider/CheckoutCancelView.vue'),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/provider/subscription',
+            name: 'ProviderSubscription',
+            component: () => import('../views/provider/ProviderSubscriptionView.vue'),
+            meta: { requiresAuth: true, requiresProvider: true }
+        },
+        {
             path: '/provider/dashboard',
             name: 'ProviderDashboard',
             component: () => import('../views/provider/ProviderDashboardView.vue'),

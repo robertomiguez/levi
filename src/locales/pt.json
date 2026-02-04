@@ -9,11 +9,17 @@
     "close": "Fechar",
     "add": "Adicionar",
     "back": "Voltar",
+    "back_to_dashboard": "Voltar ao Painel",
     "sending": "Enviando...",
     "verifying": "Verificando...",
     "minutes": "minutos",
     "select": "Selecionar",
-    "remove": "Remover"
+    "remove": "Excluir",
+    "retry": "Tentar novamente",
+    "save_profile": "Salvar Perfil",
+    "update_profile": "Atualizar Perfil",
+    "complete_profile": "Completar Perfil",
+    "error_occurred": "Ocorreu um erro. Por favor, tente novamente."
   },
   "auth": {
     "login": "Entrar",
@@ -91,6 +97,7 @@
     "business_profile": "Perfil Comercial",
     "profile": "Perfil",
     "book_now": "Agendar Agora",
+    "subscription": "Minha Assinatura",
     "see_all": "Ver todos"
   },
   "landing": {
@@ -150,6 +157,108 @@
       "view_details": "Ver Detalhes"
     }
   },
+  "pricing": {
+      "title": "Escolha seu Plano",
+      "subtitle": "Comece com 1 mês grátis. Cancele a qualquer momento.",
+      "monthly": "Mensal",
+      "yearly": "Anual",
+      "coming_soon": "Em Breve",
+      "per_month": "/mês",
+      "start_trial": "Iniciar Teste Grátis",
+      "most_popular": "Mais Popular",
+      "promo_badge": "50% de desconto nos primeiros 3 meses + 1 mês grátis",
+      "footer_note": "Todos os planos incluem acesso 24/7.",
+      "contact_support": "Contatar Suporte",
+      "error_title": "Não conseguimos carregar os planos",
+      "error_message": "Algo deu errado do nosso lado. Por favor, tente novamente ou contate o suporte se o problema persistir.",
+      "features": {
+        "unlimited_staff": "Equipe ilimitada",
+        "one_staff": "1 membro da equipe",
+        "staff_count": "Até {count} membros da equipe",
+        "unlimited_locations": "Unidades ilimitadas",
+        "one_location": "1 unidade",
+        "location_count": "Até {count} unidades",
+        "unlimited_services": "Serviços ilimitados",
+        "service_count": "Até {count} serviços"
+      },
+      "plans": {
+        "solo": {
+          "name": "Solo",
+          "description": "Perfeito para profissionais autônomos"
+        },
+        "solo_plus": {
+          "name": "Solo Plus",
+          "description": "Para profissionais que estão crescendo"
+        },
+        "store": {
+          "name": "Store",
+          "description": "Para barbearias e salões estabelecidos"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Para redes e franquias"
+        }
+      }
+    },
+    "checkout": {
+      "title": "Complete sua Compra",
+      "payment_method": "Forma de Pagamento",
+      "credit_card": "Cartão de Crédito/Débito",
+      "name_on_card": "Nome no Cartão",
+      "card_number": "Número do Cartão",
+      "expiry_date": "Validade",
+      "cvc": "CVC",
+      "order_summary": "Resumo do Pedido",
+      "subtotal": "Subtotal",
+      "discount": "50% off (meses 2-4)",
+      "free_month": "Mês Grátis",
+      "tax": "Imposto",
+      "total": "Total",
+      "promo_code": "Código Promocional",
+      "apply": "Aplicar",
+      "terms_agree": "Ao clicar em \"Iniciar Teste Grátis\", você concorda com os",
+      "and": "e",
+      "complete_purchase": "Completar Compra",
+      "processing": "Processando...",
+      "error_title": "Plano Não Encontrado",
+      "error_message": "Não conseguimos encontrar este plano. Por favor, volte e selecione um plano.",
+      "back_to_plans": "Voltar aos Planos",
+      "success_title": "Pagamento com Sucesso!",
+      "success_message": "Sua assinatura agora está ativa. Vamos configurar seu perfil comercial.",
+      "start_trial_btn": "Iniciar Teste Grátis de 30 Dias",
+      "no_card_required": "Não é necessário cartão de crédito para o teste",
+      "due_today": "vence hoje",
+      "secure_note": "Pagamento seguro via Stripe",
+      "trial_info_title": "Teste Grátis de 30 Dias",
+      "trial_info_message": "Seu cartão não será cobrado até o fim do período de teste. Cancele a qualquer momento.",
+      "no_charge": "Seu cartão não foi cobrado.",
+      "discount_text": "{percent}% de desconto (meses 2-{endMonth})",
+      "applied": "Aplicado",
+      "total_first_month": "Total (primeiro mês)",
+      "future_price_discount": "Depois R$ {price}/mês por {duration} meses, então R$ {originalPrice}/mês",
+      "future_price_standard": "Depois R$ {price}/mês",
+      "cancelled_title": "Compra Cancelada",
+      "cancelled_message": "Não se preocupe! Você pode tentar novamente quando estiver pronto."
+    },
+    "subscription": {
+      "title": "Minha Assinatura",
+      "subtitle": "Gerencie seu plano e detalhes de cobrança",
+      "no_subscription": "Você não tem uma assinatura ativa.",
+      "view_plans": "Ver Planos",
+      "status_cancelling": "Cancelando",
+      "discount_applied": "desconto aplicado",
+      "current_period": "Período Atual Termina",
+      "next_billing": "Próxima Cobrança",
+      "ends_on": "Termina em",
+      "auto_renew": "Renova automaticamente em",
+      "plan_includes": "Seu plano inclui:",
+      "change_plan": "Mudar Plano",
+      "resume_subscription": "Retomar Assinatura",
+      "cancel_subscription": "Cancelar Assinatura",
+      "cancellation_pending": "Cancelamento Pendente",
+      "loss_warning": "Sua assinatura permanecerá ativa até {date}. Após isso, você perderá acesso aos recursos premium.",
+      "confirm_cancel": "Tem certeza que deseja cancelar? Você perderá acesso a esses recursos no final do seu período de cobrança."
+    },
   "profile": {
     "complete_title": "Complete seu Perfil",
     "complete_subtitle": "Por favor, atualize seus dados para continuar",
@@ -394,7 +503,8 @@
     "description_placeholder": "Conte-nos sobre seus serviços...",
     "save_success_edit": "Perfil atualizado com sucesso",
     "save_success_new": "Perfil criado com sucesso",
-    "save_error": "Falha ao salvar as alterações"
+    "save_error": "Falha ao salvar as alterações",
+    "business_name_required": "Nome da Empresa é obrigatório."
   },
   "modals": {
     "staff": {

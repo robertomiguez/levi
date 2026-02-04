@@ -11,7 +11,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  ChevronDown
+  ChevronDown,
+  CreditCard
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { 
@@ -120,6 +121,11 @@ function navigateToProfile() {
   }
 }
 
+function navigateToSubscription() {
+  showMobileMenu.value = false
+  router.push('/provider/subscription')
+}
+
 async function handleLogout() {
   showMobileMenu.value = false
   await authStore.signOut()
@@ -221,6 +227,10 @@ function changeLanguage(lang: string) {
                   <User class="mr-2 h-4 w-4" />
                   {{ authStore.provider ? $t('nav.business_profile') : $t('nav.profile') }}
                 </DropdownMenuItem>
+                <DropdownMenuItem v-if="authStore.provider" @click="navigateToSubscription" class="cursor-pointer">
+                  <CreditCard class="mr-2 h-4 w-4" />
+                  {{ $t('nav.subscription') }}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem @click="handleLogout" class="text-destructive focus:text-destructive cursor-pointer">
                   <LogOut class="mr-2 h-4 w-4" />
@@ -313,6 +323,16 @@ function changeLanguage(lang: string) {
           >
             <User class="mr-2 h-5 w-5" />
             {{ authStore.provider ? $t('nav.business_profile') : $t('nav.profile') }}
+          </Button>
+
+           <Button 
+            v-if="authStore.provider" 
+            variant="ghost" 
+            class="justify-start h-12"
+            @click="navigateToSubscription"
+          >
+            <CreditCard class="mr-2 h-5 w-5" />
+            {{ $t('nav.subscription') }}
           </Button>
 
            <Button 

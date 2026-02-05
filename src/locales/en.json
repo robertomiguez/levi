@@ -24,6 +24,8 @@
   },
   "auth": {
     "login": "Log In",
+    "continue_with_google": "Continue with Google",
+    "or_continue_with": "Or continue with",
     "email": "Email Address",
     "send_code": "Send Code",
     "enter_code": "Enter Code",

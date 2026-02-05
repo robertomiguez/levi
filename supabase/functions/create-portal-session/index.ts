@@ -47,7 +47,21 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json();
-    const { providerId, returnUrl } = body;
+    const { providerId, returnUrl, locale } = body;
+
+    // ... (security checks remain same, skipping lines for brevity if possible, but tool requires contiguous block)
+    // Actually, I need to be careful with the ReplaceFileContent limitations. 
+    // I will target the body parsing and then the session creation.
+    
+    // Step 1: Update body destructuring
+    // Step 2: Update session creation
+    
+    // Let's do it in one go if the lines are close enough.
+    // They are not contiguous enough to do cleanly without context.
+    // I will do two replaces.
+    
+    // This is the first one: getting the locale.
+
 
     // --- SECURITY CHECK START ---
     const authHeader = req.headers.get('Authorization');
@@ -117,6 +131,7 @@ Deno.serve(async (req) => {
     const session = await stripe.billingPortal.sessions.create({
         customer: subscription.stripe_customer_id,
         return_url: returnUrl || req.headers.get("origin"),
+        locale: locale || 'auto', // Pass locale or let Stripe decide
     });
 
     return new Response(

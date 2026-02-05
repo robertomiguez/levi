@@ -226,6 +226,13 @@ async function handleCheckoutComplete(
         .select("id")
         .eq("provider_id", providerId)
         .single();
+      
+      const currency = session.currency || 'usd';
+      // Determine locked price based on currency
+      let lockedPrice = plan.price_monthly; // Default USD
+      if (currency !== 'usd' && plan.prices && plan.prices[currency]) {
+          lockedPrice = plan.prices[currency];
+      }
 
       if (existingSub) {
         // Update existing subscription
@@ -241,12 +248,13 @@ async function handleCheckoutComplete(
             trial_ends_at: trialEndsAt?.toISOString(),
             current_period_start: currentPeriodStart.toISOString(),
             current_period_end: currentPeriodEnd.toISOString(),
-            locked_price: plan.price_monthly,
+            locked_price: lockedPrice,
             locked_discount_percent: plan.discount_percent || 0,
             discount_ends_at: discountEndsAt?.toISOString(),
             cancel_at_period_end: false,
             cancelled_at: null,
             updated_at: now.toISOString(),
+            currency: currency
           })
           .eq("id", existingSub.id);
 
@@ -271,10 +279,11 @@ async function handleCheckoutComplete(
             trial_ends_at: trialEndsAt?.toISOString(),
             current_period_start: currentPeriodStart.toISOString(),
             current_period_end: currentPeriodEnd.toISOString(),
-            locked_price: plan.price_monthly,
+            locked_price: lockedPrice,
             locked_discount_percent: plan.discount_percent || 0,
             discount_ends_at: discountEndsAt?.toISOString(),
             cancel_at_period_end: false,
+            currency: currency
           })
           .select()
           .single();

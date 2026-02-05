@@ -160,6 +160,7 @@ export interface Plan {
     description?: string
     price_monthly: number
     price_yearly?: number           // null = coming soon
+    prices?: Record<string, number> // Map of locale/currency to price (e.g. { "eur": 900, "brl": 5000 })
     discount_percent?: number       // 0-100
     discount_duration_months?: number // e.g. 3 for 3 months
     max_staff?: number              // null = unlimited
@@ -177,6 +178,7 @@ export interface Subscription {
     provider_id: string
     plan_id: string
     status: SubscriptionStatus
+    currency?: string               // 'usd', 'eur', 'brl', etc.
     trial_ends_at?: string
     current_period_start?: string
     current_period_end?: string

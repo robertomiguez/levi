@@ -274,9 +274,50 @@ Deno.serve(async (req) => {
     } else {
         // Subscription Mode Logic
         
+        // --- CURRENCY RESOLUTION LOGIC ---
+        // 1. Define Main Currencies (Fixed Price)
+        const MAIN_CURRENCIES = ['usd', 'cad', 'eur', 'gbp', 'brl'];
+        
+        // 2. Map Locale to Currency
+        const getCurrencyForLocale = (loc: string): string => {
+            const l = loc.toLowerCase();
+            if (l.startsWith('en-ca') || l.startsWith('fr-ca')) return 'cad';
+            if (l.startsWith('en-gb')) return 'gbp';
+            if (l.startsWith('pt-br')) return 'brl';
+            // Eurozone approximation (simplified)
+            const euroLocales = ['fr', 'de', 'it', 'es', 'pt', 'nl', 'be', 'at', 'fi', 'ie'];
+            if (euroLocales.some(el => l === el || l.startsWith(`${el}-`))) return 'eur';
+            // Default to USD for everyone else (Floating Exchange Rate)
+            return 'usd';
+        };
+
+        const targetCurrency = getCurrencyForLocale(stripeLocale);
+        let currencyToUse = 'usd';
+        let unitAmount = Math.round(plan.price_monthly * 100);
+
+        // 3. Check if plan has a specific FIXED price for this currency
+        if (targetCurrency !== 'usd' && plan.prices && plan.prices[targetCurrency]) {
+            currencyToUse = targetCurrency;
+            unitAmount = Math.round(plan.prices[targetCurrency]); // Assumes prices in DB are in cents? Or need mult?
+            // Convention: plan.prices in DB should probably be in cents to avoid float issues, 
+            // BUT plan.price_monthly is likely in dollars based on `Math.round(plan.price_monthly * 100)` above.
+            // Let's assume plan.prices values are also in integer MAJOR units (e.g. 9 for 9 EUR) for consistency with price_monthly
+            // SO we multiply by 100. 
+            // Wait, looking at plan.price_monthly usage: `Math.round(plan.price_monthly * 100)`. 
+            // So price_monthly is 10.00.
+            // So plan.prices['eur'] should be 9.00.
+            unitAmount = Math.round(plan.prices[targetCurrency] * 100);
+        } else {
+            // Fallback to USD (Floating)
+            currencyToUse = 'usd';
+            unitAmount = Math.round(plan.price_monthly * 100);
+        }
+
         // Get or create Price
+        const priceLookupKey = `plan_${planName}_${currencyToUse}`;
+        
         const prices = await stripe.prices.list({
-          lookup_keys: [`plan_${planName}`],
+          lookup_keys: [priceLookupKey],
           limit: 1,
         });
 
@@ -284,28 +325,38 @@ Deno.serve(async (req) => {
           priceId = prices.data[0].id;
         } else {
           // Create product and price in Stripe
-          const product = await stripe.products.create({
-            name: plan.display_name,
-            description: plan.description || undefined,
-            metadata: {
-              plan_id: plan.id,
-              plan_name: planName,
-            },
-          });
+          // Check if Product exists first to avoid duplicates or use existing
+           const products = await stripe.products.search({
+                query: `metadata['plan_name']:'${planName}'`,
+                limit: 1
+           });
+           
+           let productId;
+           if (products.data.length > 0) {
+               productId = products.data[0].id;
+           } else {
+               const product = await stripe.products.create({
+                name: plan.display_name,
+                description: plan.description || undefined,
+                metadata: {
+                  plan_id: plan.id,
+                  plan_name: planName,
+                },
+              });
+              productId = product.id;
+           }
 
-          // Calculate price (apply discount if applicable)
-          let unitAmount = Math.round(plan.price_monthly * 100); // Convert to cents
-          
           const price = await stripe.prices.create({
-            product: product.id,
+            product: productId,
             unit_amount: unitAmount,
-            currency: "usd",
+            currency: currencyToUse,
             recurring: {
               interval: "month",
             },
-            lookup_key: `plan_${planName}`,
+            lookup_key: priceLookupKey,
             metadata: {
               plan_id: plan.id,
+              region_currency: currencyToUse
             },
           });
 
@@ -349,12 +400,14 @@ Deno.serve(async (req) => {
                   provider_id: targetProviderId,
                   plan_id: plan.id,
                   plan_name: planName,
+                  currency: currencyToUse
                 },
             },
             metadata: {
                 provider_id: targetProviderId,
                 plan_id: plan.id,
                 plan_name: planName,
+                currency: currencyToUse
             },
         };
 

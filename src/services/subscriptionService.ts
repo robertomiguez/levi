@@ -56,15 +56,18 @@ export async function createCheckoutSession({
  */
 export async function createPortalSession({
     providerId,
-    returnUrl
+    returnUrl,
+    locale
 }: {
     providerId: string
     returnUrl?: string
+    locale?: string
 }): Promise<{ url: string }> {
     const { data, error } = await supabase.functions.invoke('create-portal-session', {
         body: {
             providerId,
-            returnUrl: returnUrl || window.location.href
+            returnUrl: returnUrl || window.location.href,
+            locale
         }
     })
 
@@ -334,6 +337,17 @@ export async function resumeSubscription(subscriptionId: string): Promise<void> 
 }
 
 /**
+ * Helper to resolve plan price based on currency
+ */
+function getPlanPrice(plan: Plan, currency: string = 'usd'): number {
+    const cur = currency.toLowerCase()
+    if (cur !== 'usd' && plan.prices && plan.prices[cur]) {
+        return plan.prices[cur]
+    }
+    return plan.price_monthly
+}
+
+/**
  * Change subscription plan with proper proration and business rules
  * - Upgrades: Immediate effect with prorated charge
  * - Downgrades: Scheduled for next billing cycle
@@ -370,8 +384,12 @@ export async function changePlan(
         return { success: false, message: 'Already on this plan' }
     }
     
-    const isUpgrade = newPlan.price_monthly > oldPlan.price_monthly
-    const isDowngrade = newPlan.price_monthly < oldPlan.price_monthly
+    const currency = currentSub.currency || 'usd'
+    const newPriceValue = getPlanPrice(newPlan, currency)
+    const oldPriceValue = currentSub.locked_price ?? getPlanPrice(oldPlan, currency)
+    
+    const isUpgrade = newPriceValue > oldPriceValue
+    const isDowngrade = newPriceValue < oldPriceValue
     const isTrialing = currentSub.status === 'trialing'
     const trialChangeCount = currentSub.trial_plan_change_count || 0
     
@@ -390,7 +408,7 @@ export async function changePlan(
             .from('subscriptions')
             .update({
                 plan_id: newPlanId,
-                locked_price: newPlan.price_monthly,
+                locked_price: newPriceValue,
                 // Preserve original discount_ends_at - DO NOT recalculate
                 trial_plan_change_count: trialChangeCount + 1,
                 // Clear any pending downgrade
@@ -415,7 +433,7 @@ export async function changePlan(
             .from('subscriptions')
             .update({
                 plan_id: newPlanId,
-                locked_price: newPlan.price_monthly,
+                locked_price: newPriceValue,
                 // Preserve discount_ends_at - DO NOT recalculate
                 // Clear pending downgrade if any
                 pending_downgrade_plan_id: null,
@@ -431,7 +449,7 @@ export async function changePlan(
             await supabase.from('payments').insert({
                 subscription_id: subscriptionId,
                 amount: netCharge,
-                currency: 'usd',
+                currency: currency,
                 status: 'pending',
                 payment_method: 'card',
                 description: `Upgrade: ${oldPlan.display_name} → ${newPlan.display_name} (${daysRemaining}/${totalDays} days)`,
@@ -444,7 +462,7 @@ export async function changePlan(
             success: true, 
             charge: netCharge, 
             credit, 
-            message: `Upgraded to ${newPlan.display_name}. Prorated charge: $${netCharge.toFixed(2)}` 
+            message: `Upgraded to ${newPlan.display_name}. Prorated charge: ${netCharge.toFixed(2)}` 
         }
     }
     
@@ -475,7 +493,7 @@ export async function changePlan(
         .from('subscriptions')
         .update({
             plan_id: newPlanId,
-            locked_price: newPlan.price_monthly,
+            locked_price: newPriceValue,
             pending_downgrade_plan_id: null
         })
         .eq('id', subscriptionId)
@@ -509,11 +527,9 @@ function calculateProration(
         locked_discount_percent?: number
         discount_ends_at?: string
         plan?: { price_monthly: number }
+        currency?: string
     }, 
-    newPlan: { 
-        price_monthly: number
-        discount_percent?: number
-    }
+    newPlan: Plan
 ): { credit: number; charge: number; daysRemaining: number; totalDays: number } {
     const now = new Date()
     const periodStart = new Date(subscription.current_period_start || now)
@@ -525,8 +541,10 @@ function calculateProration(
     const totalDays = Math.max(1, Math.ceil(totalMs / (1000 * 60 * 60 * 24)))
     const daysRemaining = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)))
     
+    const currency = subscription.currency || 'usd'
+
     // Current plan's effective price (with discount if still active)
-    const oldPrice = subscription.locked_price ?? subscription.plan?.price_monthly ?? 0
+    const oldPrice = subscription.locked_price ?? getPlanPrice(subscription.plan as Plan, currency) ?? 0
     const oldDiscount = subscription.locked_discount_percent ?? 0
     const discountEndsAt = subscription.discount_ends_at ? new Date(subscription.discount_ends_at) : null
     
@@ -536,7 +554,7 @@ function calculateProration(
         : oldPrice
     
     // New plan's effective price (inherit remaining discount time)
-    const newPrice = newPlan.price_monthly
+    const newPrice = getPlanPrice(newPlan, currency)
     const effectiveNewPrice = oldDiscountActive 
         ? newPrice * (1 - oldDiscount / 100) 
         : newPrice
@@ -582,8 +600,12 @@ export async function previewPlanChange(
     const oldPlan = currentSub.plan
     if (!oldPlan) throw new Error('Current plan not found')
     
-    const isUpgrade = newPlan.price_monthly > oldPlan.price_monthly
-    const isDowngrade = newPlan.price_monthly < oldPlan.price_monthly
+    const currency = currentSub.currency || 'usd'
+    const newPriceValue = getPlanPrice(newPlan, currency)
+    const oldPriceValue = currentSub.locked_price ?? getPlanPrice(oldPlan, currency)
+
+    const isUpgrade = newPriceValue > oldPriceValue
+    const isDowngrade = newPriceValue < oldPriceValue
     const isTrialing = currentSub.status === 'trialing'
     const trialChangeCount = currentSub.trial_plan_change_count || 0
     

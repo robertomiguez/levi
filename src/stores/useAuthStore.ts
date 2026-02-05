@@ -68,6 +68,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (!user.value) return
 
         try {
+            // First try to find by auth_user_id
             const { data, error: fetchError } = await supabase
                 .from('customers')
                 .select('*')
@@ -78,13 +79,57 @@ export const useAuthStore = defineStore('auth', () => {
                 throw fetchError
             }
 
-            if (!data) {
-                customer.value = null
-            } else {
+            if (data) {
                 customer.value = data
+                return
             }
+
+            // If no profile found by ID, check if we can claim one by email
+            // This happens when a user previously signed up with OTP/Email and now signs in with Google
+            if (user.value.email) {
+                await ensureCustomerProfile()
+            } else {
+                 customer.value = null
+            }
+
         } catch (e) {
             console.error('Error fetching customer profile:', e)
+        }
+    }
+
+    async function ensureCustomerProfile(initialData?: { name?: string; phone?: string }) {
+        if (!user.value?.email) return
+
+        try {
+             // Check for existing customer with same email but different/no auth_user_id
+            const { data: existingCustomer } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('email', user.value.email)
+                .maybeSingle()
+            
+            if (existingCustomer) {
+                // Claim this profile!
+                const { data: updatedCustomer, error: updateError } = await supabase
+                    .from('customers')
+                    .update({ 
+                        auth_user_id: user.value.id,
+                        // Update avatar if not present
+                        avatar_url: existingCustomer.avatar_url || user.value.user_metadata?.avatar_url || user.value.user_metadata?.picture
+                    })
+                    .eq('id', existingCustomer.id)
+                    .select()
+                    .single()
+                
+                if (updateError) throw updateError
+                customer.value = updatedCustomer
+            } else {
+                // Create new profile
+                await createCustomerProfile(initialData)
+            }
+
+        } catch (e) {
+            console.error('Error ensuring customer profile:', e)
         }
     }
 
@@ -152,6 +197,27 @@ export const useAuthStore = defineStore('auth', () => {
         } catch (e) {
             error.value = e instanceof Error ? e.message : 'Failed to send verification code'
             console.error('Error sending OTP:', e)
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    async function signInWithOAuth() {
+        loading.value = true
+        error.value = null
+        try {
+            const { error: signInError } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/auth/callback`,
+                }
+            })
+
+            if (signInError) throw signInError
+        } catch (e) {
+            error.value = e instanceof Error ? e.message : 'Failed to sign in with Google'
+            console.error('Error signing in with Google:', e)
             throw e
         } finally {
             loading.value = false
@@ -248,6 +314,7 @@ export const useAuthStore = defineStore('auth', () => {
         updateProfile,
         fetchCustomerProfile,
         fetchProviderProfile,
-        createCustomerProfile
+        createCustomerProfile,
+        signInWithOAuth
     }
 })

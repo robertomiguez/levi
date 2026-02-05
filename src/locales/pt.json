@@ -23,6 +23,8 @@
   },
   "auth": {
     "login": "Entrar",
+    "continue_with_google": "Continuar com o Google",
+    "or_continue_with": "Ou continuar com",
     "email": "Endereço de E-mail",
     "send_code": "Enviar Código",
     "enter_code": "Digitar Código",

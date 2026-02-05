@@ -18,11 +18,14 @@ import { TERMS_VERSION } from '../../constants'
 import Modal from '@/components/common/Modal.vue'
 import LegalDocumentViewer from '@/components/legal/LegalDocumentViewer.vue'
 
+import { useCurrency } from '@/composables/useCurrency'
+
 const router = useRouter()
 const route = useRoute()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const { showError, errorMessage } = useNotifications()
+const { targetCurrency, currencySymbol } = useCurrency()
 
 const plans = ref<Plan[]>([])
 const currentSubscription = ref<Subscription | null>(null)
@@ -50,6 +53,17 @@ const showTermsModal = ref(false)
 const showPrivacyModal = ref(false)
 
 const isChangeMode = computed(() => route.query.mode === 'change')
+
+function getPlanPrice(plan: Plan): number {
+    const cur = targetCurrency.value
+    // If currency is not USD and plan has a fixed price for it, use it
+    if (cur !== 'usd' && plan.prices && plan.prices[cur]) {
+        return plan.prices[cur]
+    }
+    // Fallback to USD (price_monthly)
+    return plan.price_monthly
+}
+// --- Currency Logic End ---
 
 onMounted(async () => {
     await loadPlans()
@@ -140,7 +154,7 @@ async function handlePlanAction(plan: Plan) {
                 providerId: providerId,
                 userId: userId,
                 providerEmail: email!,
-                locale: locale.value,
+                locale: navigator.language || 'en-US',
                 termsAccepted: true,
                 termsVersion: TERMS_VERSION
             })
@@ -223,8 +237,9 @@ function isPopular(plan: Plan): boolean {
 }
 
 function getDiscountedPrice(plan: Plan): number {
-    if (!plan.discount_percent) return plan.price_monthly
-    return plan.price_monthly * (1 - plan.discount_percent / 100)
+    const basePrice = getPlanPrice(plan)
+    if (!plan.discount_percent) return basePrice
+    return basePrice * (1 - plan.discount_percent / 100)
 }
 
 function hasDiscount(plan: Plan): boolean {
@@ -391,12 +406,12 @@ function hasDiscount(plan: Plan): boolean {
                                     <template v-if="hasDiscount(plan)">
                                         <!-- Original Price -->
                                         <div class="text-gray-400 text-lg line-through font-medium">
-                                            ${{ plan.price_monthly.toFixed(2) }}
+                                            {{ currencySymbol }}{{ getPlanPrice(plan).toFixed(2) }}
                                         </div>
                                         <!-- Discounted Price -->
                                         <div class="flex items-baseline justify-center gap-1">
                                             <span class="text-4xl font-bold text-gray-900">
-                                                ${{ getDiscountedPrice(plan).toFixed(2) }}
+                                                {{ currencySymbol }}{{ getDiscountedPrice(plan).toFixed(2) }}
                                             </span>
                                             <span class="text-gray-500">
                                                 {{ $t('pricing.per_month') }}
@@ -414,7 +429,7 @@ function hasDiscount(plan: Plan): boolean {
                                     <template v-else>
                                         <div class="flex items-baseline justify-center gap-1">
                                             <span class="text-4xl font-bold text-gray-900">
-                                                ${{ plan.price_monthly.toFixed(2) }}
+                                                {{ currencySymbol }}{{ getPlanPrice(plan).toFixed(2) }}
                                             </span>
                                             <span class="text-gray-500">
                                                 {{ $t('pricing.per_month') }}
@@ -537,15 +552,15 @@ function hasDiscount(plan: Plan): boolean {
                         <div class="text-sm text-gray-600 space-y-1">
                             <div class="flex justify-between">
                                 <span>{{ $t('pricing.credit_unused') }}</span>
-                                <span class="text-green-600">-${{ prorationPreview.credit.toFixed(2) }}</span>
+                                <span class="text-green-600">-{{ currencySymbol }}{{ prorationPreview.credit.toFixed(2) }}</span>
                             </div>
                             <div class="flex justify-between">
                                 <span>{{ $t('pricing.charge_remaining') }}</span>
-                                <span>+${{ prorationPreview.charge.toFixed(2) }}</span>
+                                <span>+{{ currencySymbol }}{{ prorationPreview.charge.toFixed(2) }}</span>
                             </div>
                             <div class="flex justify-between font-semibold pt-2 border-t border-blue-200">
                                 <span>{{ $t('pricing.net_charge') }}</span>
-                                <span class="text-blue-700">${{ prorationPreview.netCharge.toFixed(2) }}</span>
+                                <span class="text-blue-700">{{ currencySymbol }}{{ prorationPreview.netCharge.toFixed(2) }}</span>
                             </div>
                         </div>
                     </div>

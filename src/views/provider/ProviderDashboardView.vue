@@ -2,7 +2,6 @@
 import { onMounted } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useProviderStore } from '../../stores/useProviderStore'
-import { useSettingsStore } from '../../stores/useSettingsStore'
 import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { 
@@ -17,10 +16,10 @@ import {
   Clock,
   AlertTriangle
 } from 'lucide-vue-next'
+import { useCurrency } from '@/composables/useCurrency'
 
 const authStore = useAuthStore()
 const providerStore = useProviderStore()
-const settingsStore = useSettingsStore()
 const router = useRouter()
 
 onMounted(async () => {
@@ -32,11 +31,11 @@ onMounted(async () => {
   await providerStore.fetchDashboardStats(authStore.provider.id)
 })
 
+const { formatPrice } = useCurrency()
+
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat(settingsStore.language, {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount)
+  // Use shared currency logic which respects browser locale
+  return formatPrice(amount)
 }
 
 function goToServices() {

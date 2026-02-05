@@ -21,6 +21,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import { useNotifications } from '@/composables/useNotifications'
 import { useRoute } from 'vue-router'
+import { useCurrency } from '@/composables/useCurrency'
 
 const router = useRouter()
 const route = useRoute()
@@ -84,6 +85,8 @@ async function loadPendingDowngradePlan() {
     }
 }
 
+const { formatPrice, targetCurrency } = useCurrency()
+
 const planPrice = computed(() => {
     if (!subscription.value) return 0
     // Use locked price if available, otherwise current plan price
@@ -96,16 +99,25 @@ const planDiscount = computed(() => {
 })
 
 const currentPrice = computed(() => {
-    // If discount is active (based on date), apply it
-    /* 
-       Note: A more robust check would compare dates. 
-       For MVP display, we show what they *signed up with* or raw plan price.
-       Real billing logic (Stripe) would handle exact charging.
-    */
     if (planDiscount.value > 0) {
         return planPrice.value * (1 - planDiscount.value / 100)
     }
     return planPrice.value
+})
+
+const subscriptionCurrency = computed(() => subscription.value?.currency?.toLowerCase() || targetCurrency.value)
+
+const currencyMismatch = computed(() => {
+    if (!subscription.value?.currency) return false
+    return subscription.value.currency.toLowerCase() !== targetCurrency.value
+})
+
+const currentPriceFormatted = computed(() => {
+    // If mismatch, we might want to be explicit? 
+    // formatPrice handles the symbol correctly based on currency code.
+    // e.g. if USD but locale is en-GB, it shows US$10.00
+    // If USD and locale is pt-BR, it shows US$ 10,00
+    return formatPrice(currentPrice.value, subscription.value?.currency || undefined)
 })
 
 
@@ -117,7 +129,8 @@ async function handleManageBilling() {
     managingBilling.value = true
     try {
         const { url } = await createPortalSession({
-            providerId: authStore.provider.id
+            providerId: authStore.provider.id,
+            locale: navigator.language || 'en-US'
         })
         window.location.href = url
     } catch (error) {
@@ -195,9 +208,13 @@ async function handleAddPaymentMethod() {
                         </div>
                         <div class="text-right">
                             <div class="text-2xl font-bold text-gray-900">
-                                ${{ currentPrice.toFixed(2) }}<span class="text-sm text-gray-500 font-normal">/mo</span>
+                                {{ currentPriceFormatted }}<span class="text-sm text-gray-500 font-normal">/mo</span>
                             </div>
-                            <div v-if="planDiscount > 0" class="text-xs text-green-600 font-medium">
+                            <!-- Currency Mismatch Warning -->
+                            <div v-if="currencyMismatch" class="text-xs text-amber-600 font-medium mt-1">
+                                {{ $t('subscription.billed_in', { currency: subscriptionCurrency.toUpperCase() }) }}
+                            </div>
+                            <div v-if="planDiscount > 0" class="text-xs text-green-600 font-medium mt-1">
                                 {{ planDiscount }}% {{ $t('subscription.discount_applied') }}
                             </div>
                         </div>

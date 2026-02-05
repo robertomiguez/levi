@@ -211,6 +211,7 @@
     "no_subscription": "You don't have an active subscription.",
     "view_plans": "View Plans",
     "status_cancelling": "Cancelling",
+    "billed_in": "Billed in {currency}",
     "discount_applied": "discount applied",
     "current_period": "Current Period Ends",
     "next_billing": "Next Billing",

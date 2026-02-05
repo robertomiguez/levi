@@ -66,7 +66,6 @@ describe('subscriptionService Currency Support', () => {
         // But wait, `previewPlanChange` calls `getPlan`. 
         // We can mock the responses based on the ID passed to `eq`.
 
-        const planSelectMock = vi.fn()
         // @ts-ignore
         supabase.from = (table: string) => {
             if (table === 'subscriptions') {
@@ -79,7 +78,7 @@ describe('subscriptionService Currency Support', () => {
             if (table === 'plans') {
                 return {
                     select: () => ({
-                        eq: (col: string, val: string) => ({
+                        eq: (_col: string, val: string) => ({
                             single: async () => {
                                 if (val === 'plan_store') return { data: mockNewPlan, error: null }
                                 return { data: null, error: 'Not found' }

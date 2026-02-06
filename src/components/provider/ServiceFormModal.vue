@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useCategoryStore } from '../../stores/useCategoryStore'
 import { useStaffStore } from '../../stores/useStaffStore'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useCurrency } from '../../composables/useCurrency'
 import Modal from '../../components/common/Modal.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +23,7 @@ const emit = defineEmits(['close', 'save'])
 const categoryStore = useCategoryStore()
 const staffStore = useStaffStore()
 const authStore = useAuthStore()
+const { currencySymbol } = useCurrency()
 
 const uploading = ref(false)
 const imageError = ref<string | null>(null)
@@ -258,7 +260,7 @@ async function handleSubmit() {
         <div class="space-y-2">
           <Label for="service-price">{{ $t('modals.service.price') }}</Label>
           <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{{ currencySymbol }}</span>
             <Input
               id="service-price"
               v-model="form.price"

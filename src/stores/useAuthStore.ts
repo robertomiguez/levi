@@ -39,21 +39,37 @@ export const useAuthStore = defineStore('auth', () => {
             if (currentSession) {
                 session.value = currentSession
                 user.value = currentSession.user
-                await fetchCustomerProfile()
+                
+                // IMPORTANT: Fetch provider profile FIRST to establish context
                 await fetchProviderProfile()
+                // Only fetch/create customer profile if not a provider (or if it's a dual account)
+                await fetchCustomerProfile()
             }
 
             // Listen for auth changes
             supabase.auth.onAuthStateChange(async (_event, newSession) => {
+                // If we have a user, set loading to true while we fetch profiles
+                if (newSession?.user) {
+                    loading.value = true
+                }
+
                 session.value = newSession
                 user.value = newSession?.user ?? null
 
                 if (newSession?.user) {
-                    await fetchCustomerProfile()
-                    await fetchProviderProfile()
+                    try {
+                        // IMPORTANT: Fetch provider profile FIRST to establish context
+                        await fetchProviderProfile()
+                        
+                        // Wait for provider check to complete before checking customer
+                        await fetchCustomerProfile()
+                    } finally {
+                        loading.value = false
+                    }
                 } else {
                     customer.value = null
                     provider.value = null
+                    loading.value = false
                 }
             })
         } catch (e) {
@@ -99,6 +115,24 @@ export const useAuthStore = defineStore('auth', () => {
 
     async function ensureCustomerProfile(initialData?: { name?: string; phone?: string }) {
         if (!user.value?.email) return
+
+        // GUARD: If this user is ALREADY identified as a provider, do NOT create a customer profile automatically.
+        if (provider.value) {
+            console.log('[AuthStore] User is a provider, skipping customer profile creation.')
+            return
+        }
+
+        // GUARD: Check URL for provider context (redirects, paths) to prevent creation during provider signup
+        // This handles the case where provider.value is not yet set (e.g. first login) but the INTENT is provider
+        const isProviderFlow = 
+            window.location.search.includes('redirect=%2Fprovider') || 
+            window.location.search.includes('redirect=/provider') || 
+            window.location.pathname.startsWith('/provider')
+            
+        if (isProviderFlow) {
+            console.log('[AuthStore] Detected provider flow in URL, skipping customer profile creation.')
+            return
+        }
 
         try {
              // Check for existing customer with same email but different/no auth_user_id
@@ -162,6 +196,7 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         try {
+            // First try to find by auth_user_id
             const { data, error: fetchError } = await supabase
                 .from('providers')
                 .select('*')
@@ -172,7 +207,40 @@ export const useAuthStore = defineStore('auth', () => {
                 throw fetchError
             }
 
-            provider.value = data
+            if (data) {
+                provider.value = data
+                return
+            }
+
+            // If no profile found by ID, check if we can claim one by email
+            // This happens when a user previously signed up with OTP/Email and now signs in with Google
+            if (user.value.email) {
+                const { data: existingProvider } = await supabase
+                    .from('providers')
+                    .select('*')
+                    .eq('email', user.value.email)
+                    .maybeSingle()
+
+                if (existingProvider) {
+                    // Claim this provider profile by updating auth_user_id
+                    const { data: updatedProvider, error: updateError } = await supabase
+                        .from('providers')
+                        .update({ auth_user_id: user.value.id })
+                        .eq('id', existingProvider.id)
+                        .select()
+                        .single()
+
+                    if (updateError) {
+                        console.error('[AuthStore] Error updating provider auth_user_id:', updateError)
+                        throw updateError
+                    }
+                    provider.value = updatedProvider
+                } else {
+                    provider.value = null
+                }
+            } else {
+                provider.value = null
+            }
         } catch (e) {
             console.error('Error fetching provider profile:', e)
             provider.value = null
@@ -203,14 +271,20 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    async function signInWithOAuth() {
+    async function signInWithOAuth(redirectTo?: string) {
         loading.value = true
         error.value = null
         try {
+            // Build callback URL with optional redirect parameter
+            let callbackUrl = `${window.location.origin}/auth/callback`
+            if (redirectTo) {
+                callbackUrl += `?redirect=${encodeURIComponent(redirectTo)}`
+            }
+
             const { error: signInError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/auth/callback`,
+                    redirectTo: callbackUrl,
                 }
             })
 
@@ -239,9 +313,9 @@ export const useAuthStore = defineStore('auth', () => {
             if (data.user) {
                 user.value = data.user
                 session.value = data.session
-                // Fetch both customer and provider profiles
-                await fetchCustomerProfile()
+                // Fetch provider first to establish context
                 await fetchProviderProfile()
+                await fetchCustomerProfile()
             }
 
             return { success: true }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   PinInput,
   PinInputGroup,
@@ -29,21 +28,9 @@ const router = useRouter()
 const route = useRoute()
 useI18n()
 
-// Compute legal document URLs with redirect context preserved
-const termsUrl = computed(() => {
-  const redirect = route.query.redirect || props.redirect
-  return redirect ? `/terms?from=${encodeURIComponent(redirect as string)}` : '/terms'
-})
-
-const privacyUrl = computed(() => {
-  const redirect = route.query.redirect || props.redirect
-  return redirect ? `/privacy?from=${encodeURIComponent(redirect as string)}` : '/privacy'
-})
-
 const email = ref('')
 const otpValue = ref<string[]>([])
 const codeSent = ref(false)
-const termsAccepted = ref(false)
 
 watch(otpValue, (newVal) => {
   if (newVal.length === 6 && newVal.every(v => v !== '')) {
@@ -84,6 +71,12 @@ function goBack() {
   codeSent.value = false
   otpValue.value = []
 }
+
+function handleGoogleSignIn() {
+  // Get redirect from route query or props
+  const redirect = route.query.redirect as string || props.redirect
+  authStore.signInWithOAuth(redirect)
+}
 </script>
 
 <template>
@@ -94,7 +87,7 @@ function goBack() {
 
     <div v-if="!codeSent" class="grid gap-6">
       <div class="grid gap-4">
-        <Button variant="outline" type="button" :disabled="authStore.loading" @click="authStore.signInWithOAuth()">
+        <Button variant="outline" type="button" :disabled="authStore.loading" @click="handleGoogleSignIn">
           <svg class="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
             <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
           </svg>
@@ -133,38 +126,7 @@ function goBack() {
             </div>
           </div>
           
-          <!-- Terms and Privacy Acceptance -->
-          <div class="flex items-start space-x-3">
-            <Checkbox 
-              id="terms-acceptance"
-              v-model="termsAccepted"
-              :disabled="authStore.loading"
-              class="mt-0.5"
-            />
-            <label 
-              for="terms-acceptance" 
-              class="text-sm text-muted-foreground leading-relaxed cursor-pointer"
-            >
-              {{ $t('auth.terms_acceptance_prefix') }}
-              <router-link 
-                :to="termsUrl" 
-                target="_blank"
-                class="text-primary hover:underline font-medium"
-              >
-                {{ $t('auth.terms_of_service') }}
-              </router-link>
-              {{ $t('auth.terms_acceptance_and') }}
-              <router-link 
-                :to="privacyUrl" 
-                target="_blank"
-                class="text-primary hover:underline font-medium"
-              >
-                {{ $t('auth.privacy_policy') }}
-              </router-link>
-            </label>
-          </div>
-          
-          <Button type="submit" :disabled="authStore.loading || !email || !termsAccepted">
+          <Button type="submit" :disabled="authStore.loading || !email">
             <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
             {{ authStore.loading ? $t('common.sending') : $t('auth.send_code') }}
           </Button>

@@ -216,9 +216,22 @@ export const useAppointmentStore = defineStore('appointment', () => {
             const scheduleStart = parse(avail.start_time, 'HH:mm:ss', date)
             const scheduleEnd = parse(avail.end_time, 'HH:mm:ss', date)
 
+            if (cycleDuration <= 0) {
+                console.error('[AppointmentStore] Invalid cycle duration detected (<=0). Preventing infinite loop.', service)
+                return []
+            }
+
             let currentSlot = scheduleStart
+            let safetyCounter = 0
+            const MAX_ITERATIONS = 1000 // Failsafe for infinite loops
 
             while (true) {
+                safetyCounter++
+                if (safetyCounter > MAX_ITERATIONS) {
+                     console.error('[AppointmentStore] Availability loop exceeded max iterations. Breaking to prevent crash.', { service, date })
+                     break
+                }
+
                 const slotFaceStart = currentSlot
                 const slotFaceEnd = addMinutes(slotFaceStart, service.duration)
                 const slotTotalEnd = addMinutes(slotFaceEnd, service.buffer_after)
@@ -282,9 +295,22 @@ export const useAppointmentStore = defineStore('appointment', () => {
             const scheduleStart = parse(avail.start_time, 'HH:mm:ss', date)
             const scheduleEnd = parse(avail.end_time, 'HH:mm:ss', date)
 
+            if (cycleDuration <= 0) {
+                 // Zero duration means we can't schedule slots properly, so we assume busy/unavailable to be safe if no fallback exists
+                 return false
+            }
+
             let currentSlot = scheduleStart
+            let safetyCounter = 0
+            const MAX_ITERATIONS = 1000
 
             while (true) {
+                safetyCounter++
+                if (safetyCounter > MAX_ITERATIONS) {
+                     console.error('[AppointmentStore] Availability check loop exceeded max iterations.', { service, date })
+                     break
+                }
+
                 const slotFaceStart = currentSlot
                 const slotFaceEnd = addMinutes(slotFaceStart, service.duration)
                 const slotTotalEnd = addMinutes(slotFaceEnd, service.buffer_after)

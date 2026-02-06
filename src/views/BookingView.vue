@@ -1,65 +1,32 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch, onUnmounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useServiceStore } from '../stores/useServiceStore'
-import { useStaffStore } from '../stores/useStaffStore'
-import { useAppointmentStore } from '../stores/useAppointmentStore'
-import { useAuthStore } from '../stores/useAuthStore'
-import { useSettingsStore } from '../stores/useSettingsStore'
-import { supabase } from '../lib/supabase'
-import { addDays, format, startOfDay } from 'date-fns'
-import type { TimeSlot, Provider, ProviderAddress } from '../types'
-import { useNotifications } from '../composables/useNotifications'
+import { useServiceStore } from '@/stores/useServiceStore'
+import { useStaffStore } from '@/stores/useStaffStore'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { useBookingFlow } from '@/composables/useBookingFlow'
+import { useNotifications } from '@/composables/useNotifications'
 import { useI18n } from 'vue-i18n'
-import LoginForm from '../components/auth/LoginForm.vue'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea' // Using simple textarea style if component missing
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { 
-  Loader2, 
-  MapPin, 
-  CheckCircle2, 
-  User, 
-  Clock, 
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  DollarSign,
-  Navigation
-} from 'lucide-vue-next'
+import { Card } from '@/components/ui/card'
+import { CheckCircle2 } from 'lucide-vue-next'
+
+// Step Components
+import BookingServiceStep from '@/components/booking/BookingServiceStep.vue'
+import BookingStaffStep from '@/components/booking/BookingStaffStep.vue'
+import BookingLocationStep from '@/components/booking/BookingLocationStep.vue'
+import BookingDateTimeStep from '@/components/booking/BookingDateTimeStep.vue'
+import BookingConfirmStep from '@/components/booking/BookingConfirmStep.vue'
+import BookingSuccessCard from '@/components/booking/BookingSuccessCard.vue'
 
 const route = useRoute()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
-const appointmentStore = useAppointmentStore()
 const authStore = useAuthStore()
-const settingsStore = useSettingsStore()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { errorMessage, showError, clearMessages } = useNotifications()
 
-// Provider filtering
-const selectedProviderId = ref<string | null>(null)
-const providerInfo = ref<Provider | null>(null)
-
-// Booking flow state
-const currentStep = ref(1)
-const selectedServiceId = ref<string>('')
-const selectedStaffId = ref<string>('')
-const selectedAddressId = ref<string>('')
-const staffAddresses = ref<ProviderAddress[]>([])
-const selectedDate = ref<Date>(new Date())
-const selectedTime = ref<string>('')
-const availableSlots = ref<TimeSlot[]>([])
-const loadingSlots = ref(false)
-const notes = ref('')
-
-// Confirmation state
-const bookingConfirmed = ref(false)
-const showLogin = ref(false)
-const confirmedAppointmentId = ref<string>('')
-const confirmedDate = ref<Date | null>(null)
-const confirmedTime = ref<string>('')
+// Initialize booking flow
+const booking = useBookingFlow()
 
 onMounted(async () => {
   const providerId = route.query.provider as string
@@ -68,17 +35,17 @@ onMounted(async () => {
   if (staffId) {
     const staffMember = await staffStore.fetchStaffMember(staffId)
     if (staffMember && staffMember.provider_id) {
-       selectedProviderId.value = staffMember.provider_id
-       selectedStaffId.value = staffMember.id
-       await fetchProviderInfo(staffMember.provider_id)
+      booking.selectedProviderId.value = staffMember.provider_id
+      booking.selectedStaffId.value = staffMember.id
+      await booking.fetchProviderInfo(staffMember.provider_id)
     }
   } else if (providerId) {
-    selectedProviderId.value = providerId
-    await fetchProviderInfo(providerId)
+    booking.selectedProviderId.value = providerId
+    await booking.fetchProviderInfo(providerId)
   }
   
-  if (selectedProviderId.value) {
-      await serviceStore.fetchAllServices(selectedProviderId.value)
+  if (booking.selectedProviderId.value) {
+    await serviceStore.fetchAllServices(booking.selectedProviderId.value)
   }
   await staffStore.fetchStaff()
 
@@ -86,489 +53,18 @@ onMounted(async () => {
     await authStore.createCustomerProfile()
   }
 
-  if (staffId && filteredServices.value.length === 1) {
-      selectService(filteredServices.value[0]!.id)
+  if (staffId && booking.filteredServices.value.length === 1) {
+    booking.selectService(booking.filteredServices.value[0]!.id)
   }
 })
 
-async function fetchProviderInfo(providerId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('providers')
-      .select('*, provider_addresses(*)')
-      .eq('id', providerId)
-      .single()
-    
-    if (error) throw error
-    console.log('Provider Info loaded:', data)
-    providerInfo.value = data
-  } catch (error) {
-    console.error('Error fetching provider:', error)
-  }
-}
-
-const filteredServices = computed(() => {
-  if (!selectedProviderId.value) {
-    return serviceStore.services
-  }
-  
-  let services = serviceStore.services.filter(s => s.provider_id === selectedProviderId.value)
-
-  if (selectedStaffId.value) {
-      services = services.filter(service => {
-          if (!service.staff || service.staff.length === 0) return true
-          return service.staff.some(s => s.id === selectedStaffId.value)
-      })
-  }
-
-  return services
-})
-
-const selectedService = computed(() => 
-  filteredServices.value.find(s => s.id === selectedServiceId.value)
-)
-
-const selectedStaff = computed(() => 
-  staffStore.staff.find(s => s.id === selectedStaffId.value)
-)
-
-const selectedAddressObject = computed(() => {
-  if (selectedAddressId.value && staffAddresses.value.length > 0) {
-    return staffAddresses.value.find(a => a.id === selectedAddressId.value)
-  }
-  if (providerInfo.value?.provider_addresses?.length) {
-      return providerInfo.value.provider_addresses[0]
-  }
-  return null
-})
-
-
-
-const availableDates = computed(() => {
-  const dates = []
-  const today = startOfDay(new Date())
-  for (let i = 0; i < 60; i++) {
-    dates.push(addDays(today, i))
-  }
-  return dates
-})
-
-watch([selectedServiceId, selectedStaffId, selectedDate], async ([serviceId, staffId, date]) => {
-  if (serviceId && staffId && date) {
-    await loadAvailableSlots()
-  }
-}, { deep: true })
-
-async function loadAvailableSlots() {
-  if (!selectedServiceId.value || !selectedStaffId.value || !selectedDate.value) return
-  
-  loadingSlots.value = true
-  try {
-    const dayOfWeek = selectedDate.value.getDay()
-    const schedule = staffStore.availability.find(a => a.day_of_week === dayOfWeek)
-
-    if (!schedule || !schedule.is_available) {
-      availableSlots.value = []
-      loadingSlots.value = false
-      return
-    }
-
-    const dateStr = format(selectedDate.value, 'yyyy-MM-dd')
-    
-    const isBlocked = staffStore.blockedDates.some(block => {
-      return dateStr >= block.start_date && dateStr <= block.end_date
-    })
-
-    if (isBlocked) {
-      availableSlots.value = []
-      loadingSlots.value = false
-      return
-    }
-
-    const dayAppointments = rangeAppointments.value.filter(a => 
-      a.appointment_date === dateStr
-    )
-
-    availableSlots.value = appointmentStore.generateSlots(
-      selectedService.value,
-      [schedule],
-      dayAppointments,
-      selectedDate.value
-    )
-    
-    selectedTime.value = ''
-  } catch (e) {
-    console.error('Error loading slots:', e)
-    availableSlots.value = []
-  } finally {
-    loadingSlots.value = false
-  }
-}
-
-function selectService(serviceId: string) {
-  selectedServiceId.value = serviceId
-}
-
-async function confirmService() {
-  const service = serviceStore.services.find(s => s.id === selectedServiceId.value)
-  
-  if (selectedStaffId.value) {
-      const isStaffValid = !service?.staff?.length || service.staff.some(s => s.id === selectedStaffId.value)
-      
-      if (isStaffValid) {
-          await selectStaff(selectedStaffId.value)
-          confirmStaff()
-          return
-      }
-  }
-  
-  if (service?.staff && service.staff.length === 1 && service.staff[0]) {
-    await selectStaff(service.staff[0].id)
-    confirmStaff()
-  } else {
-    selectedStaffId.value = ''
-    currentStep.value = 2
-  }
-}
-
-function selectDateTime() {
-  if (selectedTime.value) {
-    currentStep.value = 4
-  }
-}
-
-async function selectStaff(staffId: string) {
-  selectedStaffId.value = staffId
-  // Remove auto-advance logic from here
-  staffAddresses.value = await staffStore.fetchStaffAddresses(staffId)
-}
-
-function confirmStaff() {
-  if (staffAddresses.value.length === 1 && staffAddresses.value[0]) {
-    selectedAddressId.value = staffAddresses.value[0].id
-    currentStep.value = 3 
-  } else if (staffAddresses.value.length > 1) {
-    currentStep.value = 2.5
-  } else {
-    currentStep.value = 3
-  }
-}
-
-function selectBranch(addressId: string) {
-  selectedAddressId.value = addressId
-}
-
-function confirmLocation() {
-  if (selectedAddressId.value) {
-    currentStep.value = 3
-  }
-}
-
-function goBack() {
-  if (currentStep.value === 3) {
-    const service = serviceStore.services.find(s => s.id === selectedServiceId.value)
-    if (service?.staff && service.staff.length === 1) {
-      currentStep.value = 1
-    } else {
-      currentStep.value = 2
-    }
-  } else if (currentStep.value === 4) {
-      if (showLogin.value) {
-          showLogin.value = false
-      } else {
-          currentStep.value = 3
-      }
-  } else if (currentStep.value === 2.5) {
-      currentStep.value = 2
-  } else if (currentStep.value > 1) {
-    currentStep.value--
-  }
-}
-
-async function submitBooking() {
-  if (!selectedService.value || !selectedStaffId.value || !selectedDate.value || !selectedTime.value) {
-    return
-  }
-
-  if (!providerInfo.value && selectedService.value?.provider_id) {
-    await fetchProviderInfo(selectedService.value.provider_id)
-  }
-
+async function handleSubmit() {
   clearMessages()
-
-  if (!authStore.isAuthenticated) {
-     showLogin.value = true
-     return
-  }
-
-  if (!authStore.customer) {
-    await authStore.createCustomerProfile()
-    
-    if (!authStore.customer) {
-      showError('Please log in to book an appointment')
-      return
-    }
-  }
-
-  try {
-    const timeParts = selectedTime.value.split(':')
-    const hours = parseInt(timeParts[0]!)
-    const minutes = parseInt(timeParts[1]!)
-    
-    const startMinutes = hours * 60 + minutes
-    const endMinutes = startMinutes + selectedService.value.duration
-    const endHours = Math.floor(endMinutes / 60)
-    const endMins = endMinutes % 60
-    const endTime = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
-
-    const appointment = await appointmentStore.createAppointment({
-      service_id: selectedServiceId.value,
-      staff_id: selectedStaffId.value,
-      address_id: selectedAddressId.value || undefined,
-      customer_id: authStore.customer.id,
-      appointment_date: format(selectedDate.value, 'yyyy-MM-dd'),
-      start_time: selectedTime.value,
-      end_time: endTime,
-      status: 'confirmed',
-      booked_price: selectedService.value.price,
-      notes: notes.value || undefined
-    })
-
-    if (appointment) {
-      confirmedAppointmentId.value = appointment.id
-      confirmedDate.value = selectedDate.value
-      confirmedTime.value = selectedTime.value
-      bookingConfirmed.value = true
-
-      if (providerInfo.value && authStore.customer?.email) {
-          const payload = {
-            booking: {
-              ...appointment,
-              service: selectedService.value
-            },
-            customer: {
-              name: authStore.customer.name,
-              email: authStore.customer.email
-            },
-            provider: providerInfo.value,
-            staff: selectedStaff.value,
-            locale: locale.value,
-            selectedAddress: selectedAddressObject.value
-          }
-          
-          try {
-            await supabase.functions.invoke('send-booking-confirmation', {
-              body: payload
-            })
-          } catch (emailError) {
-            console.error('Error sending confirmation emails:', emailError)
-          }
-      }
-    }
-  } catch (e: any) {
-    console.error('Error creating appointment:', e)
-    if (e.code === '23P01' || e.message?.includes('no_overlapping_appointments')) {
-      showError(t('booking.slot_taken_error'))
-      await loadAvailableSlots()
-    } else {
-      showError(t('booking.booking_failed'))
-    }
-  }
-}
-
-
-
-function formatDateDisplay(date: Date) {
-  return date.toLocaleDateString(settingsStore.language, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
-
-function formatAddress(provider: Provider | null): string {
-  if (selectedAddressId.value && staffAddresses.value.length > 0) {
-    const selectedAddr = staffAddresses.value.find(a => a.id === selectedAddressId.value)
-    if (selectedAddr) {
-      return [
-        selectedAddr.label,
-        selectedAddr.street_address,
-        selectedAddr.city,
-        selectedAddr.state,
-        selectedAddr.postal_code
-      ].filter(p => p).join(', ')
-    }
-  }
-
-  if (!provider?.provider_addresses?.length) return 'No address provided'
-  const addr = provider.provider_addresses[0]
-  if (!addr) return 'No address provided'
-  
-  return [
-    addr.label,
-    addr.street_address,
-    addr.city,
-    addr.state,
-    addr.postal_code
-  ].filter(p => p).join(', ')
-}
-
-const rangeAppointments = ref<any[]>([])
-let realtimeChannel: any = null
-
-onUnmounted(() => {
-  if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel)
-  }
-})
-
-watch(selectedStaffId, async (newId) => {
-  if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel)
-    realtimeChannel = null
-  }
-
-  if (newId) {
-    selectedTime.value = ''
-    availableSlots.value = []
-    
-    const today = new Date()
-    const endDate = addDays(today, 60)
-    
-    await Promise.all([
-      staffStore.fetchAvailability(newId),
-      staffStore.fetchBlockedDates(newId),
-    ])
-
-    const fetchAppointments = async () => {
-        rangeAppointments.value = await appointmentStore.fetchStaffAppointments(
-        newId, 
-        format(today, 'yyyy-MM-dd'), 
-        format(endDate, 'yyyy-MM-dd')
-      )
-    }
-    await fetchAppointments()
-
-    realtimeChannel = supabase
-      .channel(`public:appointments:staff_id=eq.${newId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'appointments',
-          filter: `staff_id=eq.${newId}`
-        },
-        async () => {
-          await fetchAppointments()
-          if (selectedDate.value) {
-            await loadAvailableSlots()
-          }
-        }
-      )
-      .subscribe()
-    
-    if (!isDateAvailable(selectedDate.value)) {
-      const nextAvailable = availableDates.value.find(d => isDateAvailable(d))
-      if (nextAvailable) {
-        selectedDate.value = nextAvailable
-      }
-    }
-  }
-})
-
-const dayStatusMap = computed(() => {
-  if (!selectedService.value || !selectedStaffId.value) return {}
-  
-  const map: Record<string, 'Available' | 'Busy' | 'Unavailable'> = {}
-  
-  availableDates.value.forEach(date => {
-    const dateStr = format(date, 'yyyy-MM-dd')
-    const dayOfWeek = date.getDay()
-    const schedule = staffStore.availability.find(a => a.day_of_week === dayOfWeek)
-    
-    if (!schedule || !schedule.is_available) {
-      map[dateStr] = 'Unavailable'
-      return
-    }
-
-    const isBlocked = staffStore.blockedDates.some(block => {
-      return dateStr >= block.start_date && dateStr <= block.end_date
-    })
-    
-    if (isBlocked) {
-      map[dateStr] = 'Unavailable'
-      return
-    }
-
-    const dayAppointments = rangeAppointments.value.filter(a => 
-      a.appointment_date === dateStr
-    )
-
-    try {
-      const isAvailable = appointmentStore.checkAvailability(
-        selectedService.value,
-        [schedule],
-        dayAppointments,
-        date
-      )
-      map[dateStr] = isAvailable ? 'Available' : 'Busy'
-    } catch {
-       map[dateStr] = 'Available'
-    }
-  })
-  
-  return map
-})
-
-function getMapUrl(address: ProviderAddress): string {
-  const query = [
-    address.street_address,
-    address.city,
-    address.state,
-    address.postal_code
-  ].filter(Boolean).join(', ')
-  
-  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
-}
-
-function getDirectionsUrl(address: ProviderAddress): string {
-  const destination = [
-    address.street_address,
-    address.city,
-    address.state,
-    address.postal_code
-  ].filter(Boolean).join(', ')
-  
-  // Opens Google Maps centered on the destination
-  // On mobile, this opens the Maps app where user can easily tap "Directions"
-  // On desktop, user can click "Directions" button on the left panel
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}`
-}
-
-function isDateAvailable(date: Date): boolean {
-  return getDateStatus(date) === 'Available'
-}
-
-function getDateStatus(date: Date): 'Available' | 'Busy' | 'Unavailable' {
-  const dateStr = format(date, 'yyyy-MM-dd')
-  return dayStatusMap.value[dateStr] || 'Unavailable'
-}
-
-function resetBooking() {
-  bookingConfirmed.value = false
-  currentStep.value = 1
-  selectedServiceId.value = ''
-  selectedStaffId.value = ''
-  selectedDate.value = new Date()
-  selectedTime.value = ''
-  notes.value = ''
-  showLogin.value = false
+  await booking.submitBooking(showError, t)
 }
 
 async function handleLoginSuccess() {
-    await submitBooking()
+  await handleSubmit()
 }
 </script>
 
@@ -577,80 +73,30 @@ async function handleLoginSuccess() {
     <div class="max-w-4xl mx-auto">
       
       <!-- Provider Header -->
-      <!-- Provider Header -->
-      <header v-if="providerInfo" class="mb-8 text-center animate-in fade-in slide-in-from-top-4 duration-500">
-        <div v-if="providerInfo.logo_url" class="mb-4">
-            <img :src="providerInfo.logo_url" :alt="providerInfo.business_name" class="h-24 w-24 rounded-full mx-auto object-cover shadow-md border-4 border-white" />
+      <header v-if="booking.providerInfo.value" class="mb-8 text-center animate-in fade-in slide-in-from-top-4 duration-500">
+        <div v-if="booking.providerInfo.value.logo_url" class="mb-4">
+          <img :src="booking.providerInfo.value.logo_url" :alt="booking.providerInfo.value.business_name" class="h-24 w-24 rounded-full mx-auto object-cover shadow-md border-4 border-white" />
         </div>
-        <h1 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl mb-2">{{ providerInfo.business_name }}</h1>
-        <p v-if="providerInfo.description" class="text-lg text-gray-600 max-w-2xl mx-auto mb-2">{{ providerInfo.description }}</p>
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl mb-2">{{ booking.providerInfo.value.business_name }}</h1>
+        <p v-if="booking.providerInfo.value.description" class="text-lg text-gray-600 max-w-2xl mx-auto mb-2">{{ booking.providerInfo.value.description }}</p>
         <p class="text-sm text-gray-500">{{ $t('booking.subtitle') }}</p>
       </header>
 
       <!-- Confirmation Success -->
-      <div v-if="bookingConfirmed" class="max-w-xl mx-auto animate-in zoom-in duration-300">
-        <Card class="border-green-100 shadow-xl shadow-green-50">
-          <CardHeader class="text-center pb-2">
-            <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 class="h-8 w-8 text-green-600" />
-            </div>
-            <CardTitle class="text-2xl text-green-700">{{ $t('booking.confirmed_title') }}</CardTitle>
-            <CardDescription>{{ $t('booking.confirmed_desc', { email: authStore.customer?.email }) }}</CardDescription>
-          </CardHeader>
-          <CardContent class="grid gap-4 pt-4">
-            <div class="bg-gray-50 rounded-lg p-4 grid gap-3 text-sm border">
-              <div class="flex justify-between items-center">
-                <span class="text-gray-500">{{ $t('booking.steps.service') }}</span>
-                <span class="font-medium">{{ selectedService?.name }}</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-500">{{ $t('booking.steps.staff') }}</span>
-                <span class="font-medium">{{ selectedStaff?.name }}</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-500">{{ $t('booking.date_label') }}</span>
-                <span class="font-medium">{{ confirmedDate ? formatDateDisplay(confirmedDate) : '' }}</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-500">{{ $t('booking.time_label') }}</span>
-                <span class="font-medium">{{ confirmedTime }}</span>
-              </div>
-              <div class="border-t pt-2 mt-2 flex justify-between items-center">
-                <span class="text-gray-500">{{ $t('booking.location_label') }}</span>
-                <span class="font-medium text-right max-w-[200px] truncate" :title="formatAddress(providerInfo)">{{ formatAddress(providerInfo) }}</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-500">{{ $t('booking.price_label') }}</span>
-                <span class="font-bold text-primary-600">{{ settingsStore.formatPrice(selectedService?.price || 0) }}</span>
-              </div>
-              
-              <div v-if="selectedAddressObject" class="mt-4 w-full h-40 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                <iframe 
-                  :src="getMapUrl(selectedAddressObject)" 
-                  width="100%" 
-                  height="100%" 
-                  style="border:0;" 
-                  allowfullscreen 
-                  loading="lazy" 
-                  referrerpolicy="no-referrer-when-downgrade"
-                  class="w-full h-full"
-                ></iframe>
-              </div>
-              <a 
-                v-if="selectedAddressObject"
-                :href="getDirectionsUrl(selectedAddressObject)" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
-              >
-                <Navigation class="h-4 w-4" />
-                {{ $t('booking.get_directions') }}
-              </a>
-            </div>
-            <Button class="w-full mt-4" @click="resetBooking">{{ $t('booking.book_another') }}</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <BookingSuccessCard
+        v-if="booking.bookingConfirmed.value"
+        :selected-service="booking.selectedService.value"
+        :selected-staff="booking.selectedStaff.value"
+        :confirmed-date="booking.confirmedDate.value"
+        :confirmed-time="booking.confirmedTime.value"
+        :provider-info="booking.providerInfo.value"
+        :selected-address-object="booking.selectedAddressObject.value"
+        :format-date-display="booking.formatDateDisplay"
+        :format-address="booking.formatAddress"
+        :get-map-url="booking.getMapUrl"
+        :get-directions-url="booking.getDirectionsUrl"
+        @reset="booking.resetBooking"
+      />
 
       <!-- Booking Flow -->
       <div v-else class="max-w-3xl mx-auto">
@@ -658,7 +104,6 @@ async function handleLoginSuccess() {
         <nav aria-label="Progress" class="mb-8">
           <ol role="list" class="grid grid-cols-4 w-full relative">
             <li v-for="step in 4" :key="step" class="relative flex justify-center text-center">
-              <!-- Line Connector: Starts at center of this step, extends to center of next step -->
               <div 
                 class="absolute top-1/2 left-1/2 w-full -translate-y-1/2 pointer-events-none" 
                 v-if="step < 4"
@@ -666,16 +111,15 @@ async function handleLoginSuccess() {
                 <div class="h-0.5 w-full bg-gray-200"></div>
               </div>
               
-              <!-- Step Circle -->
               <a href="#" class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 bg-white hover:bg-gray-50"
                 :class="[
-                  step < currentStep ? 'border-primary-600 bg-primary-600' : '',
-                  step === currentStep ? 'border-primary-600' : 'border-gray-300'
+                  step < booking.currentStep.value ? 'border-primary-600 bg-primary-600' : '',
+                  step === Math.floor(booking.currentStep.value) ? 'border-primary-600' : 'border-gray-300'
                 ]"
-                @click.prevent="currentStep > step ? currentStep = step : null"
+                @click.prevent="booking.currentStep.value > step ? booking.currentStep.value = step : null"
               >
-                <CheckCircle2 v-if="step < currentStep" class="h-5 w-5 text-white" aria-hidden="true" />
-                <span v-else class="h-2.5 w-2.5 rounded-full" :class="step === currentStep ? 'bg-primary-600' : 'bg-transparent'" aria-hidden="true" />
+                <CheckCircle2 v-if="step < booking.currentStep.value" class="h-5 w-5 text-white" aria-hidden="true" />
+                <span v-else class="h-2.5 w-2.5 rounded-full" :class="step === Math.floor(booking.currentStep.value) ? 'bg-primary-600' : 'bg-transparent'" aria-hidden="true" />
               </a>
             </li>
           </ol>
@@ -685,395 +129,75 @@ async function handleLoginSuccess() {
         <Card class="shadow-lg border-t-4 border-t-primary-600">
           <div class="p-6 md:p-8">
             <!-- Step 1: Service Selection -->
-            <div v-if="currentStep === 1" class="animate-in fade-in slide-in-from-right-4 duration-300">
-              <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                <DollarSign class="h-6 w-6 text-primary-600" />
-                {{ $t('booking.choose_service') }}
-              </h2>
-              
-              <div v-if="filteredServices.length === 0" class="text-center py-12 text-gray-500">
-                {{ $t('booking.no_services') }}
-              </div>
-
-              <div v-else class="grid grid-cols-1 gap-4">
-                <div
-                  v-for="service in filteredServices"
-                  :key="service.id"
-                  class="bg-white rounded-lg border overflow-hidden shadow-sm transition-all cursor-pointer"
-                  :class="selectedServiceId === service.id ? 'border-primary-600 ring-1 ring-primary-600 shadow-md' : 'border-gray-300 hover:border-primary-400 hover:shadow-md'"
-                  @click="selectService(service.id)"
-                >
-                  <div class="flex flex-col sm:flex-row">
-                      <!-- Service Images -->
-                      <div v-if="service.images && service.images.length > 0" class="sm:w-1/3 h-48 sm:h-auto relative bg-gray-100">
-                          <img :src="service.images?.[0]?.url" class="w-full h-full object-cover absolute inset-0" :class="{'opacity-0': false}" />
-                          
-                          <!-- Simple Overlay count if more than 1 -->
-                          <div v-if="service.images.length > 1" class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                              +{{ service.images.length - 1 }}
-                          </div>
-                      </div>
-
-                      <div class="p-6 flex-1 flex flex-col justify-between">
-                        <div>
-                            <div class="flex justify-between items-start mb-2">
-                                <h3 class="text-lg font-bold text-gray-900">{{ service.name }}</h3>
-                                <div class="text-right">
-                                    <p class="text-lg font-bold text-primary-600">{{ settingsStore.formatPrice(service.price || 0) }}</p>
-                                    <p class="text-xs text-gray-500">{{ service.duration }} {{ $t('common.minutes') }}</p>
-                                </div>
-                            </div>
-                            <p class="text-sm text-gray-600 line-clamp-2 mb-4">{{ service.description }}</p>
-                        </div>
-                      </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                <Button 
-                  size="lg" 
-                  @click="confirmService" 
-                  :disabled="!selectedServiceId"
-                  class="font-semibold px-8"
-                >
-                  Continue <span class="ml-2">→</span>
-                </Button>
-              </div>
-            </div>
+            <BookingServiceStep
+              v-if="booking.currentStep.value === 1"
+              :services="booking.filteredServices.value"
+              :selected-service-id="booking.selectedServiceId.value"
+              @select="booking.selectService"
+              @confirm="booking.confirmService"
+            />
 
             <!-- Step 2: Staff Selection -->
-            <div v-if="currentStep === 2" class="animate-in fade-in slide-in-from-right-4 duration-300">
-              <Button variant="ghost" class="mb-4 pl-0 hover:bg-transparent hover:text-primary-600" @click="goBack">
-                <ArrowLeft class="mr-2 h-4 w-4" /> {{ $t('common.back') }}
-              </Button>
-              <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                <User class="h-6 w-6 text-primary-600" />
-                {{ $t('booking.select_staff') }}
-              </h2>
-
-              <div v-if="!selectedService?.staff || selectedService.staff.length === 0" class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                <div class="flex">
-                  <div class="flex-shrink-0">
-                    <!-- Warning Icon -->
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm text-yellow-700">
-                      {{ $t('booking.staff_unavailable_desc') }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div
-                  v-for="staff in selectedService.staff"
-                  :key="staff.id"
-                  @click="selectStaff(staff.id)"
-                  class="group relative flex items-center space-x-3 rounded-lg border px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 cursor-pointer transition-all"
-                  :class="selectedStaffId === staff.id ? 'border-primary-600 ring-1 ring-primary-600 bg-primary-50' : 'border-gray-300 bg-white hover:border-primary-400 hover:bg-gray-50'"
-                >
-                  <div class="h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold"
-                    :class="selectedStaffId === staff.id ? 'bg-primary-600 text-white' : 'bg-primary-100 text-primary-700'"
-                  >
-                    {{ staff.name.charAt(0) }}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <span class="absolute inset-0" aria-hidden="true" />
-                    <p class="text-sm font-medium text-gray-900 group-hover:text-primary-600">{{ staff.name }}</p>
-                    <p class="truncate text-xs text-gray-500">{{ staff.role === 'admin' ? 'Provider' : 'Staff Member' }}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                <Button 
-                  size="lg" 
-                  @click="confirmStaff" 
-                  :disabled="!selectedStaffId"
-                  class="font-semibold px-8"
-                >
-                  Continue <span class="ml-2">→</span>
-                </Button>
-              </div>
-            </div>
+            <BookingStaffStep
+              v-if="booking.currentStep.value === 2"
+              :staff="booking.selectedService.value?.staff || []"
+              :selected-staff-id="booking.selectedStaffId.value"
+              @select="booking.selectStaff"
+              @confirm="booking.confirmStaff"
+              @back="booking.goBack"
+            />
 
             <!-- Step 2.5: Location Selection -->
-            <div v-if="currentStep === 2.5" class="animate-in fade-in slide-in-from-right-4 duration-300">
-              <Button variant="ghost" class="mb-4 pl-0 hover:bg-transparent hover:text-primary-600" @click="currentStep = 2">
-                <ArrowLeft class="mr-2 h-4 w-4" /> {{ $t('common.back') }}
-              </Button>
-              <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                <MapPin class="h-6 w-6 text-primary-600" />
-                {{ $t('booking.select_location') }}
-              </h2>
-
-              <div class="grid grid-cols-1 gap-4">
-                <div
-                  v-for="address in staffAddresses"
-                  :key="address.id"
-                  @click="selectBranch(address.id)"
-                  class="group relative rounded-lg border px-6 py-5 shadow-sm cursor-pointer transition-all hover:bg-gray-50 bg-white"
-                  :class="selectedAddressId === address.id ? 'border-primary-600 ring-1 ring-primary-600' : 'border-gray-300 hover:border-primary-400'"
-                >
-                  <div class="flex flex-col md:flex-row gap-4">
-                    <div class="flex-1 flex items-start gap-4">
-                      <MapPin class="h-6 w-6 mt-1 flex-shrink-0" :class="selectedAddressId === address.id ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600'" />
-                      <div>
-                        <h3 class="font-semibold text-gray-900" :class="{'group-hover:text-primary-600': selectedAddressId !== address.id}">{{ address.label || 'Location' }}</h3>
-                        <p class="text-gray-600 text-sm mt-1">{{ address.street_address }}</p>
-                        <p class="text-gray-500 text-xs">{{ address.city }}, {{ address.state }} {{ address.postal_code }}</p>
-                      </div>
-                    </div>
-                    
-                    <!-- Map Preview -->
-                    <div class="w-full md:w-80 h-40 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                      <iframe 
-                        :src="getMapUrl(address)" 
-                        width="100%" 
-                        height="100%" 
-                        style="border:0;" 
-                        allowfullscreen 
-                        loading="lazy" 
-                        referrerpolicy="no-referrer-when-downgrade"
-                        class="w-full h-full"
-                      ></iframe>
-                    </div>
-                  </div>
-                  <a 
-                    :href="getDirectionsUrl(address)" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
-                    @click.stop
-                  >
-                    <Navigation class="h-4 w-4" />
-                    {{ $t('booking.get_directions') }}
-                  </a>
-                </div>
-              </div>
-
-              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                <Button 
-                  size="lg" 
-                  @click="confirmLocation" 
-                  :disabled="!selectedAddressId"
-                  class="font-semibold px-8"
-                >
-                  Continue <span class="ml-2">→</span>
-                </Button>
-              </div>
-            </div>
+            <BookingLocationStep
+              v-if="booking.currentStep.value === 2.5"
+              :addresses="booking.staffAddresses.value"
+              :selected-address-id="booking.selectedAddressId.value"
+              :get-map-url="booking.getMapUrl"
+              :get-directions-url="booking.getDirectionsUrl"
+              @select="booking.selectBranch"
+              @confirm="booking.confirmLocation"
+              @back="() => booking.currentStep.value = 2"
+            />
 
             <!-- Step 3: Date & Time -->
-            <div v-if="currentStep === 3" class="animate-in fade-in slide-in-from-right-4 duration-300">
-              <Button variant="ghost" class="mb-4 pl-0 hover:bg-transparent hover:text-primary-600" @click="goBack">
-                <ArrowLeft class="mr-2 h-4 w-4" /> {{ $t('common.back') }}
-              </Button>
-              
-              <div class="mb-6 pb-6 border-b border-gray-100">
-                <h2 class="text-2xl font-bold mb-2 flex items-center gap-2">
-                  <CalendarIcon class="h-6 w-6 text-primary-600" />
-                  {{ $t('booking.select_datetime') }}
-                </h2>
-                <div class="flex flex-wrap gap-2 mt-2">
-                  <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                    {{ selectedService?.name }}
-                  </span>
-                  <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700">
-                    {{ staffStore.staff.find(s => s.id === selectedStaffId)?.name }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- Date Picker -->
-                <div>
-                  <h3 class="font-medium text-gray-900 mb-3 ml-1">{{ $t('booking.choose_date') }}</h3>
-                  <div class="space-y-2 h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
-                    <button
-                      v-for="date in availableDates"
-                      :key="date.toISOString()"
-                      @click="isDateAvailable(date) ? selectedDate = date : null"
-                      :disabled="!isDateAvailable(date)"
-                      class="w-full flex items-center justify-between p-3 rounded-md border text-sm transition-all"
-                      :class="[
-                        format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-                          ? 'border-primary-600 bg-primary-50 ring-1 ring-primary-600 text-primary-900'
-                          : isDateAvailable(date)
-                            ? 'border-gray-200 hover:border-primary-300'
-                            : 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'
-                      ]"
-                    >
-                      <div class="flex items-center gap-3">
-                        <div class="flex flex-col items-center justify-center w-10 h-10 rounded bg-white border border-gray-100" :class="{'bg-primary-100 border-primary-200': format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')}">
-                          <span class="text-xs uppercase font-bold text-gray-500">{{ date.toLocaleDateString(settingsStore.language, { weekday: 'short' }) }}</span>
-                          <span class="font-bold text-gray-900">{{ date.getDate() }}</span>
-                        </div>
-                        <span class="font-medium">{{ date.toLocaleDateString(settingsStore.language, { month: 'long' }) }}</span>
-                      </div>
-                      
-                      <div v-if="!isDateAvailable(date)" class="text-xs font-medium text-gray-400">
-                        {{ getDateStatus(date) === 'Busy' ? $t('status.busy') : $t('booking.closed') }}
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Time Slots -->
-                <div>
-                  <h3 class="font-medium text-gray-900 mb-3 ml-1 flex items-center gap-2">
-                    <Clock class="h-4 w-4" />
-                    {{ $t('booking.available_times_header') }}
-                  </h3>
-                  
-                  <div v-if="loadingSlots" class="flex justify-center py-12">
-                    <Loader2 class="h-8 w-8 animate-spin text-primary-600" />
-                  </div>
-
-                  <div v-else-if="availableSlots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">
-                    <button
-                      v-for="slot in availableSlots"
-                      :key="slot.time"
-                      @click="slot.available ? selectedTime = slot.time : null"
-                      :disabled="!slot.available"
-                      class="relative px-3 py-2 text-sm font-medium text-center rounded border transition-all"
-                      :class="[
-                        selectedTime === slot.time
-                          ? 'bg-primary-600 text-white border-primary-600 shadow-md'
-                          : slot.available
-                            ? 'bg-white border-gray-200 hover:border-primary-300 hover:shadow-sm'
-                            : 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed'
-                      ]"
-                    >
-                      {{ slot.time }}
-                      <div v-if="!slot.available" class="absolute inset-0 flex items-center justify-center">
-                        <div class="h-px w-full bg-gray-300 rotate-12"></div>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div v-else class="text-center py-12 px-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                    <p class="text-gray-500 text-sm">
-                      {{ !isDateAvailable(selectedDate) 
-                          ? (getDateStatus(selectedDate) === 'Busy' ? $t('booking.fully_booked') : $t('booking.staff_unavailable_day')) 
-                          : $t('booking.no_slots') 
-                      }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                <Button 
-                  size="lg" 
-                  @click="selectDateTime" 
-                  :disabled="!selectedTime"
-                  class="font-semibold px-8"
-                >
-                  Continue <span class="ml-2">→</span>
-                </Button>
-              </div>
-            </div>
+            <BookingDateTimeStep
+              v-if="booking.currentStep.value === 3"
+              :selected-service="booking.selectedService.value"
+              :selected-staff-id="booking.selectedStaffId.value"
+              :available-dates="booking.availableDates.value"
+              :selected-date="booking.selectedDate.value"
+              :available-slots="booking.availableSlots.value"
+              :selected-time="booking.selectedTime.value"
+              :loading-slots="booking.loadingSlots.value"
+              :is-date-available="booking.isDateAvailable"
+              :get-date-status="booking.getDateStatus"
+              @update:selected-date="booking.selectedDate.value = $event"
+              @update:selected-time="booking.selectedTime.value = $event"
+              @confirm="booking.selectDateTime"
+              @back="booking.goBack"
+            />
 
             <!-- Step 4: Confirmation -->
-            <div v-if="currentStep === 4" class="animate-in fade-in slide-in-from-right-4 duration-300">
-              <Button variant="ghost" class="mb-4 pl-0 hover:bg-transparent hover:text-primary-600" @click="goBack">
-                <ArrowLeft class="mr-2 h-4 w-4" /> {{ $t('common.back') }}
-              </Button>
-              <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-                <CheckCircle2 class="h-6 w-6 text-primary-600" />
-                {{ $t('booking.confirm_title') }}
-              </h2>
-
-              <Alert v-if="errorMessage" variant="destructive" class="mb-6">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{{ errorMessage }}</AlertDescription>
-              </Alert>
-
-              <div class="bg-gray-50 rounded-lg p-6 mb-6 border border-gray-200">
-                <h3 class="font-semibold text-gray-900 mb-4 border-b pb-2">{{ $t('booking.summary_title') }}</h3>
-                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-sm">
-                  <div>
-                    <dt class="text-gray-500">{{ $t('booking.steps.service') }}</dt>
-                    <dd class="font-medium text-gray-900">{{ selectedService?.name }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-gray-500">{{ $t('booking.steps.staff') }}</dt>
-                    <dd class="font-medium text-gray-900">{{ selectedStaff?.name }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-gray-500">{{ $t('booking.date_label') }}</dt>
-                    <dd class="font-medium text-gray-900">{{ formatDateDisplay(selectedDate) }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-gray-500">{{ $t('booking.time_label') }}</dt>
-                    <dd class="font-medium text-gray-900">{{ selectedTime }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-gray-500">{{ $t('booking.price_label') }}</dt>
-                    <dd class="font-bold text-primary-600 text-lg">{{ settingsStore.formatPrice(selectedService?.price || 0) }}</dd>
-                  </div>
-                  <div class="sm:col-span-2 pt-2 mt-2 border-t border-gray-200">
-                    <dt class="text-gray-500">{{ $t('booking.location_label') }}</dt>
-                    <dd class="font-medium text-gray-900">{{ providerInfo?.business_name }}</dd>
-                    <dd class="text-gray-500 text-xs mt-1">{{ formatAddress(providerInfo) }}</dd>
-                    
-                    <div v-if="selectedAddressObject" class="mt-4 w-full h-48 bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                      <iframe 
-                        :src="getMapUrl(selectedAddressObject)" 
-                        width="100%" 
-                        height="100%" 
-                        style="border:0;" 
-                        allowfullscreen 
-                        loading="lazy" 
-                        referrerpolicy="no-referrer-when-downgrade"
-                        class="w-full h-full"
-                      ></iframe>
-                    </div>
-                    <a 
-                      v-if="selectedAddressObject"
-                      :href="getDirectionsUrl(selectedAddressObject)" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      class="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
-                    >
-                      <Navigation class="h-4 w-4" />
-                      {{ $t('booking.get_directions') }}
-                    </a>
-                  </div>
-                </dl>
-              </div>
-
-              <!-- Login Gate -->
-              <div v-if="showLogin" class="mt-8 animate-in fade-in zoom-in duration-300 max-w-md mx-auto">
-                 <Card class="border-2 border-primary-100 shadow-md">
-                   <CardHeader>
-                     <CardTitle class="text-xl">Authentication Required</CardTitle>
-                     <CardDescription>Please log in to finalize your booking</CardDescription>
-                   </CardHeader>
-                   <CardContent>
-                     <LoginForm :embedded="true" @success="handleLoginSuccess" />
-                   </CardContent>
-                 </Card>
-              </div>
-
-              <!-- Final Form -->
-              <form v-else @submit.prevent="submitBooking" class="space-y-6">
-                <div class="space-y-2">
-                  <Label for="notes">{{ $t('booking.notes_label') }}</Label>
-                  <Textarea
-                    id="notes"
-                    v-model="notes"
-                    :placeholder="$t('booking.notes_placeholder')"
-                  />
-                </div>
-
-                <Button type="submit" size="lg" class="w-full font-bold">
-                  {{ $t('booking.confirm_button') }}
-                </Button>
-              </form>
-            </div>
+            <BookingConfirmStep
+              v-if="booking.currentStep.value === 4"
+              :selected-service="booking.selectedService.value"
+              :selected-staff="booking.selectedStaff.value"
+              :selected-date="booking.selectedDate.value"
+              :selected-time="booking.selectedTime.value"
+              :provider-info="booking.providerInfo.value"
+              :selected-address-object="booking.selectedAddressObject.value"
+              :notes="booking.notes.value"
+              :show-login="booking.showLogin.value"
+              :error-message="errorMessage"
+              :format-date-display="booking.formatDateDisplay"
+              :format-address="booking.formatAddress"
+              :get-map-url="booking.getMapUrl"
+              :get-directions-url="booking.getDirectionsUrl"
+              @update:notes="booking.notes.value = $event"
+              @submit="handleSubmit"
+              @back="booking.goBack"
+              @login-success="handleLoginSuccess"
+            />
           </div>
         </Card>
       </div>

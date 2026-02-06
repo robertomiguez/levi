@@ -48,7 +48,7 @@ onMounted(async () => {
     promises.push(categoryStore.fetchCategories())
   }
   
-  if (authStore.provider && staffStore.staff.length === 0) {
+  if (authStore.provider) {
     promises.push(staffStore.fetchStaff(authStore.provider.id))
   }
   
@@ -268,7 +268,7 @@ async function handleSubmit() {
               min="0"
               step="0.01"
               required
-              class="pl-7"
+              :class="currencySymbol.length > 1 ? 'pl-12' : 'pl-7'"
             />
           </div>
         </div>

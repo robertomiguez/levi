@@ -100,7 +100,7 @@ async function handleSave() {
       await addressStore.createAddress({
         ...form.value,
         provider_id: authStore.provider.id,
-        is_primary: addressStore.addresses.length === 0 // First address is primary by default
+        is_primary: addressStore.addresses.length === 0
       })
     }
     modal.close()

@@ -9,7 +9,7 @@ import type { Provider, ProviderAddress } from '@/types'
 interface Service {
   id: string
   name: string
-  price: number
+  price?: number
 }
 
 interface Staff {
@@ -17,7 +17,7 @@ interface Staff {
   name: string
 }
 
-const props = defineProps<{
+defineProps<{
   selectedService: Service | undefined
   selectedStaff: Staff | undefined
   confirmedDate: Date | null

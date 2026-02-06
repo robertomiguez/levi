@@ -8,7 +8,7 @@ interface Staff {
   role?: string
 }
 
-const props = defineProps<{
+defineProps<{
   staff: Staff[]
   selectedStaffId: string
 }>()

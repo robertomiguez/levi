@@ -7,13 +7,13 @@ interface Service {
   id: string
   name: string
   description?: string
-  price: number
+  price?: number
   duration: number
   images?: { url: string }[]
   staff?: { id: string; name: string }[]
 }
 
-const props = defineProps<{
+defineProps<{
   services: Service[]
   selectedServiceId: string
 }>()

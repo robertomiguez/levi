@@ -12,11 +12,6 @@ interface Service {
   name: string
 }
 
-interface Staff {
-  id: string
-  name: string
-}
-
 const props = defineProps<{
   selectedService: Service | undefined
   selectedStaffId: string

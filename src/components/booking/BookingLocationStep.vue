@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { MapPin, ArrowLeft, Navigation } from 'lucide-vue-next'
 import type { ProviderAddress } from '@/types'
 
-const props = defineProps<{
+defineProps<{
   addresses: ProviderAddress[]
   selectedAddressId: string
   getMapUrl: (address: ProviderAddress) => string

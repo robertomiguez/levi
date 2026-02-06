@@ -12,7 +12,7 @@ import type { Provider, ProviderAddress } from '@/types'
 interface Service {
   id: string
   name: string
-  price: number
+  price?: number
 }
 
 interface Staff {
@@ -20,7 +20,7 @@ interface Staff {
   name: string
 }
 
-const props = defineProps<{
+defineProps<{
   selectedService: Service | undefined
   selectedStaff: Staff | undefined
   selectedDate: Date
@@ -29,7 +29,7 @@ const props = defineProps<{
   selectedAddressObject: ProviderAddress | null | undefined
   notes: string
   showLogin: boolean
-  errorMessage: string
+  errorMessage?: string | null
   formatDateDisplay: (date: Date) => string
   formatAddress: (provider: Provider | null) => string
   getMapUrl: (address: ProviderAddress) => string
@@ -135,7 +135,7 @@ const settingsStore = useSettingsStore()
         <Textarea
           id="notes"
           :model-value="notes"
-          @update:model-value="emit('update:notes', $event)"
+          @update:model-value="emit('update:notes', String($event))"
           :placeholder="$t('booking.notes_placeholder')"
         />
       </div>

@@ -291,7 +291,8 @@ Deno.serve(async (req) => {
             return 'usd';
         };
 
-        const targetCurrency = getCurrencyForLocale(stripeLocale);
+        // Use original locale for currency resolution, not the Stripe-normalized one
+        const targetCurrency = getCurrencyForLocale(locale || 'en');
         let currencyToUse = 'usd';
         let unitAmount = Math.round(plan.price_monthly * 100);
 

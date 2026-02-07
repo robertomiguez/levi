@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useNotifications } from '../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 
 const name = ref('')
 const phone = ref('')
 const loading = ref(false)
 const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
+
+// Get redirect destination from query parameter, default to root
+const redirectDestination = computed(() => {
+  return (route.query.redirect as string) || '/'
+})
 
 function populateForm() {
   if (authStore.customer) {
@@ -58,7 +64,8 @@ async function updateProfile() {
     showSuccess(t('profile.update_success'))
     
     if (isNewUser) {
-      router.push('/booking')
+      // Navigate to the redirect destination (booking or root)
+      router.push(redirectDestination.value)
     }
 
   } catch (error) {
@@ -134,7 +141,7 @@ async function updateProfile() {
 
             <button
               type="button"
-              @click="router.push('/booking')"
+              @click="router.push(redirectDestination)"
               class="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-md border border-gray-300 transition-all shadow-sm"
             >
               {{ $t('common.close') }}

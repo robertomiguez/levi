@@ -203,8 +203,8 @@ router.beforeEach(async (to, _from, next) => {
     if (authStore.isAuthenticated && !authStore.provider && to.path !== '/profile' && to.path !== '/provider/profile') {
         // Check if customer profile is incomplete
         if (authStore.customer && (!authStore.customer.name || !authStore.customer.phone)) {
-            // Skip for admin routes or provider routes
-            if (to.path.startsWith('/admin') || to.path.startsWith('/provider')) {
+            // Skip for admin routes, provider routes, or booking route (booking handles its own flow)
+            if (to.path.startsWith('/admin') || to.path.startsWith('/provider') || to.path === '/booking') {
                 return next()
             }
             return next('/profile')

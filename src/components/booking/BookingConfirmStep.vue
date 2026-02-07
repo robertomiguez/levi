@@ -34,6 +34,7 @@ defineProps<{
   formatAddress: (provider: Provider | null) => string
   getMapUrl: (address: ProviderAddress) => string
   getDirectionsUrl: (address: ProviderAddress) => string
+  saveBookingState?: () => void
 }>()
 
 const emit = defineEmits<{
@@ -123,7 +124,7 @@ const settingsStore = useSettingsStore()
           <CardDescription>Please log in to finalize your booking</CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm :embedded="true" @success="emit('loginSuccess')" />
+          <LoginForm :embedded="true" :on-before-o-auth-redirect="saveBookingState" @success="emit('loginSuccess')" />
         </CardContent>
       </Card>
     </div>

@@ -34,6 +34,27 @@ onMounted(async () => {
 function handleRedirect() {
     // Get redirect from query parameter (passed through OAuth flow)
     const redirect = route.query.redirect as string
+    const customer = authStore.customer
+    const isNewUser = !customer || !customer.name || !customer.phone
+
+    // Check for pending booking state - only if redirect was explicitly set to /booking
+    // This prevents stale booking state from hijacking normal logins
+    if (redirect === '/booking') {
+        const pendingBookingState = localStorage.getItem('pendingBookingState')
+        if (pendingBookingState) {
+            if (isNewUser) {
+                // New user in booking flow: go to profile first, then return to booking
+                router.push('/profile?redirect=/booking')
+            } else {
+                // Existing user in booking flow: go directly to booking to complete it
+                router.push('/booking')
+            }
+            return
+        }
+    } else {
+        // Clear any stale booking state if we're not in the booking flow
+        localStorage.removeItem('pendingBookingState')
+    }
 
     if (redirect === '/provider') {
         if (authStore.provider) {
@@ -43,21 +64,20 @@ function handleRedirect() {
             // New provider - go to pricing first to select a plan
             router.push('/provider/pricing')
         }
-    } else if (redirect) {
-        // Other specific redirect
+    } else if (redirect && redirect !== '/booking') {
+        // Other specific redirect (but not booking which we already handled above)
         router.push(redirect)
     } else if (authStore.provider) {
         // No redirect specified but user is a provider
         router.push('/provider/dashboard')
     } else {
-        // Customer flow - check if profile is complete
-        const customer = authStore.customer
-        if (customer && customer.name && customer.phone) {
+        // Customer flow from header/normal login
+        if (isNewUser) {
+            // New customer - go to profile page first, then root
+            router.push('/profile?redirect=/')
+        } else {
             // Existing customer with complete profile - go to root
             router.push('/')
-        } else {
-            // New customer or incomplete profile - go to profile page
-            router.push('/profile')
         }
     }
 }

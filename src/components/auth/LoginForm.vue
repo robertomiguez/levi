@@ -17,6 +17,7 @@ import { Loader2, Mail, ArrowLeft, RefreshCw } from 'lucide-vue-next'
 const props = defineProps<{
   redirect?: string
   embedded?: boolean
+  onBeforeOAuthRedirect?: () => void
 }>()
 
 const emit = defineEmits<{
@@ -73,8 +74,16 @@ function goBack() {
 }
 
 function handleGoogleSignIn() {
+  // Call the callback to save state before OAuth redirect
+  if (props.onBeforeOAuthRedirect) {
+    props.onBeforeOAuthRedirect()
+  }
+  
   // Get redirect from route query or props
-  const redirect = route.query.redirect as string || props.redirect
+  // Only redirect to /booking if we have a booking callback (i.e., we're in the booking flow)
+  // The presence of onBeforeOAuthRedirect indicates we're in the booking flow, not just `embedded`
+  const isInBookingFlow = !!props.onBeforeOAuthRedirect
+  const redirect = isInBookingFlow ? '/booking' : (route.query.redirect as string || props.redirect)
   authStore.signInWithOAuth(redirect)
 }
 </script>

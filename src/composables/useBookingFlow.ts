@@ -38,6 +38,11 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
   const rangeAppointments = ref<any[]>([])
   let realtimeChannel: any = null
 
+  // Pending booking state key for OAuth flow
+  const PENDING_BOOKING_KEY = 'pendingBookingState'
+  const restoredFromPending = ref(false)
+  let isRestoringState = false  // Flag to prevent watchers from clearing restored values
+
   // Computed
   const filteredServices = computed(() => {
     if (!selectedProviderId.value) return serviceStore.services
@@ -171,7 +176,10 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
         selectedDate.value
       )
       
-      selectedTime.value = ''
+      // Only clear time if not restoring from OAuth
+      if (!isRestoringState) {
+        selectedTime.value = ''
+      }
     } catch (e) {
       console.error('Error loading slots:', e)
       availableSlots.value = []
@@ -407,6 +415,84 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
     }
   }
 
+  // Pending booking state persistence for OAuth flow
+  function saveBookingState() {
+    const state = {
+      providerId: selectedProviderId.value,
+      serviceId: selectedServiceId.value,
+      staffId: selectedStaffId.value,
+      addressId: selectedAddressId.value,
+      date: selectedDate.value?.toISOString(),
+      time: selectedTime.value,
+      notes: notes.value,
+      step: currentStep.value,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(PENDING_BOOKING_KEY, JSON.stringify(state))
+  }
+
+  function restoreBookingState(): boolean {
+    try {
+      const saved = localStorage.getItem(PENDING_BOOKING_KEY)
+      if (!saved) return false
+
+      const state = JSON.parse(saved)
+      
+      // Check if state is stale (older than 30 minutes)
+      if (Date.now() - state.timestamp > 30 * 60 * 1000) {
+        clearPendingBookingState()
+        return false
+      }
+
+      // Set flag to prevent watchers from clearing values during restore
+      isRestoringState = true
+      
+      if (state.providerId !== undefined && state.providerId !== null) {
+        selectedProviderId.value = state.providerId
+      }
+      if (state.serviceId !== undefined && state.serviceId !== null) {
+        selectedServiceId.value = state.serviceId
+      }
+      if (state.staffId !== undefined && state.staffId !== null) {
+        selectedStaffId.value = state.staffId
+      }
+      if (state.addressId !== undefined && state.addressId !== null) {
+        selectedAddressId.value = state.addressId
+      }
+      if (state.date !== undefined && state.date !== null) {
+        selectedDate.value = new Date(state.date)
+      }
+      if (state.time !== undefined && state.time !== null) {
+        selectedTime.value = state.time
+      }
+      if (state.notes !== undefined && state.notes !== null) {
+        notes.value = state.notes
+      }
+      if (state.step !== undefined && state.step !== null) {
+        currentStep.value = state.step
+      }
+
+      // Clear flag after a short delay to ensure all watchers have processed
+      setTimeout(() => {
+        isRestoringState = false
+      }, 100)
+
+      // Clear the saved state
+      clearPendingBookingState()
+      restoredFromPending.value = true
+      return true
+    } catch (e) {
+      console.error('Error restoring booking state:', e)
+      isRestoringState = false
+      clearPendingBookingState()
+      return false
+    }
+  }
+
+  function clearPendingBookingState() {
+    localStorage.removeItem(PENDING_BOOKING_KEY)
+  }
+
   function resetBooking() {
     bookingConfirmed.value = false
     currentStep.value = 1
@@ -420,6 +506,10 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
 
   // Watchers
   watch([selectedServiceId, selectedStaffId, selectedDate], async ([serviceId, staffId, date]) => {
+    // Skip if we're restoring state from OAuth
+    if (isRestoringState) {
+      return
+    }
     if (serviceId && staffId && date) {
       await loadAvailableSlots()
     }
@@ -432,8 +522,11 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
     }
 
     if (newId) {
-      selectedTime.value = ''
-      availableSlots.value = []
+      // Skip clearing time if we're restoring state from OAuth
+      if (!isRestoringState) {
+        selectedTime.value = ''
+        availableSlots.value = []
+      }
       
       const today = new Date()
       const endDate = addDays(today, 60)
@@ -506,6 +599,7 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
     confirmedAppointmentId,
     confirmedDate,
     confirmedTime,
+    restoredFromPending,
     // Computed
     filteredServices,
     selectedService,
@@ -531,6 +625,9 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
     formatDateDisplay,
     formatAddress,
     submitBooking,
-    resetBooking
+    resetBooking,
+    saveBookingState,
+    restoreBookingState,
+    clearPendingBookingState
   }
 }

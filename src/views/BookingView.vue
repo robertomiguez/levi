@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useServiceStore } from '@/stores/useServiceStore'
 import { useStaffStore } from '@/stores/useStaffStore'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -19,6 +19,7 @@ import BookingConfirmStep from '@/components/booking/BookingConfirmStep.vue'
 import BookingSuccessCard from '@/components/booking/BookingSuccessCard.vue'
 
 const route = useRoute()
+const router = useRouter()
 const serviceStore = useServiceStore()
 const staffStore = useStaffStore()
 const authStore = useAuthStore()
@@ -29,8 +30,11 @@ const { errorMessage, showError, clearMessages } = useNotifications()
 const booking = useBookingFlow()
 
 onMounted(async () => {
-  const providerId = route.query.provider as string
-  const staffId = route.query.staff as string
+  // Check if we're returning from OAuth with pending booking state
+  const wasRestored = booking.restoreBookingState()
+  
+  const providerId = wasRestored ? booking.selectedProviderId.value : route.query.provider as string
+  const staffId = wasRestored ? booking.selectedStaffId.value : route.query.staff as string
 
   if (staffId) {
     const staffMember = await staffStore.fetchStaffMember(staffId)
@@ -53,8 +57,53 @@ onMounted(async () => {
     await authStore.createCustomerProfile()
   }
 
-  if (staffId && booking.filteredServices.value.length === 1) {
+  if (staffId && !wasRestored && booking.filteredServices.value.length === 1) {
     booking.selectService(booking.filteredServices.value[0]!.id)
+  }
+
+  // If we restored from OAuth, we need to auto-submit the booking
+  if (wasRestored) {
+    // Wait for auth store to fully load (including customer profile)
+    const completeBooking = async () => {
+      // Wait for auth to be ready - either already authenticated or wait for it
+      if (!authStore.isAuthenticated || authStore.loading) {
+        await new Promise<void>(resolve => {
+          const unwatch = authStore.$subscribe((_, state) => {
+            if (state.user && !state.loading) {
+              unwatch()
+              resolve()
+            }
+          })
+          // Check immediately in case already ready
+          if (authStore.user && !authStore.loading) {
+            unwatch()
+            resolve()
+          }
+        })
+      }
+      
+      // Ensure customer profile exists
+      if (!authStore.customer) {
+        await authStore.createCustomerProfile()
+      }
+      
+      // Wait for services to be available (retry up to 10 times with 100ms delay)
+      let retries = 0
+      while (!booking.selectedService.value && retries < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        retries++
+      }
+      
+      if (!booking.selectedService.value) {
+        showError('Failed to restore booking. Please try again.')
+        return
+      }
+      
+      // Now submit the booking
+      await handleSubmit()
+    }
+    
+    completeBooking()
   }
 })
 
@@ -64,6 +113,17 @@ async function handleSubmit() {
 }
 
 async function handleLoginSuccess() {
+  // Check if user has a complete profile (name and phone)
+  const customer = authStore.customer
+  if (!customer || !customer.name || !customer.phone) {
+    // New user or incomplete profile - redirect to profile first
+    // Save booking state so we can restore after profile completion
+    booking.saveBookingState()
+    router.push('/profile?redirect=/booking')
+    return
+  }
+  
+  // Existing user with complete profile - proceed with booking
   await handleSubmit()
 }
 </script>
@@ -193,6 +253,7 @@ async function handleLoginSuccess() {
               :format-address="booking.formatAddress"
               :get-map-url="booking.getMapUrl"
               :get-directions-url="booking.getDirectionsUrl"
+              :save-booking-state="booking.saveBookingState"
               @update:notes="booking.notes.value = $event"
               @submit="handleSubmit"
               @back="booking.goBack"

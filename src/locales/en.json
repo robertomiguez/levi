@@ -253,6 +253,7 @@
   "landing": {
     "hero_title": "Discover your perfect",
     "popular_in": "Popular in {location}",
+    "your_area": "your area",
     "no_providers_found": "No providers found",
     "adjust_search": "Try adjusting your search or filters",
     "how_it_works_title": "How It Works",

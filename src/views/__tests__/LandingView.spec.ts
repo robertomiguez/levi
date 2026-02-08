@@ -35,9 +35,11 @@ vi.mock('@/components/CategoryPills.vue', () => ({ default: { template: '<div>Ca
 vi.mock('@/components/ProviderCard.vue', () => ({ default: { template: '<div>Provider Card</div>' } }))
 
 // Mock useLocation
+import { ref } from 'vue'
 vi.mock('@/composables/useLocation', () => ({
     useLocation: () => ({
-        location: { value: 'Test City, TC' }
+        location: ref('Test City, TC'),
+        city: ref('Test City')
     })
 }))
 

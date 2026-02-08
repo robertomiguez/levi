@@ -45,13 +45,13 @@ const geolocationMock = {
   getCurrentPosition: vi.fn()
 }
 
-Object.defineProperty(global.navigator, 'geolocation', {
+Object.defineProperty(window.navigator, 'geolocation', {
   value: geolocationMock,
   writable: true
 })
 
 // Mock global fetch for reverse geocoding
-global.fetch = vi.fn()
+globalThis.fetch = vi.fn()
 
 // Import AFTER mocks
 import { useLocation } from '../useLocation'
@@ -124,7 +124,7 @@ describe('useLocation', () => {
     })
 
     // Mock Nominatim response
-    ;(global.fetch as any).mockResolvedValue({
+    ;(globalThis.fetch as any).mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
         address: {

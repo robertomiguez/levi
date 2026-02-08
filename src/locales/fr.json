@@ -100,6 +100,7 @@
   "landing": {
     "hero_title": "Découvrez votre",
     "popular_in": "Populaire à {location}",
+    "your_area": "votre région",
     "no_providers_found": "Aucun prestataire trouvé",
     "adjust_search": "Essayez d'ajuster votre recherche ou vos filtres",
     "how_it_works_title": "Comment ça marche",

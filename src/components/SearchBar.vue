@@ -1,17 +1,33 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Search, ChevronDown, MapPin, Clock } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { useLocation } from '@/composables/useLocation'
+
+const props = defineProps<{
+  initialLocation?: string
+}>()
 
 const emit = defineEmits<{
   search: [{ location: string; service: string; time: string }]
 }>()
 
 const { t } = useI18n()
-const location = ref('')
+const { location: userLocation } = useLocation()
+
+const location = ref(props.initialLocation || '')
 const service = ref('')
 const time = ref(t('search.time_anytime'))
+
+import { watch } from 'vue'
+watch(() => props.initialLocation, (newVal) => {
+  if (newVal !== undefined) {
+    location.value = newVal
+  }
+})
+
+const locationPlaceholder = computed(() => userLocation.value || t('search.location_placeholder'))
 
 const timeOptions = [
   { value: t('search.time_anytime'), label: t('search.time_anytime') },
@@ -39,7 +55,7 @@ function handleSearch() {
         <input
           v-model="location"
           type="text"
-          :placeholder="$t('search.location_placeholder')"
+          :placeholder="locationPlaceholder"
           class="w-full outline-none text-gray-900 placeholder-gray-400 bg-transparent text-sm font-medium"
         />
       </div>

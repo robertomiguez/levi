@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import SearchBar from '../components/SearchBar.vue'
 import CategoryPills from '../components/CategoryPills.vue'
 import ProviderCard from '../components/ProviderCard.vue'
 import { supabase } from '../lib/supabase'
+import { useLocation } from '../composables/useLocation'
 import type { Provider, ProviderAddress, Category } from '../types'
 import { Search } from 'lucide-vue-next'
 
@@ -15,12 +17,25 @@ import heroMassage from '@/assets/images/hero_massage_service_1765116300777.png'
 import heroSpa from '@/assets/images/hero_spa_service_1765116318055.png'
 
 const router = useRouter()
+const { t } = useI18n()
+const { location: userLocation, city: userCity } = useLocation()
+
+// Computed property for display location with fallback
+const displayLocation = computed(() => userLocation.value || t('landing.your_area'))
 
 const providers = ref<(Provider & { provider_addresses?: ProviderAddress[]; categories?: string[] })[]>([])
 const categories = ref<Category[]>([])
 const selectedCategory = ref<string | null>(null)
 const searchParams = ref({ location: '', service: '', time: 'Anytime' })
 const loading = ref(false)
+
+// Watch for location updates and apply to search automatically
+import { watch } from 'vue'
+watch(userCity, (newCity) => {
+  if (newCity && !searchParams.value.location) {
+    searchParams.value.location = newCity
+  }
+}, { immediate: true })
 
 // Rotating hero content
 const heroOptions = [
@@ -173,6 +188,11 @@ function handleCategorySelect(categoryId: string | null) {
   selectedCategory.value = categoryId
   scrollToResults()
 }
+
+function handleSeeAll() {
+  searchParams.value.location = ''
+  scrollToResults()
+}
 </script>
 
 <template>
@@ -190,7 +210,7 @@ function handleCategorySelect(categoryId: string | null) {
           </h1>
           
           <!-- Search Bar -->
-          <SearchBar @search="handleSearch" />
+          <SearchBar :initial-location="searchParams.location" @search="handleSearch" />
           
           <!-- Category Pills -->
           <div class="mt-10">
@@ -208,10 +228,13 @@ function handleCategorySelect(categoryId: string | null) {
     <div ref="resultsSection" class="max-w-7xl mx-auto px-6 py-12 scroll-mt-24">
       <div class="mb-8">
         <h2 class="text-3xl font-bold text-gray-900 mb-2">
-          {{ $t('landing.popular_in', { location: 'San Francisco, CA' }) }}
-          <a href="#" class="text-base font-normal text-primary-600 hover:text-primary-700 ml-4">
+          {{ $t('landing.popular_in', { location: displayLocation }) }}
+          <span 
+            @click="handleSeeAll"
+            class="text-base font-normal text-primary-600 hover:text-primary-700 ml-4 cursor-pointer hover:underline"
+          >
             {{ $t('nav.see_all') }} →
-          </a>
+          </span>
         </h2>
       </div>
 

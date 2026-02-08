@@ -34,6 +34,20 @@ vi.mock('@/components/SearchBar.vue', () => ({ default: { template: '<div>Search
 vi.mock('@/components/CategoryPills.vue', () => ({ default: { template: '<div>Category Pills</div>' } }))
 vi.mock('@/components/ProviderCard.vue', () => ({ default: { template: '<div>Provider Card</div>' } }))
 
+// Mock useLocation
+vi.mock('@/composables/useLocation', () => ({
+    useLocation: () => ({
+        location: { value: 'Test City, TC' }
+    })
+}))
+
+// Mock vue-i18n
+vi.mock('vue-i18n', () => ({
+    useI18n: () => ({
+        t: (key: string) => key
+    })
+}))
+
 describe('LandingView', () => {
     const router = createRouter({
         history: createWebHistory(),

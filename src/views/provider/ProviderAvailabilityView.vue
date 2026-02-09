@@ -279,6 +279,21 @@ async function addBlockedDate() {
   clearMessages()
   timeOffConflicts.value = []
   
+  const start = parseISO(blockForm.value.start_date)
+  const end = parseISO(blockForm.value.end_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (end < start) {
+    showError(t('provider.availability.error_end_date_before_start'))
+    return
+  }
+
+  if (start < today) {
+    showError(t('provider.availability.error_past_dates'))
+    return
+  }
+  
   try {
     console.log('Checking for conflicts...')
     // Fetch actual appointments in the date range
@@ -463,8 +478,8 @@ async function handleDeleteBlockedDate(id: string) {
                 </button>
                 <p class="font-medium text-gray-900">{{ block.reason || $t('provider.availability.time_off') }}</p>
                 <p class="text-sm text-gray-600">
-                  {{ new Date(block.start_date).toLocaleDateString() }} - 
-                  {{ new Date(block.end_date).toLocaleDateString() }}
+                  {{ parseISO(block.start_date).toLocaleDateString() }} - 
+                  {{ parseISO(block.end_date).toLocaleDateString() }}
                 </p>
               </div>
             </div>

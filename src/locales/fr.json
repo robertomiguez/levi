@@ -425,7 +425,9 @@
       "reason_label": "Motif",
       "start_date": "Date de début",
       "end_date": "Date de fin",
-      "closed": "Fermé"
+      "closed": "Fermé",
+      "error_end_date_before_start": "La date de fin ne peut pas être antérieure à la date de début.",
+      "error_past_dates": "Les dates bloquées ne peuvent pas être dans le passé."
     },
     "services": {
       "title": "Mes services",

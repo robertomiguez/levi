@@ -483,7 +483,9 @@
       "reason_label": "Reason",
       "start_date": "Start Date",
       "end_date": "End Date",
-      "closed": "Closed"
+      "closed": "Closed",
+      "error_end_date_before_start": "End date cannot be before start date.",
+      "error_past_dates": "Blocked dates cannot be in the past."
     },
     "services": {
       "title": "My Services",

@@ -116,6 +116,10 @@ export interface BlockedDate {
     provider_id?: string // References providers table
     start_date: string // YYYY-MM-DD
     end_date: string // YYYY-MM-DD
+    start_time?: string // HH:mm:ss
+    end_time?: string // HH:mm:ss
+    recurrence_rule?: string // RRule string
+    title?: string
     reason?: string
 }
 

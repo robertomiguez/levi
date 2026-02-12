@@ -14,7 +14,13 @@
     "minutes": "minutes",
     "select": "Sélectionner",
     "remove": "Supprimer",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "date": "Date",
+    "end_date": "Date de fin",
+    "start_time": "Heure de début",
+    "end_time": "Heure de fin",
+    "description": "Description",
+    "ok": "OK"
   },
   "auth": {
     "login": "Connexion",
@@ -303,12 +309,22 @@
     "booking_failed": "Échec de la réservation. Veuillez réessayer.",
     "summary_title": "Résumé de la réservation",
     "closed": "Fermé",
-    "available_times_header": "Temps disponibles",
-    "get_directions": "Itinéraire"
-  },
+      "available_times_header": "Temps disponibles",
+      "get_directions": "Itinéraire"
+    },
   "calendar": {
     "title": "Calendrier",
-    "subtitle": "Visualiser et gérer les rendez-vous",
+    "subtitle": "Voir et gérer les rendez-vous",
+    "block_time": "Bloquer l'heure",
+    "event_title": "Titre de l'événement",
+    "all_day": "Toute la journée",
+    "repeat": "Répéter",
+    "does_not_repeat": "Ne se répète pas",
+    "daily": "Tous les jours",
+    "weekly": "Toutes les semaines",
+    "repeat_on": "Répéter le",
+    "blocked": "Bloqué",
+    "no_events": "Aucun événement pour ce jour",
     "day": "Jour",
     "week": "Semaine",
     "month": "Mois",
@@ -324,7 +340,9 @@
     "delete_confirm_msg": "Êtes-vous sûr de vouloir supprimer définitivement ce rendez-vous ? Cette action est irréversible.",
     "cancel_success": "Rendez-vous annulé",
     "delete_success": "Rendez-vous supprimé",
-    "action_failed": "Échec du traitement de la demande"
+    "action_failed": "Échec du traitement de la demande",
+    "conflict_title": "Impossible de bloquer",
+    "conflict_error": "Impossible de bloquer : Ce membre du personnel a des rendez-vous existants pendant cette période."
   },
   "my_bookings": {
     "title": "Mes réservations",
@@ -513,7 +531,8 @@
       }
     },
     "blocked_date": {
-      "title": "Ajouter une période bloquée",
+      "title": "Période bloquée",
+      "details_title": "Détails de la période bloquée",
       "start_date": "Date de début *",
       "end_date": "Date de fin *",
       "reason": "Motif (facultatif)",

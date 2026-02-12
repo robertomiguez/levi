@@ -19,7 +19,13 @@
     "save_profile": "Salvar Perfil",
     "update_profile": "Atualizar Perfil",
     "complete_profile": "Completar Perfil",
-    "error_occurred": "Ocorreu um erro. Por favor, tente novamente."
+    "error_occurred": "Ocorreu um erro. Por favor, tente novamente.",
+    "date": "Data",
+    "end_date": "Data Final",
+    "start_time": "Início",
+    "end_time": "Fim",
+    "description": "Descrição",
+    "ok": "OK"
   },
   "auth": {
     "login": "Entrar",
@@ -321,6 +327,16 @@
   "calendar": {
     "title": "Calendário",
     "subtitle": "Veja e gerencie agendamentos",
+    "block_time": "Bloquear Horário",
+    "event_title": "Título do Evento",
+    "all_day": "Dia Inteiro",
+    "repeat": "Repetir",
+    "does_not_repeat": "Não repete",
+    "daily": "Diariamente",
+    "weekly": "Semanalmente",
+    "repeat_on": "Repetir em",
+    "blocked": "Bloqueado",
+    "no_events": "Nenhum evento neste dia",
     "day": "Dia",
     "week": "Semana",
     "month": "Mês",
@@ -336,7 +352,9 @@
     "delete_confirm_msg": "Tem certeza de que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.",
     "cancel_success": "Agendamento cancelado",
     "delete_success": "Agendamento excluído",
-    "action_failed": "Falha ao processar solicitação"
+    "action_failed": "Falha ao processar solicitação",
+    "conflict_title": "Não foi possível bloquear",
+    "conflict_error": "Não é possível bloquear: Este membro da equipe tem agendamentos existentes neste período."
   },
   "my_bookings": {
     "title": "Meus Agendamentos",
@@ -526,7 +544,8 @@
       }
     },
     "blocked_date": {
-      "title": "Adicionar Período Bloqueado",
+      "title": "Período Bloqueado",
+      "details_title": "Detalhes do Bloqueio",
       "start_date": "Data Inicial *",
       "end_date": "Data Final *",
       "reason": "Motivo (Opcional)",

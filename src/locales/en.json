@@ -20,7 +20,13 @@
     "save_profile": "Save Profile",
     "update_profile": "Update Profile",
     "complete_profile": "Complete Profile",
-    "error_occurred": "An error occurred. Please try again."
+    "error_occurred": "An error occurred. Please try again.",
+    "date": "Date",
+    "end_date": "End Date",
+    "start_time": "Start Time",
+    "end_time": "End Time",
+    "description": "Description",
+    "ok": "OK"
   },
   "auth": {
     "login": "Log In",
@@ -367,6 +373,16 @@
   "calendar": {
     "title": "Calendar",
     "subtitle": "View and manage appointments",
+    "block_time": "Block Time",
+    "event_title": "Event Title",
+    "all_day": "All Day",
+    "repeat": "Repeat",
+    "does_not_repeat": "Does not repeat",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "repeat_on": "Repeat on",
+    "blocked": "Blocked",
+    "no_events": "No events for this day",
     "day": "Day",
     "week": "Week",
     "month": "Month",
@@ -382,7 +398,9 @@
     "delete_confirm_msg": "Are you sure you want to permanently delete this appointment? This action cannot be undone.",
     "cancel_success": "Appointment cancelled",
     "delete_success": "Appointment deleted",
-    "action_failed": "Failed to process request"
+    "action_failed": "Failed to process request",
+    "conflict_title": "Unable to Block Time",
+    "conflict_error": "Cannot block time: This staff member has existing appointments during this period."
   },
   "my_bookings": {
     "title": "My Bookings",
@@ -572,7 +590,8 @@
       }
     },
     "blocked_date": {
-      "title": "Add Blocked Period",
+      "title": "Blocked Period",
+      "details_title": "Blocked Period Details",
       "start_date": "Start Date *",
       "end_date": "End Date *",
       "reason": "Reason (Optional)",

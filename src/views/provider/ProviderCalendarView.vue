@@ -1,214 +1,589 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useAuthStore } from '../../stores/useAuthStore'
-import { useRouter } from 'vue-router'
-import { supabase } from '../../lib/supabase'
-import type { Staff } from '../../types'
-import { format } from 'date-fns'
-import { useSettingsStore } from '../../stores/useSettingsStore'
-import AppointmentDetailsModal from '../../components/provider/AppointmentDetailsModal.vue'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-vue-next'
+import { ref, onMounted, computed } from "vue";
+import { useAuthStore } from "../../stores/useAuthStore";
+import { useRouter } from "vue-router";
+import { supabase } from "../../lib/supabase";
+import type { Staff, BlockedDate, Availability } from "../../types";
+import {
+  format,
+  parseISO,
+  isSameDay,
+  addMinutes,
+  differenceInMinutes,
+  getDay,
+} from "date-fns";
+import { useSettingsStore } from "../../stores/useSettingsStore";
+import AppointmentDetailsModal from "../../components/provider/AppointmentDetailsModal.vue";
+import BlockTimeModal from "../../components/provider/BlockTimeModal.vue";
+import BlockDetailsModal from "../../components/provider/BlockDetailsModal.vue";
+import * as availabilityService from "../../services/availabilityService";
+import ConfirmationModal from "@/components/common/ConfirmationModal.vue";
+import { useI18n } from "vue-i18n";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-vue-next";
+import { rrulestr } from "rrule";
 
-const authStore = useAuthStore()
-const router = useRouter()
-const settingsStore = useSettingsStore()
+const authStore = useAuthStore();
+const router = useRouter();
+const settingsStore = useSettingsStore();
 
-const staff = ref<Staff[]>([])
-const selectedStaffId = ref<string>('all')
-const currentDate = ref(new Date())
-const view = ref<'month' | 'week' | 'day'>('week')
-const appointments = ref<any[]>([])
-const loading = ref(false)
+const staff = ref<Staff[]>([]);
+const selectedStaffId = ref<string>("all");
+const currentDate = ref(new Date());
+const view = ref<"month" | "week" | "day">("week");
+const appointments = ref<any[]>([]);
+const blockedDates = ref<BlockedDate[]>([]);
+const availabilities = ref<Availability[]>([]);
+const expandedBlocks = ref<any[]>([]);
+const loading = ref(false);
 
 // Calendar generation helpers
 const calendarDays = computed(() => {
-  const year = currentDate.value.getFullYear()
-  const month = currentDate.value.getMonth()
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  
-  const days = []
-  
+  const year = currentDate.value.getFullYear();
+  const month = currentDate.value.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  const days = [];
+
   // Padding for start of month
   for (let i = 0; i < firstDay.getDay(); i++) {
-    const date = new Date(year, month, -i)
-    days.unshift({ date, isCurrentMonth: false })
+    const date = new Date(year, month, -i);
+    days.unshift({ date, isCurrentMonth: false });
   }
-  
+
   // Days of current month
   for (let i = 1; i <= lastDay.getDate(); i++) {
-    days.push({ date: new Date(year, month, i), isCurrentMonth: true })
+    days.push({ date: new Date(year, month, i), isCurrentMonth: true });
   }
-  
+
   // Padding for end of month
-  const remainingDays = 42 - days.length
+  const remainingDays = 42 - days.length;
   for (let i = 1; i <= remainingDays; i++) {
-    days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false })
+    days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
   }
-  
-  return days
-})
+
+  return days;
+});
 
 const weekDays = computed(() => {
-  const curr = new Date(currentDate.value)
-  const week = []
-  
+  const curr = new Date(currentDate.value);
+  const week = [];
+
   // Start from Sunday
-  curr.setDate(curr.getDate() - curr.getDay())
-  
+  curr.setDate(curr.getDate() - curr.getDay());
+
   for (let i = 0; i < 7; i++) {
-    week.push(new Date(curr))
-    curr.setDate(curr.getDate() + 1)
+    week.push(new Date(curr));
+    curr.setDate(curr.getDate() + 1);
   }
-  
-  return week
-})
+
+  return week;
+});
+
+// Time Grid Helpers
+const PIXELS_PER_HOUR = 60;
+const calendarStartHour = ref(0);
+const calendarEndHour = ref(23);
+
+const HOURS = computed(() => {
+  const hours = [];
+  for (let i = calendarStartHour.value; i <= calendarEndHour.value; i++) {
+    hours.push(i);
+  }
+  if (hours.length === 0) return Array.from({ length: 24 }, (_, i) => i);
+  return hours;
+});
+
+function getEventStyle(event: any) {
+  const start = event.start;
+  const end = event.end;
+  const startMinutes = start.getHours() * 60 + start.getMinutes();
+
+  // Adjust relative to calendar start
+  const rangeStartMinutes = calendarStartHour.value * 60;
+  const topMinutes = startMinutes - rangeStartMinutes;
+
+  const durationMinutes = differenceInMinutes(end, start);
+
+  return {
+    top: `${(topMinutes / 60) * PIXELS_PER_HOUR}px`,
+    height: `${(durationMinutes / 60) * PIXELS_PER_HOUR}px`,
+    position: "absolute" as const,
+    left: "2px",
+    right: "2px",
+  };
+}
 
 onMounted(async () => {
   if (!authStore.provider) {
-    router.push('/booking')
-    return
+    router.push("/booking");
+    return;
   }
-  await fetchStaff()
-  await fetchAppointments()
-})
+  await fetchStaff();
+  await calculateGlobalRange();
+  await refreshData();
+});
+
+async function calculateGlobalRange() {
+  const staffIds = staff.value.map((s) => s.id);
+  if (staffIds.length === 0) return;
+
+  const { data } = await supabase
+    .from("availability")
+    .select("start_time, end_time, is_available")
+    .in("staff_id", staffIds)
+    .eq("is_available", true);
+
+  if (!data || data.length === 0) return;
+
+  let minH = 24;
+  let maxH = 0;
+
+  data.forEach((a) => {
+    const startH = parseInt(a.start_time.split(":")[0]);
+    const endH = parseInt(a.end_time.split(":")[0]);
+    const endM = parseInt(a.end_time.split(":")[1]);
+
+    if (startH < minH) minH = startH;
+
+    let effectiveEnd = endH;
+    if (endM > 0) effectiveEnd += 1;
+
+    if (effectiveEnd > maxH) maxH = effectiveEnd;
+  });
+
+  if (minH < maxH) {
+    calendarStartHour.value = minH;
+    calendarEndHour.value = maxH;
+  }
+}
 
 async function fetchStaff() {
   const { data } = await supabase
-    .from('staff')
-    .select('*')
-    .eq('provider_id', authStore.provider?.id)
-    .eq('active', true)
-    .order('name')
-  
-  staff.value = data || []
+    .from("staff")
+    .select("*")
+    .eq("provider_id", authStore.provider?.id)
+    .eq("active", true)
+    .order("name");
+
+  staff.value = data || [];
+}
+
+async function refreshData() {
+  await Promise.all([
+    fetchAppointments(),
+    fetchBlockedDates(),
+    fetchAvailabilities(),
+  ]);
+}
+
+async function fetchAvailabilities() {
+  if (selectedStaffId.value === "all") {
+    const allAvail: Availability[] = [];
+    for (const s of staff.value) {
+      const av = await availabilityService.fetchAvailability(s.id);
+      allAvail.push(...av);
+    }
+    availabilities.value = allAvail;
+  } else {
+    availabilities.value = await availabilityService.fetchAvailability(
+      selectedStaffId.value,
+    );
+  }
 }
 
 async function fetchAppointments() {
-  loading.value = true
+  loading.value = true;
   try {
     let query = supabase
-      .from('appointments')
-      .select(`
+      .from("appointments")
+      .select(
+        `
         *,
         services!inner (name, duration),
         customers (name, phone, email),
         staff!inner (name, provider_id)
-      `)
-      .eq('services.provider_id', authStore.provider?.id)
-      .eq('staff.provider_id', authStore.provider?.id)
+      `,
+      )
+      .eq("services.provider_id", authStore.provider?.id)
+      .eq("staff.provider_id", authStore.provider?.id);
 
-    if (selectedStaffId.value !== 'all') {
-      query = query.eq('staff_id', selectedStaffId.value)
+    if (selectedStaffId.value !== "all") {
+      query = query.eq("staff_id", selectedStaffId.value);
     }
 
     // Date range filter based on view
-    const start = new Date(currentDate.value)
-    const end = new Date(currentDate.value)
-
-    if (view.value === 'month') {
-      start.setDate(1)
-      end.setMonth(end.getMonth() + 1)
-      end.setDate(0)
-    } else if (view.value === 'week') {
-      start.setDate(start.getDate() - start.getDay())
-      end.setDate(end.getDate() + (6 - end.getDay()))
-    } else {
-      // Day view
-    }
+    const { start, end } = getViewDateRange();
 
     const { data, error } = await query
-      .gte('appointment_date', format(start, 'yyyy-MM-dd'))
-      .lte('appointment_date', format(end, 'yyyy-MM-dd'))
+      .gte("appointment_date", format(start, "yyyy-MM-dd"))
+      .lte("appointment_date", format(end, "yyyy-MM-dd"));
 
-    if (error) throw error
-    appointments.value = data || []
+    if (error) throw error;
+    appointments.value = data || [];
   } catch (e) {
-    console.error('Error fetching appointments:', e)
+    console.error("Error fetching appointments:", e);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-function getAppointmentsForDate(date: Date) {
-  const dateStr = format(date, 'yyyy-MM-dd')
-  return appointments.value.filter(apt => apt.appointment_date === dateStr)
+async function fetchBlockedDates() {
+  if (selectedStaffId.value === "all") {
+    // For now, if 'all' is selected, maybe we fetch for all staff?
+    // Or just don't show blocks for 'all' to avoid clutter/confusion?
+    // Let's fetch for all active staff
+    // Implementation detail: availabilityService.fetchBlockedDates normally takes one ID.
+    // We might need to iterate or update service. For now let's just loop.
+    const allBlocks = [];
+    for (const s of staff.value) {
+      const blocks = await availabilityService.fetchBlockedDates(s.id);
+      allBlocks.push(...blocks);
+    }
+    blockedDates.value = allBlocks;
+  } else {
+    blockedDates.value = await availabilityService.fetchBlockedDates(
+      selectedStaffId.value,
+    );
+  }
+  expandBlockedDates();
 }
 
-function formatTime(time: string) {
-  return new Date(`2000-01-01T${time}`).toLocaleTimeString([], { 
-    hour: 'numeric', 
-    minute: '2-digit' 
-  })
+function getViewDateRange() {
+  const start = new Date(currentDate.value);
+  const end = new Date(currentDate.value);
+
+  if (view.value === "month") {
+    start.setDate(1);
+    end.setMonth(end.getMonth() + 1);
+    end.setDate(0);
+  } else if (view.value === "week") {
+    start.setDate(start.getDate() - start.getDay());
+    end.setDate(end.getDate() + (6 - end.getDay()));
+  } else {
+    // Day view
+  }
+  return { start, end };
 }
+
+function formatEventTimeRange(event: any) {
+  if (!event.start) return "";
+  const startStr = formatTimeDisplay(event.start);
+  if (!event.end) return startStr;
+  return `${startStr} - ${formatTimeDisplay(event.end)}`;
+}
+
+function isDateWorkable(date: Date) {
+  const dayOfWeek = getDay(date);
+
+  if (selectedStaffId.value === "all") {
+    // Check if ANY staff is available
+    return availabilities.value.some(
+      (a) => a.day_of_week === dayOfWeek && a.is_available,
+    );
+  }
+
+  return availabilities.value.some(
+    (a) =>
+      a.staff_id === selectedStaffId.value &&
+      a.day_of_week === dayOfWeek &&
+      a.is_available,
+  );
+}
+
+function expandBlockedDates() {
+  const { start, end } = getViewDateRange();
+  const blocks: any[] = [];
+
+  blockedDates.value.forEach((block) => {
+    // Resolve staffName
+    const staffName = staff.value.find((s) => s.id === block.staff_id)?.name;
+
+    // If it has a recurrence rule
+    if (block.recurrence_rule) {
+      try {
+        const blockStart = parseISO(
+          block.start_date + "T" + (block.start_time || "00:00:00"),
+        );
+        const blockEnd = parseISO(
+          block.start_date + "T" + (block.end_time || "00:00:00"),
+        );
+        const duration = differenceInMinutes(blockEnd, blockStart);
+
+        const rule = rrulestr(block.recurrence_rule, { dtstart: blockStart });
+        const occurrences = rule.between(start, end, true);
+
+        occurrences.forEach((date) => {
+          // Check availability
+          const dayOfWeek = getDay(date);
+          const staffId = block.staff_id;
+
+          const staffAvail = availabilities.value.filter(
+            (a) => a.staff_id === staffId && a.day_of_week === dayOfWeek,
+          );
+          const isWorkable = staffAvail.some((a) => a.is_available);
+
+          if (isWorkable) {
+            blocks.push({
+              id: block.id + "-" + date.toISOString(),
+              type: "block",
+              title: block.title || block.reason || "Blocked",
+              start: date,
+              end: addMinutes(date, duration),
+              original: block,
+              status: "blocked",
+              isRecurring: true,
+              staffName: staffName,
+            });
+          }
+        });
+      } catch (e) {
+        console.error("Error parsing rrule", e);
+      }
+    } else {
+      // Single block
+      const blockStart = parseISO(
+        block.start_date + "T" + (block.start_time || "00:00:00"),
+      );
+      const blockEnd = parseISO(
+        block.end_date + "T" + (block.end_time || "23:59:59"),
+      );
+
+      if (blockStart <= end && blockEnd >= start) {
+        // Check availability for single block
+        const dayOfWeek = getDay(blockStart);
+        const staffId = block.staff_id;
+        const staffAvail = availabilities.value.filter(
+          (a) => a.staff_id === staffId && a.day_of_week === dayOfWeek,
+        );
+        const isWorkable = staffAvail.some((a) => a.is_available);
+
+        if (isWorkable) {
+          blocks.push({
+            id: block.id,
+            type: "block",
+            title: block.title || block.reason || "Blocked",
+            start: blockStart,
+            end: blockEnd,
+            original: block,
+            status: "blocked",
+            isRecurring: false,
+            staffName: staffName,
+          });
+        }
+      }
+    }
+  });
+
+  expandedBlocks.value = blocks;
+}
+
+function getEventsForDate(date: Date) {
+  const dateStr = format(date, "yyyy-MM-dd");
+
+  // Appointments
+  const apts = appointments.value
+    .filter((apt) => apt.appointment_date === dateStr)
+    .map((apt) => {
+      const start = parseISO(apt.appointment_date + "T" + apt.start_time);
+      const end = addMinutes(start, apt.services?.duration || 30);
+      return {
+        id: apt.id,
+        type: "appointment",
+        title: apt.customers?.name || "Unknown",
+        subtitle: apt.services?.name,
+        start: start,
+        end: end,
+        status: apt.status,
+        original: apt,
+        staffName: apt.staff?.name,
+      };
+    });
+
+  // Blocked Dates
+  const blocks = expandedBlocks.value.filter((block) => {
+    return isSameDay(block.start, date);
+  });
+
+  // Sort by time
+  return [...apts, ...blocks].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
+}
+
+function formatTimeDisplay(date: Date) {
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+// Duplicate removed - see top of file
 
 function prevPeriod() {
-  const date = new Date(currentDate.value)
-  if (view.value === 'month') {
-    date.setMonth(date.getMonth() - 1)
-  } else if (view.value === 'week') {
-    date.setDate(date.getDate() - 7)
+  const date = new Date(currentDate.value);
+  if (view.value === "month") {
+    date.setMonth(date.getMonth() - 1);
+  } else if (view.value === "week") {
+    date.setDate(date.getDate() - 7);
   } else {
-    date.setDate(date.getDate() - 1)
+    date.setDate(date.getDate() - 1);
   }
-  currentDate.value = date
-  fetchAppointments()
+  currentDate.value = date;
+  refreshData();
 }
 
 function nextPeriod() {
-  const date = new Date(currentDate.value)
-  if (view.value === 'month') {
-    date.setMonth(date.getMonth() + 1)
-  } else if (view.value === 'week') {
-    date.setDate(date.getDate() + 7)
+  const date = new Date(currentDate.value);
+  if (view.value === "month") {
+    date.setMonth(date.getMonth() + 1);
+  } else if (view.value === "week") {
+    date.setDate(date.getDate() + 7);
   } else {
-    date.setDate(date.getDate() + 1)
+    date.setDate(date.getDate() + 1);
   }
-  currentDate.value = date
-  fetchAppointments()
+  currentDate.value = date;
+  refreshData();
 }
 
 function today() {
-  currentDate.value = new Date()
-  fetchAppointments()
+  currentDate.value = new Date();
+  refreshData();
 }
 
 function handleViewChange(newView: string) {
-  view.value = newView as 'month' | 'week' | 'day'
-  fetchAppointments()
+  view.value = newView as "month" | "week" | "day";
+  refreshData();
 }
 
 // Appointment Details Modal
-const selectedAppointment = ref<any>(null)
-const showDetailsModal = ref(false)
+const selectedAppointment = ref<any>(null);
+const showDetailsModal = ref(false);
 
-function openAppointmentDetails(apt: any) {
-  selectedAppointment.value = apt
-  showDetailsModal.value = true
+// Block Details
+const { t } = useI18n();
+const showBlockDetailsModal = ref(false);
+const selectedBlock = ref<any>(null);
+const showConflictModal = ref(false);
+const conflictMessage = ref("");
+
+function openEventDetails(event: any) {
+  if (event.type === "appointment") {
+    selectedAppointment.value = event.original;
+    showDetailsModal.value = true;
+  } else {
+    selectedBlock.value = event;
+    showBlockDetailsModal.value = true;
+  }
+}
+
+async function handleBlockDelete(id: string) {
+  try {
+    await availabilityService.deleteBlockedDate(id);
+    showBlockDetailsModal.value = false;
+    await refreshData();
+  } catch (e) {
+    console.error("Error deleting block", e);
+  }
 }
 
 async function updateStatus(status: string) {
-  if (!selectedAppointment.value) return
-  
+  if (!selectedAppointment.value) return;
+
   try {
     const { error } = await supabase
-      .from('appointments')
+      .from("appointments")
       .update({ status })
-      .eq('id', selectedAppointment.value.id)
+      .eq("id", selectedAppointment.value.id);
 
-    if (error) throw error
-    
-    selectedAppointment.value.status = status
-    // Update in list
-    const idx = appointments.value.findIndex(a => a.id === selectedAppointment.value.id)
-    if (idx !== -1) appointments.value[idx].status = status
-    
-    showDetailsModal.value = false
+    if (error) throw error;
+
+    selectedAppointment.value.status = status;
+    // Update in list - actually refresh to keep sorted
+    await fetchAppointments();
+
+    showDetailsModal.value = false;
   } catch (e) {
-    console.error('Error updating status:', e)
+    console.error("Error updating status:", e);
+  }
+}
+
+// Block Time Modal
+const showBlockModal = ref(false);
+const blockModalDate = ref(new Date());
+
+function openBlockModal(date?: Date) {
+  blockModalDate.value = date || new Date();
+  showBlockModal.value = true;
+}
+
+function handleTimeSlotClick(date: Date, event: MouseEvent) {
+  // Prevent triggering if clicked on an event (stop propagation is on events, but good to be safe)
+  if ((event.target as HTMLElement).closest("button")) return;
+
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const y = event.clientY - rect.top;
+
+  const hoursFromTop = y / PIXELS_PER_HOUR;
+  const totalHours = calendarStartHour.value + hoursFromTop;
+
+  const clickedDate = new Date(date);
+  clickedDate.setHours(Math.floor(totalHours));
+  clickedDate.setMinutes(Math.floor((totalHours % 1) * 60));
+
+  // Round to nearest 15 minutes for cleaner UX
+  const m = clickedDate.getMinutes();
+  const roundedM = Math.round(m / 15) * 15;
+  clickedDate.setMinutes(roundedM);
+  clickedDate.setSeconds(0);
+
+  openBlockModal(clickedDate);
+}
+async function handleBlockSave(data: any) {
+  try {
+    // Validation: Check for conflicts with existing appointments
+    // Note: For recurring blocks, this primarily checks the first instance against loaded appointments.
+    const blockStart = parseISO(
+      data.start_date + "T" + (data.start_time || "00:00:00"),
+    );
+    // If end_date is missing (single day), use start_date.
+    const blockEnd = parseISO(
+      (data.end_date || data.start_date) + "T" + (data.end_time || "23:59:59"),
+    );
+
+    const conflict = appointments.value.some((apt) => {
+      // Ignore cancelled appointments
+      if (apt.status === "cancelled") return false;
+
+      // Check staff match
+      const aptStaffId = apt.staff_id || apt.staff?.id;
+      if (aptStaffId !== data.staff_id) return false;
+
+      const aptStart = parseISO(apt.appointment_date + "T" + apt.start_time);
+      const duration = apt.services?.duration || 30;
+      const aptEnd = addMinutes(aptStart, duration);
+
+      // Check Overlap
+      return blockStart < aptEnd && blockEnd > aptStart;
+    });
+
+    if (conflict) {
+      conflictMessage.value =
+        t("calendar.conflict_error") ||
+        "Cannot block time: This staff member has existing appointments during this period.";
+      showConflictModal.value = true;
+      return;
+    }
+
+    const payload = {
+      ...data,
+      provider_id: authStore.provider?.id,
+    };
+    await availabilityService.createBlockedDate(payload);
+    showBlockModal.value = false;
+    await refreshData();
+  } catch (e) {
+    console.error("Error creating block", e);
   }
 }
 </script>
@@ -216,37 +591,55 @@ async function updateStatus(status: string) {
 <template>
   <div class="min-h-screen bg-gray-50/50 p-6">
     <div class="max-w-7xl mx-auto space-y-6">
-      
       <!-- Header Controls -->
       <div class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-4 self-start md:self-auto">
-          <Button variant="ghost" size="icon" @click="router.push('/provider/dashboard')">
+          <Button
+            variant="ghost"
+            size="icon"
+            @click="router.push('/provider/dashboard')"
+          >
             <ArrowLeft class="h-5 w-5" />
           </Button>
-          <h1 class="text-2xl font-bold tracking-tight">{{ $t('calendar.title') }}</h1>
+          <h1 class="text-2xl font-bold tracking-tight">
+            {{ $t("calendar.title") }}
+          </h1>
         </div>
 
         <div class="flex flex-wrap items-center gap-4">
           <!-- Staff Filter -->
           <div class="relative w-48">
             <select
-              v-model="selectedStaffId" 
-              @change="fetchAppointments"
+              v-model="selectedStaffId"
+              @change="refreshData"
               class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="all">{{ $t('category_pills.all') }} {{ $t('modals.appointment_details.staff') }}</option>
-              <option v-for="member in staff" :key="member.id" :value="member.id">
+              <option value="all">
+                {{ $t("category_pills.all") }}
+                {{ $t("modals.appointment_details.staff") }}
+              </option>
+              <option
+                v-for="member in staff"
+                :key="member.id"
+                :value="member.id"
+              >
                 {{ member.name }}
               </option>
             </select>
           </div>
 
           <!-- View Tabs -->
-          <Tabs :model-value="view" @update:model-value="(v) => handleViewChange(v as string)" class="w-[300px]">
+          <Tabs
+            :model-value="view"
+            @update:model-value="(v) => handleViewChange(v as string)"
+            class="w-[300px]"
+          >
             <TabsList class="grid w-full grid-cols-3">
-              <TabsTrigger value="month">{{ $t('calendar.month') }}</TabsTrigger>
-              <TabsTrigger value="week">{{ $t('calendar.week') }}</TabsTrigger>
-              <TabsTrigger value="day">{{ $t('calendar.day') }}</TabsTrigger>
+              <TabsTrigger value="month">{{
+                $t("calendar.month")
+              }}</TabsTrigger>
+              <TabsTrigger value="week">{{ $t("calendar.week") }}</TabsTrigger>
+              <TabsTrigger value="day">{{ $t("calendar.day") }}</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -265,57 +658,162 @@ async function updateStatus(status: string) {
               </Button>
               <h2 class="text-lg font-semibold ml-2">
                 <span v-if="view === 'day'">
-                   {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', day: 'numeric', year: 'numeric' }) }}
+                  {{
+                    currentDate.toLocaleDateString(settingsStore.language, {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  }}
                 </span>
                 <span v-else>
-                  {{ currentDate.toLocaleDateString(settingsStore.language, { month: 'long', year: 'numeric' }) }}
+                  {{
+                    currentDate.toLocaleDateString(settingsStore.language, {
+                      month: "long",
+                      year: "numeric",
+                    })
+                  }}
                 </span>
               </h2>
             </div>
             <Button variant="secondary" @click="today">
-              {{ $t('calendar.today') }}
+              {{ $t("calendar.today") }}
             </Button>
           </div>
         </CardHeader>
 
         <CardContent class="p-0">
           <div class="min-h-[600px]">
-            <!-- Week View -->
-            <div v-if="view === 'week'" class="flex flex-col h-full">
-              <div class="grid grid-cols-7 border-b">
-                <div 
-                  v-for="day in weekDays" 
-                  :key="day.toISOString()" 
-                  class="p-4 text-center border-r last:border-r-0 bg-gray-50/40"
-                  :class="{'bg-primary/5 text-primary': day.toDateString() === new Date().toDateString()}"
-                >
-                  <p class="text-xs font-medium uppercase text-muted-foreground">{{ day.toLocaleDateString(settingsStore.language, { weekday: 'short' }) }}</p>
-                  <p class="text-lg font-bold mt-1">{{ day.getDate() }}</p>
-                </div>
-              </div>
-              <div class="grid grid-cols-7 flex-1">
-                <div 
-                  v-for="day in weekDays" 
-                  :key="day.toISOString()" 
-                  class="border-r last:border-r-0 p-2 min-h-[500px]"
-                >
-                  <div class="space-y-2">
-                    <button
-                      v-for="apt in getAppointmentsForDate(day)"
-                      :key="apt.id"
-                      @click="openAppointmentDetails(apt)"
-                      class="w-full text-left p-2.5 rounded-md text-xs border border-l-4 shadow-sm transition-all hover:bg-accent"
+            <!-- Week View (Time Grid) -->
+            <div
+              v-if="view === 'week'"
+              class="flex flex-col h-[700px] bg-white border rounded-md"
+            >
+              <!-- Time Grid Scroll Area -->
+              <div class="flex-1 overflow-y-auto relative custom-scrollbar">
+                <!-- Header (Moved Inside) -->
+                <div class="flex border-b sticky top-0 bg-white z-20 shrink-0">
+                  <div class="w-16 shrink-0 border-r bg-gray-50/40"></div>
+                  <div class="flex-1 grid grid-cols-7">
+                    <div
+                      v-for="day in weekDays"
+                      :key="day.toISOString()"
+                      class="p-2 text-center bg-gray-50/40 border-r border-gray-300 last:border-r-0"
                       :class="{
-                        'border-l-blue-500 bg-blue-50/50': apt.status === 'confirmed',
-                        'border-l-yellow-500 bg-yellow-50/50': apt.status === 'pending',
-                        'border-l-green-500 bg-green-50/50': apt.status === 'completed',
-                        'border-l-red-500 bg-red-50/50': apt.status === 'cancelled'
+                        'bg-primary/5 text-primary': isSameDay(day, new Date()),
                       }"
                     >
-                      <p class="font-bold truncate">{{ formatTime(apt.start_time) }}</p>
-                      <p class="font-medium truncate">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</p>
-                      <p class="text-muted-foreground truncate">{{ apt.services?.name }}</p>
-                    </button>
+                      <p
+                        class="text-xs font-medium uppercase text-muted-foreground"
+                      >
+                        {{
+                          day.toLocaleDateString(settingsStore.language, {
+                            weekday: "short",
+                          })
+                        }}
+                      </p>
+                      <p class="text-lg font-bold">{{ day.getDate() }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex relative"
+                  :style="{ minHeight: HOURS.length * PIXELS_PER_HOUR + 'px' }"
+                >
+                  <!-- Time Column -->
+                  <div
+                    class="w-16 shrink-0 border-r bg-gray-50/20 sticky left-0 z-10 h-full"
+                  >
+                    <div
+                      v-for="h in HOURS"
+                      :key="h"
+                      class="relative border-b border-transparent flex items-start justify-end pr-2 text-xs text-muted-foreground font-medium -mt-2.5"
+                      :style="{ height: PIXELS_PER_HOUR + 'px' }"
+                    >
+                      <span v-if="h !== calendarStartHour">{{
+                        h > 12 ? h - 12 + " PM" : h === 12 ? "12 PM" : h + " AM"
+                      }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Days Grid -->
+                  <div class="flex-1 grid grid-cols-7 min-h-full relative">
+                    <div
+                      v-for="day in weekDays"
+                      :key="day.toISOString()"
+                      class="relative min-h-full border-r border-gray-300 last:border-r-0 hover:bg-gray-50/20 transition-colors cursor-pointer"
+                      :class="{ 'bg-gray-50/30': !isDateWorkable(day) }"
+                      @click="handleTimeSlotClick(day, $event)"
+                    >
+                      <!-- Hour Grid Lines -->
+                      <div
+                        v-for="h in HOURS"
+                        :key="h"
+                        class="border-b border-gray-200 w-full absolute pointer-events-none"
+                        :style="{
+                          top: (h - calendarStartHour) * PIXELS_PER_HOUR + 'px',
+                        }"
+                      ></div>
+
+                      <!-- Events -->
+                      <button
+                        v-for="event in getEventsForDate(day)"
+                        :key="event.id"
+                        :style="getEventStyle(event)"
+                        @click.stop="openEventDetails(event)"
+                        class="absolute rounded px-1.5 py-1 text-xs border-l-4 shadow-sm overflow-hidden hover:z-30 hover:shadow-md transition-all text-left flex flex-col pointer-events-auto group"
+                        :class="{
+                          'border-l-blue-500 bg-blue-50 text-blue-700 opacity-90 hover:opacity-100':
+                            event.type === 'appointment' &&
+                            event.status === 'confirmed',
+                          'border-l-yellow-500 bg-yellow-50 text-yellow-700 opacity-90 hover:opacity-100':
+                            event.type === 'appointment' &&
+                            event.status === 'pending',
+                          'border-l-green-500 bg-green-50 text-green-700 opacity-90 hover:opacity-100':
+                            event.type === 'appointment' &&
+                            event.status === 'completed',
+                          'border-l-red-500 bg-red-50 text-red-700 opacity-90 hover:opacity-100':
+                            event.type === 'appointment' &&
+                            event.status === 'cancelled',
+                          'border-l-gray-500 bg-gray-100 text-gray-700':
+                            event.type === 'block',
+                        }"
+                        :title="`${event.title} - ${event.subtitle} (${formatEventTimeRange(event)})`"
+                      >
+                        <div
+                          class="font-bold truncate text-[11px] leading-tight mb-0.5"
+                        >
+                          {{ event.title }}
+                        </div>
+                        <div
+                          class="truncate opacity-80 text-[10px] leading-tight"
+                        >
+                          {{ formatEventTimeRange(event) }}
+                          <span v-if="selectedStaffId === 'all'">
+                            {{ $t("calendar.with") }} {{ event.staffName }}
+                          </span>
+                        </div>
+                      </button>
+
+                      <!-- Current Time Indicator -->
+                      <div
+                        v-if="isSameDay(day, new Date())"
+                        class="absolute w-full border-t-2 border-red-500 z-20 pointer-events-none flex items-center"
+                        :style="{
+                          top:
+                            ((new Date().getHours() * 60 +
+                              new Date().getMinutes() -
+                              calendarStartHour * 60) /
+                              60) *
+                              PIXELS_PER_HOUR +
+                            'px',
+                        }"
+                      >
+                        <div
+                          class="w-2 h-2 rounded-full bg-red-500 -ml-1"
+                        ></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -323,79 +821,204 @@ async function updateStatus(status: string) {
 
             <!-- Month View -->
             <div v-else-if="view === 'month'" class="grid grid-cols-7">
-              <div v-for="d in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']" :key="d" class="p-2 text-center text-xs font-medium text-muted-foreground uppercase border-b border-r last:border-r-0 bg-gray-50/40">
+              <div
+                v-for="d in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
+                :key="d"
+                class="p-2 text-center text-xs font-medium text-muted-foreground uppercase border-b border-r last:border-r-0 bg-gray-50/40"
+              >
                 {{ d }}
               </div>
-              <div 
-                v-for="(day, idx) in calendarDays" 
+              <div
+                v-for="(day, idx) in calendarDays"
                 :key="idx"
                 class="min-h-[120px] p-2 border-b border-r last:border-r-0 relative transition-colors hover:bg-gray-50/30"
-                :class="{'bg-gray-50/50': !day.isCurrentMonth}"
+                :class="{
+                  'bg-gray-50/50': !day.isCurrentMonth,
+                  'bg-gray-100':
+                    day.isCurrentMonth && !isDateWorkable(day.date),
+                }"
               >
-                <span 
+                <span
                   class="text-sm font-medium inline-flex w-7 h-7 items-center justify-center rounded-full"
                   :class="{
                     'text-muted-foreground': !day.isCurrentMonth,
-                    'text-primary-foreground bg-primary': day.date.toDateString() === new Date().toDateString()
+                    'text-primary-foreground bg-primary':
+                      day.date.toDateString() === new Date().toDateString(),
                   }"
                 >
                   {{ day.date.getDate() }}
                 </span>
                 <div class="mt-2 space-y-1">
-                  <div 
-                    v-for="apt in getAppointmentsForDate(day.date)" 
-                    :key="apt.id"
+                  <div
+                    v-for="event in getEventsForDate(day.date)"
+                    :key="event.id"
                     class="text-[10px] px-2 py-1 rounded truncate w-full border-l-2 cursor-pointer hover:opacity-80"
                     :class="{
-                      'border-blue-500 bg-blue-100 text-blue-700': apt.status === 'confirmed',
-                      'border-yellow-500 bg-yellow-100 text-yellow-700': apt.status === 'pending',
-                      'border-green-500 bg-green-100 text-green-700': apt.status === 'completed',
-                      'border-red-500 bg-red-100 text-red-700': apt.status === 'cancelled'
+                      'border-blue-500 bg-blue-100 text-blue-700':
+                        event.type === 'appointment' &&
+                        event.status === 'confirmed',
+                      'border-yellow-500 bg-yellow-100 text-yellow-700':
+                        event.type === 'appointment' &&
+                        event.status === 'pending',
+                      'border-green-500 bg-green-100 text-green-700':
+                        event.type === 'appointment' &&
+                        event.status === 'completed',
+                      'border-red-500 bg-red-100 text-red-700':
+                        event.type === 'appointment' &&
+                        event.status === 'cancelled',
+                      'border-gray-500 bg-gray-200 text-gray-700':
+                        event.type === 'block',
                     }"
-                    @click="openAppointmentDetails(apt)"
+                    @click="openEventDetails(event)"
                   >
-                    {{ formatTime(apt.start_time) }} {{ apt.customers?.name }}
+                    <span v-if="event.type === 'appointment'">
+                      {{ formatEventTimeRange(event) }}
+                      <span
+                        v-if="selectedStaffId === 'all'"
+                        class="font-semibold mr-0.5"
+                        >{{ event.staffName }}:</span
+                      >
+                      {{ event.title }}
+                    </span>
+                    <span v-else class="italic">
+                      {{ formatEventTimeRange(event) }}
+                      <span
+                        v-if="selectedStaffId === 'all'"
+                        class="font-semibold mr-0.5 not-italic"
+                        >{{ event.staffName }}:</span
+                      >
+                      {{ event.title }}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Day View -->
-            <div v-else class="flex flex-col h-full p-4">
-              <div class="space-y-4 max-w-3xl mx-auto w-full">
-                <div 
-                  v-for="apt in getAppointmentsForDate(currentDate)" 
-                  :key="apt.id"
-                  @click="openAppointmentDetails(apt)"
-                  class="flex items-center p-4 rounded-lg border border-l-4 bg-card shadow-sm transition-all hover:bg-accent cursor-pointer"
-                  :class="{
-                    'border-l-blue-500': apt.status === 'confirmed',
-                    'border-l-yellow-500': apt.status === 'pending',
-                    'border-l-green-500': apt.status === 'completed',
-                    'border-l-red-500': apt.status === 'cancelled'
-                  }"
-                >
-                  <div class="w-32 font-bold text-xl text-foreground">
-                    {{ formatTime(apt.start_time) }}
-                  </div>
-                  <div class="flex-1">
-                    <h3 class="font-bold text-lg">{{ apt.customers?.name || apt.customers?.email || 'Unknown' }}</h3>
-                    <p class="text-muted-foreground">{{ apt.services?.name }} • {{ apt.staff?.name }}</p>
-                  </div>
-                  <div class="text-right">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
-                      :class="{
-                        'bg-blue-100 text-blue-800': apt.status === 'confirmed',
-                        'bg-yellow-100 text-yellow-800': apt.status === 'pending',
-                        'bg-green-100 text-green-800': apt.status === 'completed',
-                        'bg-red-100 text-red-800': apt.status === 'cancelled'
-                      }">
-                      {{ $t(`status.${apt.status}`) }}
-                    </span>
+            <!-- Day View (Time Grid) -->
+            <div
+              v-else-if="view === 'day'"
+              class="flex flex-col h-[700px] bg-white border rounded-md"
+            >
+              <!-- Time Grid Scroll Area -->
+              <div class="flex-1 overflow-y-auto relative custom-scrollbar">
+                <!-- Header (Day - Moved Inside) -->
+                <div class="flex border-b sticky top-0 bg-white z-20 shrink-0">
+                  <div class="w-16 shrink-0 border-r bg-gray-50/40"></div>
+                  <div
+                    class="flex-1 p-2 text-center bg-gray-50/40"
+                    :class="{
+                      'bg-primary/5 text-primary': isSameDay(
+                        currentDate,
+                        new Date(),
+                      ),
+                    }"
+                  >
+                    <p
+                      class="text-xs font-medium uppercase text-muted-foreground"
+                    >
+                      {{
+                        currentDate.toLocaleDateString(settingsStore.language, {
+                          weekday: "long",
+                        })
+                      }}
+                    </p>
+                    <p class="text-lg font-bold">{{ currentDate.getDate() }}</p>
                   </div>
                 </div>
-                <div v-if="getAppointmentsForDate(currentDate).length === 0" class="text-center py-20 text-muted-foreground">
-                  <p class="text-lg">{{ $t('calendar.no_appointments') }}</p>
+                <div
+                  class="flex relative"
+                  :style="{ minHeight: HOURS.length * PIXELS_PER_HOUR + 'px' }"
+                >
+                  <!-- Time Column -->
+                  <div
+                    class="w-16 shrink-0 border-r bg-gray-50/20 sticky left-0 z-10 h-full"
+                  >
+                    <div
+                      v-for="h in HOURS"
+                      :key="h"
+                      class="relative h-[60px] border-b border-transparent flex items-start justify-end pr-2 text-xs text-muted-foreground font-medium -mt-2.5"
+                      :style="{ height: PIXELS_PER_HOUR + 'px' }"
+                    >
+                      <span v-if="h !== calendarStartHour">{{
+                        h > 12 ? h - 12 + " PM" : h === 12 ? "12 PM" : h + " AM"
+                      }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Day Content -->
+                  <div
+                    class="flex-1 relative min-h-full bg-white cursor-pointer"
+                    :class="{ 'bg-gray-50/30': !isDateWorkable(currentDate) }"
+                    @click="handleTimeSlotClick(currentDate, $event)"
+                  >
+                    <!-- Hour Grid Lines -->
+                    <div
+                      v-for="h in HOURS"
+                      :key="h"
+                      class="border-b border-gray-200 w-full absolute pointer-events-none"
+                      :style="{
+                        top: (h - calendarStartHour) * PIXELS_PER_HOUR + 'px',
+                      }"
+                    ></div>
+
+                    <!-- Events -->
+                    <button
+                      v-for="event in getEventsForDate(currentDate)"
+                      :key="event.id"
+                      :style="getEventStyle(event)"
+                      @click.stop="openEventDetails(event)"
+                      class="absolute rounded px-3 py-2 text-sm border-l-4 shadow-sm overflow-hidden hover:z-30 hover:shadow-md transition-all text-left flex flex-col pointer-events-auto"
+                      :class="{
+                        'border-l-blue-500 bg-blue-50 text-blue-700 opacity-90 hover:opacity-100':
+                          event.type === 'appointment' &&
+                          event.status === 'confirmed',
+                        'border-l-yellow-500 bg-yellow-50 text-yellow-700 opacity-90 hover:opacity-100':
+                          event.type === 'appointment' &&
+                          event.status === 'pending',
+                        'border-l-green-500 bg-green-50 text-green-700 opacity-90 hover:opacity-100':
+                          event.type === 'appointment' &&
+                          event.status === 'completed',
+                        'border-l-red-500 bg-red-50 text-red-700 opacity-90 hover:opacity-100':
+                          event.type === 'appointment' &&
+                          event.status === 'cancelled',
+                        'border-l-gray-500 bg-gray-100 text-gray-700':
+                          event.type === 'block',
+                      }"
+                    >
+                      <div class="flex items-center justify-between mb-0.5">
+                        <span class="font-bold truncate leading-tight">{{
+                          event.title
+                        }}</span>
+                        <span
+                          class="text-xs opacity-80 font-medium bg-white/50 px-1.5 py-0.5 rounded"
+                          >{{ formatEventTimeRange(event) }}</span
+                        >
+                      </div>
+                      <div
+                        v-if="selectedStaffId === 'all'"
+                        class="text-[10px] uppercase font-bold tracking-wider opacity-60 mt-auto"
+                      >
+                        {{ $t("calendar.with") }} {{ event.staffName }}
+                      </div>
+                    </button>
+
+                    <!-- Current Time -->
+                    <div
+                      v-if="isSameDay(currentDate, new Date())"
+                      class="absolute w-full border-t-2 border-red-500 z-20 pointer-events-none flex items-center"
+                      :style="{
+                        top:
+                          ((new Date().getHours() * 60 +
+                            new Date().getMinutes() -
+                            calendarStartHour * 60) /
+                            60) *
+                            PIXELS_PER_HOUR +
+                          'px',
+                      }"
+                    >
+                      <div class="w-2 h-2 rounded-full bg-red-500 -ml-1"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -410,6 +1033,35 @@ async function updateStatus(status: string) {
       :appointment="selectedAppointment"
       @close="showDetailsModal = false"
       @update-status="updateStatus"
+    />
+
+    <!-- Block Time Modal -->
+    <BlockTimeModal
+      :isOpen="showBlockModal"
+      :staffId="selectedStaffId"
+      :staffList="staff"
+      :initialDate="blockModalDate"
+      @close="showBlockModal = false"
+      @save="handleBlockSave"
+    />
+
+    <!-- Block Details Modal -->
+    <BlockDetailsModal
+      :isOpen="showBlockDetailsModal"
+      :block="selectedBlock"
+      @close="showBlockDetailsModal = false"
+      @delete="handleBlockDelete"
+    />
+
+    <!-- Conflict Confirmation Modal -->
+    <ConfirmationModal
+      :isOpen="showConflictModal"
+      :title="$t('calendar.conflict_title') || 'Unable to Block Time'"
+      :message="conflictMessage"
+      :confirmLabel="$t('common.ok') || 'OK'"
+      :isDestructive="false"
+      @close="showConflictModal = false"
+      @confirm="showConflictModal = false"
     />
   </div>
 </template>

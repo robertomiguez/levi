@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { parseISO, format } from 'date-fns'
 import Modal from '../../components/common/Modal.vue'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { Trash2 } from 'lucide-vue-next'
@@ -28,7 +27,7 @@ function formatDateDisplay(date: Date) {
 function formatTime(time: string) {
     if (!time) return ''
     // Assuming time is HH:mm:ss or HH:mm
-    const [h, m] = time.split(':')
+    const [h = '0', m = '00'] = time.split(':')
     const d = new Date()
     d.setHours(parseInt(h), parseInt(m))
     return d.toLocaleTimeString(settingsStore.language, { hour: 'numeric', minute: '2-digit' })

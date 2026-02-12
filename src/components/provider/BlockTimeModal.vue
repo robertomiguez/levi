@@ -55,7 +55,7 @@ watch(
   (newVal) => {
     if (newVal) {
       const today = props.initialDate || new Date();
-      const dateStr = today.toISOString().split("T")[0];
+      const dateStr = today.toISOString().split("T")[0] ?? "";
 
       // Check if specific time was likely provided (not exactly midnight local time)
       // Or if we should defaulting to time based.

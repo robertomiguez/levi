@@ -22,7 +22,7 @@ import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, ArrowLeft, Plus } from "lucide-vue-next";
+import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-vue-next";
 import { rrulestr } from "rrule";
 
 const authStore = useAuthStore();

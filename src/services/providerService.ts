@@ -248,3 +248,33 @@ export async function fetchDashboardStats(providerId: string) {
         totalStaff: staffCount || 0
     }
 }
+
+export async function fetchRevenueReport(providerId: string) {
+    // Get this week's date range (Sunday to Saturday)
+    const today = new Date()
+    const weekStart = new Date(today)
+    weekStart.setDate(today.getDate() - today.getDay())
+    weekStart.setHours(0, 0, 0, 0)
+    
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    weekEnd.setHours(23, 59, 59, 999)
+
+    const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+            id,
+            appointment_date,
+            status,
+            booked_price,
+            services!inner(name, price, provider_id),
+            customers(name, email)
+        `)
+        .eq('services.provider_id', providerId)
+        .gte('appointment_date', weekStart.toISOString())
+        .lte('appointment_date', weekEnd.toISOString())
+        .order('appointment_date', { ascending: false })
+
+    if (error) throw error
+    return data
+}

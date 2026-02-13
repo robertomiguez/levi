@@ -54,8 +54,13 @@ function goToCalendar() {
   router.push('/provider/calendar')
 }
 
+
 function goToAvailability() {
   router.push('/provider/availability')
+}
+
+function goToRevenueReport() {
+  router.push('/provider/revenue-report')
 }
 </script>
 
@@ -88,7 +93,10 @@ function goToAvailability() {
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Today's Appointments -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-primary-600">
+        <div 
+          @click="goToCalendar"
+          class="bg-white rounded-lg shadow p-6 border-l-4 border-primary-600 cursor-pointer hover:shadow-md transition-all"
+        >
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.today_appointments') }}</p>
@@ -101,7 +109,10 @@ function goToAvailability() {
         </div>
 
         <!-- Week Revenue -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-600">
+        <div 
+          @click="goToRevenueReport"
+          class="bg-white rounded-lg shadow p-6 border-l-4 border-green-600 cursor-pointer hover:shadow-md transition-all"
+        >
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.week_revenue') }}</p>
@@ -115,7 +126,10 @@ function goToAvailability() {
         </div>
 
         <!-- Active Services -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600">
+        <div 
+          @click="goToServices"
+          class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600 cursor-pointer hover:shadow-md transition-all"
+        >
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.active_services') }}</p>
@@ -128,7 +142,10 @@ function goToAvailability() {
         </div>
 
         <!-- Total Staff -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-600">
+        <div 
+          @click="goToStaff"
+          class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-600 cursor-pointer hover:shadow-md transition-all"
+        >
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-gray-600">{{ $t('dashboard.stats.staff_members') }}</p>

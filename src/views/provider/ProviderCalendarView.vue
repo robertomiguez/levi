@@ -84,7 +84,7 @@ const weekDays = computed(() => {
 });
 
 // Time Grid Helpers
-const PIXELS_PER_HOUR = 60;
+const PIXELS_PER_HOUR = 78;
 const calendarStartHour = ref(0);
 const calendarEndHour = ref(23);
 
@@ -203,7 +203,7 @@ async function fetchAppointments() {
       .select(
         `
         *,
-        services!inner (name, duration),
+        services!inner (name, duration, buffer_before, buffer_after),
         customers (name, phone, email),
         staff!inner (name, provider_id)
       `,
@@ -270,10 +270,13 @@ function getViewDateRange() {
 }
 
 function formatEventTimeRange(event: any) {
-  if (!event.start) return "";
-  const startStr = formatTimeDisplay(event.start);
-  if (!event.end) return startStr;
-  return `${startStr} - ${formatTimeDisplay(event.end)}`;
+  const start = event.displayStart || event.start;
+  const end = event.displayEnd || event.end;
+
+  if (!start) return "";
+  const startStr = formatTimeDisplay(start);
+  if (!end) return startStr;
+  return `${startStr} - ${formatTimeDisplay(end)}`;
 }
 
 function isDateWorkable(date: Date) {
@@ -388,15 +391,24 @@ function getEventsForDate(date: Date) {
   const apts = appointments.value
     .filter((apt) => apt.appointment_date === dateStr)
     .map((apt) => {
-      const start = parseISO(apt.appointment_date + "T" + apt.start_time);
-      const end = addMinutes(start, apt.services?.duration || 30);
+      const dbStart = parseISO(apt.appointment_date + "T" + apt.start_time);
+      const dbEnd = addMinutes(dbStart, apt.services?.duration || 30);
+
+      const bufferBefore = apt.services?.buffer_before || 0;
+      const bufferAfter = apt.services?.buffer_after || 0;
+
+      const visualStart = addMinutes(dbStart, -bufferBefore);
+      const visualEnd = addMinutes(dbEnd, bufferAfter);
+
       return {
         id: apt.id,
         type: "appointment",
         title: apt.customers?.name || "Unknown",
         subtitle: apt.services?.name,
-        start: start,
-        end: end,
+        start: visualStart,
+        end: visualEnd,
+        displayStart: dbStart,
+        displayEnd: dbEnd,
         status: apt.status,
         original: apt,
         staffName: apt.staff?.name,

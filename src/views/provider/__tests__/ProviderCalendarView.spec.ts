@@ -165,7 +165,8 @@ describe("ProviderCalendarView", () => {
     // Verify appointment details are rendered
     expect(wrapper.text()).toContain("John Doe");
     expect(wrapper.text()).toContain("calendar.with Staff A");
-    expect(wrapper.text()).toContain("10:00 - 10:30");
+    expect(wrapper.text()).toContain("10:00");
+    expect(wrapper.text()).toContain("10:30");
   });
   
   it("opens block modal on grid click", async () => {

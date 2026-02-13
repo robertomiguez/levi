@@ -169,29 +169,42 @@ export async function saveProvider({
     }
 }
 
-export async function fetchDashboardStats(providerId: string) {
-    // Get today's date range
-    const today = new Date()
-    const todayStart = new Date(today.setHours(0, 0, 0, 0)).toISOString()
-    const todayEnd = new Date(today.setHours(23, 59, 59, 999)).toISOString()
+// Helper to format date as YYYY-MM-DD in local time
+function formatLocalDate(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
 
-    // Get this week's date range
+export async function fetchDashboardStats(providerId: string) {
+    // Get today's date in local time
+    const today = new Date()
+    const todayStr = formatLocalDate(today)
+
+    // Get this week's date range (Week starts on Sunday)
     const weekStart = new Date(today)
-    weekStart.setDate(today.getDate() - today.getDay())
-    weekStart.setHours(0, 0, 0, 0)
+    weekStart.setDate(today.getDate() - today.getDay()) 
+    const weekStartStr = formatLocalDate(weekStart)
+    
+    // For week end, we want to include through next Saturday
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 7)
+    const weekEndStr = formatLocalDate(weekEnd)
 
     // Get this month's date range
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+    const monthStartStr = formatLocalDate(monthStart)
+    
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    const monthEndStr = formatLocalDate(monthEnd)
 
     // Fetch today's appointments
+    // We compare appointment_date (YYYY-MM-DD) directly with our local date string
     const { data: todayAppts, error: todayError } = await supabase
         .from('appointments')
         .select('*, services!inner(provider_id, price)')
-        .gte('appointment_date', todayStart.split('T')[0])
-        .lte('appointment_date', todayEnd.split('T')[0])
+        .eq('appointment_date', todayStr)
         .eq('services.provider_id', providerId)
     
     if (todayError) throw todayError
@@ -200,8 +213,8 @@ export async function fetchDashboardStats(providerId: string) {
     const { data: weekAppts, error: weekError } = await supabase
         .from('appointments')
         .select('*, services!inner(provider_id, price)')
-        .gte('appointment_date', weekStart.toISOString().split('T')[0])
-        .lt('appointment_date', weekEnd.toISOString().split('T')[0])
+        .gte('appointment_date', weekStartStr)
+        .lt('appointment_date', weekEndStr)
         .eq('services.provider_id', providerId)
 
     if (weekError) throw weekError
@@ -210,8 +223,8 @@ export async function fetchDashboardStats(providerId: string) {
     const { data: monthAppts, error: monthError } = await supabase
         .from('appointments')
         .select('*, services!inner(provider_id, price)')
-        .gte('appointment_date', monthStart.toISOString().split('T')[0])
-        .lte('appointment_date', monthEnd.toISOString().split('T')[0])
+        .gte('appointment_date', monthStartStr)
+        .lte('appointment_date', monthEndStr)
         .eq('services.provider_id', providerId)
 
     if (monthError) throw monthError
@@ -250,15 +263,17 @@ export async function fetchDashboardStats(providerId: string) {
 }
 
 export async function fetchRevenueReport(providerId: string) {
-    // Get this week's date range (Sunday to Saturday)
+    // Get this week's date range (Sunday to Saturday) using local dates
     const today = new Date()
+    // Calculate start of week
     const weekStart = new Date(today)
     weekStart.setDate(today.getDate() - today.getDay())
-    weekStart.setHours(0, 0, 0, 0)
+    const weekStartStr = formatLocalDate(weekStart)
     
+    // Calculate end of week (next Saturday)
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 6)
-    weekEnd.setHours(23, 59, 59, 999)
+    const weekEndStr = formatLocalDate(weekEnd)
 
     const { data, error } = await supabase
         .from('appointments')
@@ -271,8 +286,8 @@ export async function fetchRevenueReport(providerId: string) {
             customers(name, email)
         `)
         .eq('services.provider_id', providerId)
-        .gte('appointment_date', weekStart.toISOString())
-        .lte('appointment_date', weekEnd.toISOString())
+        .gte('appointment_date', weekStartStr)
+        .lte('appointment_date', weekEndStr)
         .order('appointment_date', { ascending: false })
 
     if (error) throw error

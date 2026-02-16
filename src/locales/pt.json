@@ -474,7 +474,9 @@
       "toggle_error": "Falha ao atualizar o status do serviço",
       "save_error": "Falha ao salvar serviço",
       "conflict_title": "Importante: Conflito de Agenda",
-      "conflict_msg": "Você tem agendamentos ativos com o serviço {name}"
+      "conflict_msg": "Você tem agendamentos ativos com o serviço {name}",
+      "conflict_update_msg": "Alterar este serviço entrará em conflito com agendamentos existentes para {name}",
+      "conflict_update_notice": "Continuar atualizará o serviço, resultando em conflitos de agendamento para os compromissos listados."
     },
     "locations": {
       "title": "Locais de Atendimento",

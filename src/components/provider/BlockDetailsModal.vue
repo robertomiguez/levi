@@ -3,6 +3,8 @@ import Modal from '../../components/common/Modal.vue'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { Trash2 } from 'lucide-vue-next'
 
+import { computed } from 'vue'
+
 const props = defineProps<{
   isOpen: boolean
   block: any
@@ -23,6 +25,30 @@ function formatDateDisplay(date: Date) {
     year: 'numeric'
   })
 }
+
+const dateDisplay = computed(() => {
+  if (!props.block) return ''
+  
+  // For recurring blocks, show the instance date
+  if (props.block.isRecurring) {
+    return formatDateDisplay(props.block.start)
+  }
+
+  // For non-recurring (Single/Multi-day) blocks
+  const original = props.block.original
+  if (original && original.start_date && original.end_date) {
+      if (original.start_date !== original.end_date) {
+         // Create dates in local time (browser default for YYYY-MM-DDT00:00:00)
+         const start = new Date(original.start_date + "T00:00:00")
+         const end = new Date(original.end_date + "T00:00:00")
+         return `${formatDateDisplay(start)} - ${formatDateDisplay(end)}`
+      }
+      const start = new Date(original.start_date + "T00:00:00")
+      return formatDateDisplay(start)
+  }
+  
+  return formatDateDisplay(props.block.start)
+})
 
 function formatTime(time: string) {
     if (!time) return ''
@@ -62,7 +88,7 @@ function handleDelete() {
       <div class="space-y-4">
           <div class="flex items-center gap-3 text-gray-700">
              <div class="w-24 text-sm font-medium text-gray-500">{{ $t('common.date') }}</div>
-             <div>{{ formatDateDisplay(block.start) }}</div>
+             <div>{{ dateDisplay }}</div>
           </div>
           
           <div v-if="block.original.start_time" class="flex items-center gap-3 text-gray-700">

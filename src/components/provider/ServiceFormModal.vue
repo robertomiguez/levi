@@ -154,6 +154,7 @@ async function handleSubmit() {
     emit('save', { 
         ...form.value, 
         id: props.service?.id,
+        active: props.service?.active ?? true,
         image_urls: finalUrls 
     })
   } catch (error: any) {

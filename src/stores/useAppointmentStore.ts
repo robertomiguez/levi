@@ -163,7 +163,8 @@ export const useAppointmentStore = defineStore('appointment', () => {
                 .in('status', ['confirmed', 'pending'])
 
             if (error) throw error
-            return data || []
+            // Explicitly filter to ensure no cancelled appointments are returned
+            return (data || []).filter(a => ['confirmed', 'pending'].includes(a.status))
         } catch (e) {
             console.error('Error fetching staff appointments:', e)
             return []
@@ -177,6 +178,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
                 .from('appointments')
                 .select(`
                     id,
+                    staff_id,
                     appointment_date,
                     start_time,
                     status,
@@ -425,6 +427,80 @@ export const useAppointmentStore = defineStore('appointment', () => {
         }
     }
 
+    async function checkServiceUpdateConflicts(
+        serviceId: string,
+        newDuration: number,
+        newBufferBefore: number,
+        newBufferAfter: number
+    ): Promise<any[]> {
+        try {
+            const serviceAppointments = await fetchFutureAppointments(serviceId, 'service')
+            if (!serviceAppointments || serviceAppointments.length === 0) return []
+
+            const conflicts: any[] = []
+            const grouped = new Map<string, any[]>()
+
+            for (const apt of serviceAppointments) {
+                const key = `${apt.staff_id}_${apt.appointment_date}`
+                if (!grouped.has(key)) grouped.set(key, [])
+                grouped.get(key)!.push(apt)
+            }
+
+            for (const [key, aptsToUpdate] of grouped.entries()) {
+                const [staffId, dateStr] = key.split('_')
+                if (!staffId || !dateStr) continue
+
+                // Fetch day appointments with service details for accurate buffer calculation
+                const { data: dayAppointments, error } = await supabase
+                    .from('appointments')
+                    .select(`
+                        *,
+                        service:services(duration, buffer_before, buffer_after)
+                    `)
+                    .eq('staff_id', staffId)
+                    .eq('appointment_date', dateStr)
+                    .in('status', ['confirmed', 'pending'])
+                
+                if (error || !dayAppointments) continue
+
+                for (const apt of aptsToUpdate) {
+                    const currentStart = parse(apt.start_time, 'HH:mm:ss', new Date())
+                    
+                    // New range for the appointment being updated
+                    const newVisualStart = addMinutes(currentStart, -newBufferBefore)
+                    const newServiceEnd = addMinutes(currentStart, newDuration)
+                    const newVisualEnd = addMinutes(newServiceEnd, newBufferAfter)
+
+                    for (const other of dayAppointments) {
+                        if (other.id === apt.id) continue
+
+                        // Calculate range for the "other" appointment
+                        const otherStart = parse(other.start_time, 'HH:mm:ss', new Date())
+                        // Use service defaults or 0 if missing (shouldn't happen for valid appts)
+                        const otherDuration = other.service?.duration || 30
+                        const otherBufferBefore = other.service?.buffer_before || 0
+                        const otherBufferAfter = other.service?.buffer_after || 0
+
+                        const otherVisualStart = addMinutes(otherStart, -otherBufferBefore)
+                        const otherServiceEnd = addMinutes(otherStart, otherDuration)
+                        const otherVisualEnd = addMinutes(otherServiceEnd, otherBufferAfter)
+
+                        // Check overlap
+                        if (isBefore(newVisualStart, otherVisualEnd) && isAfter(newVisualEnd, otherVisualStart)) {
+                            // Conflict found!
+                            conflicts.push(apt) // Push the appointment that causes the issue
+                            break // One conflict per appointment is enough to flag it
+                        }
+                    }
+                }
+            }
+            return conflicts
+        } catch (e) {
+            console.error('Error checking service update conflicts:', e)
+            throw e
+        }
+    }
+
     // Initialize store
     console.log('Appointment store initialized with checkConflictsInRange')
 
@@ -442,6 +518,7 @@ export const useAppointmentStore = defineStore('appointment', () => {
         generateSlots,
         checkAvailability,
         fetchCustomerAppointments,
-        checkConflictsInRange
+        checkConflictsInRange,
+        checkServiceUpdateConflicts
     }
 })

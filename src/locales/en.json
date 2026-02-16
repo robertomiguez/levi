@@ -520,7 +520,9 @@
       "toggle_error": "Failed to update service status",
       "save_error": "Failed to save service",
       "conflict_title": "Important: Schedule Conflict",
-      "conflict_msg": "You have active bookings with service {name}"
+      "conflict_msg": "You have active bookings with service {name}",
+      "conflict_update_msg": "Changing this service will conflict with existing bookings for {name}",
+      "conflict_update_notice": "Proceeding will update the service, resulting in scheduling conflicts for the listed appointments."
     },
     "locations": {
       "title": "Service Locations",

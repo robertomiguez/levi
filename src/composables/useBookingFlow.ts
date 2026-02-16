@@ -569,6 +569,10 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
         if (nextAvailable) {
           selectedDate.value = nextAvailable
         }
+      } else {
+        // If date didn't change (so no watcher trigger), we still need to reload slots
+        // with the newly fetched data
+        await loadAvailableSlots()
       }
     }
   })

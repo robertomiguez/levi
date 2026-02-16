@@ -7,12 +7,11 @@ import { format, parseISO } from 'date-fns'
 import * as staffService from '../../services/staffService'
 import * as availabilityService from '../../services/availabilityService'
 import { useNotifications } from '../../composables/useNotifications'
-import { useModal } from '../../composables/useModal'
+
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
-import Modal from '../../components/common/Modal.vue'
-import type { Availability, BlockedDate, Staff } from '../../types'
+import type { Availability, Staff } from '../../types'
 
 const authStore = useAuthStore()
 const appointmentStore = useAppointmentStore()
@@ -32,7 +31,6 @@ const staff = ref<Staff[]>([])
 const selectedStaffId = ref<string>('')
 const weeklySchedule = ref<Availability[]>([])
 const originalSchedule = ref<Availability[]>([])
-const blockedDates = ref<BlockedDate[]>([])
 const loading = ref(false)
 const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
 
@@ -40,15 +38,7 @@ const { successMessage, errorMessage, showSuccess, showError, clearMessages } = 
 const showConfirmModal = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
-const pendingDeleteId = ref<string | null>(null)
 const pendingSave = ref(false)
-
-function openDeleteConfirm(id: string) {
-  pendingDeleteId.value = id
-  confirmTitle.value = t('provider.availability.delete_time_off_confirm_title')
-  confirmMessage.value = t('provider.availability.delete_time_off_confirm_msg')
-  showConfirmModal.value = true
-}
 onMounted(async () => {
   if (!authStore.provider) {
     router.push('/booking')
@@ -87,7 +77,6 @@ async function fetchSchedule() {
   
   try {
     const availData = await availabilityService.fetchAvailability(selectedStaffId.value)
-    const blockedData = await availabilityService.fetchBlockedDates(selectedStaffId.value)
 
     if (!availData || availData.length === 0) {
       weeklySchedule.value = daysOfWeek.value.map((_, index: number) => ({
@@ -115,7 +104,6 @@ async function fetchSchedule() {
     }
 
     originalSchedule.value = JSON.parse(JSON.stringify(weeklySchedule.value))
-    blockedDates.value = blockedData || []
   } catch (e) {
     console.error('Error fetching schedule:', e)
     showError(t('provider.availability.save_error'))
@@ -189,8 +177,6 @@ async function handleConfirmSave() {
   if (pendingSave.value) {
     await performSave()
     pendingSave.value = false
-  } else if (pendingDeleteId.value) {
-    await performDeleteBlockedDate()
   }
 }
 
@@ -199,26 +185,6 @@ async function handleCloseModal() {
   if (pendingSave.value) {
     pendingSave.value = false
     await fetchSchedule()
-  } else {
-    pendingDeleteId.value = null
-  }
-}
-
-async function performDeleteBlockedDate() {
-  if (!pendingDeleteId.value) return
-  const idToDelete = pendingDeleteId.value
-  
-  clearMessages()
-  try {
-    await availabilityService.deleteBlockedDate(idToDelete)
-    showSuccess(t('provider.availability.delete_time_off_success'))
-    await fetchSchedule()
-  } catch (e) {
-    console.error('Error deleting blocked date:', e)
-    showError(t('provider.availability.delete_time_off_error'))
-  } finally {
-    showConfirmModal.value = false
-    pendingDeleteId.value = null
   }
 }
 
@@ -261,82 +227,7 @@ async function performSave() {
   }
 }
 
-// Blocked Dates Logic
-const timeOffModal = useModal()
-const blockForm = ref({
-  start_date: '',
-  end_date: '',
-  reason: ''
-})
-const timeOffConflicts = ref<{date: string, time: string, customer?: string}[]>([])
 
-async function addBlockedDate() {
-  console.log('addBlockedDate called', { staffId: selectedStaffId.value, form: blockForm.value })
-  if (!selectedStaffId.value) {
-    console.log('No staff selected, returning early')
-    return
-  }
-  clearMessages()
-  timeOffConflicts.value = []
-  
-  const start = parseISO(blockForm.value.start_date)
-  const end = parseISO(blockForm.value.end_date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  if (end < start) {
-    showError(t('provider.availability.error_end_date_before_start'))
-    return
-  }
-
-  if (start < today) {
-    showError(t('provider.availability.error_past_dates'))
-    return
-  }
-  
-  try {
-    console.log('Checking for conflicts...')
-    // Fetch actual appointments in the date range
-    const appointments = await appointmentStore.fetchStaffAppointments(
-      selectedStaffId.value,
-      blockForm.value.start_date,
-      blockForm.value.end_date
-    )
-    console.log('Appointments found:', appointments.length)
-
-    if (appointments.length > 0) {
-      // Build detailed conflict list
-      timeOffConflicts.value = appointments.slice(0, 5).map(appt => ({
-        date: appt.appointment_date ? format(parseISO(appt.appointment_date), 'MMM d, yyyy') : 'Unknown',
-        time: appt.start_time ? appt.start_time.slice(0, 5) : '??:??',
-        customer: appt.customer?.name
-      }))
-      showError(t('provider.availability.add_time_off_error'))
-      return
-    }
-
-    console.log('Creating blocked date...')
-    await availabilityService.createBlockedDate({
-        staff_id: selectedStaffId.value,
-        provider_id: authStore.provider?.id || '',
-        start_date: blockForm.value.start_date,
-        end_date: blockForm.value.end_date,
-        reason: blockForm.value.reason
-      })
-    console.log('Blocked date created successfully')
-    timeOffModal.close()
-    blockForm.value = { start_date: '', end_date: '', reason: '' }
-    showSuccess(t('provider.availability.add_time_off_success'))
-    await fetchSchedule()
-  } catch (e) {
-    console.error('Error adding blocked date:', e)
-    showError(t('provider.availability.add_time_off_error'))
-  }
-}
-
-async function handleDeleteBlockedDate(id: string) {
-  openDeleteConfirm(id)
-}
 </script>
 
 <template>
@@ -406,9 +297,9 @@ async function handleDeleteBlockedDate(id: string) {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 gap-8">
         <!-- Weekly Schedule -->
-        <div class="lg:col-span-2 bg-white rounded-lg shadow overflow-hidden">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
           <div class="p-6 border-b border-gray-200">
             <h2 class="text-lg font-bold text-gray-900">{{ $t('provider.availability.weekly_schedule') }}</h2>
             <p class="text-sm text-gray-500">{{ $t('provider.availability.set_hours') }}</p>
@@ -446,121 +337,10 @@ async function handleDeleteBlockedDate(id: string) {
             </div>
           </div>
         </div>
-
-        <!-- Blocked Dates -->
-        <div class="bg-white rounded-lg shadow h-fit">
-          <div class="p-6 border-b border-gray-200 flex justify-between items-center">
-            <div>
-              <h2 class="text-lg font-bold text-gray-900">{{ $t('provider.availability.time_off') }}</h2>
-              <p class="text-sm text-gray-500">{{ $t('provider.availability.vacations') }}</p>
-            </div>
-            <button 
-              @click="timeOffModal.open()"
-              class="text-primary-600 hover:text-primary-700 text-sm font-medium"
-            >
-              + {{ $t('provider.availability.add_time_off') }}
-            </button>
-          </div>
-
-          <div class="p-4">
-            <div v-if="blockedDates.length === 0" class="text-center py-8 text-gray-500 text-sm">
-              {{ $t('provider.availability.no_time_off') }}
-            </div>
-            <div v-else class="space-y-3">
-              <div v-for="block in blockedDates" :key="block.id" class="bg-gray-50 rounded-lg p-3 border border-gray-200 relative group">
-                <button 
-                  @click="handleDeleteBlockedDate(block.id)"
-                  class="absolute top-2 right-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                </button>
-                <p class="font-medium text-gray-900">{{ block.reason || $t('provider.availability.time_off') }}</p>
-                <p class="text-sm text-gray-600">
-                  {{ parseISO(block.start_date).toLocaleDateString() }} - 
-                  {{ parseISO(block.end_date).toLocaleDateString() }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
-    <!-- Time Off Modal -->
-    <Modal
-      :isOpen="timeOffModal.isOpen.value"
-      :title="$t('provider.availability.add_time_off')"
-      @close="timeOffModal.close()"
-    >
-      <form @submit.prevent="addBlockedDate" class="mt-4 space-y-4">
-        <!-- Error Message with Appointment Details -->
-        <div v-if="errorMessage" class="rounded-md bg-red-50 p-3 mb-2">
-          <div class="flex">
-            <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-              </svg>
-            </div>
-            <div class="ml-3 flex-1">
-              <p class="text-sm font-medium text-red-800">{{ errorMessage }}</p>
-              <!-- Appointment Details List -->
-              <ul v-if="timeOffConflicts.length > 0" class="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
-                <li v-for="(conflict, idx) in timeOffConflicts" :key="idx">
-                  {{ conflict.date }} @ {{ conflict.time }}<span v-if="conflict.customer"> - {{ conflict.customer }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.availability.reason_label') }}</label>
-          <input 
-            v-model="blockForm.reason" 
-            type="text" 
-            required 
-            placeholder="e.g. Vacation" 
-            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          >
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.availability.start_date') }}</label>
-            <input 
-              v-model="blockForm.start_date" 
-              type="date" 
-              required 
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            >
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.availability.end_date') }}</label>
-            <input 
-              v-model="blockForm.end_date" 
-              type="date" 
-              required 
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            >
-          </div>
-        </div>
-        <div class="mt-5 flex gap-3 sm:justify-end">
-          <button 
-            type="button" 
-            class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm" 
-            @click="timeOffModal.close()"
-          >
-            {{ $t('common.cancel') }}
-          </button>
-          <button 
-            type="submit" 
-            class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm"
-          >
-            {{ $t('common.save') }}
-          </button>
-        </div>
-      </form>
-    </Modal>
+
 
     <ConfirmationModal
       :isOpen="showConfirmModal"

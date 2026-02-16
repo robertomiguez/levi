@@ -10,7 +10,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'update-status', status: 'confirmed' | 'completed' | 'cancelled'): void
+  (e: 'update-status', status: 'confirmed' | 'completed' | 'cancelled' | 'no-show'): void
 }>()
 
 const settingsStore = useSettingsStore()
@@ -88,6 +88,13 @@ function formatDate(dateStr: string) {
             :class="appointment.status === 'cancelled' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
           >
             {{ $t('status.cancelled') }}
+          </button>
+          <button 
+            @click="$emit('update-status', 'no-show')"
+            class="px-3 py-1 rounded-full text-sm font-medium border"
+            :class="appointment.status === 'no-show' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+          >
+            {{ $t('status.no_show') }}
           </button>
         </div>
       </div>

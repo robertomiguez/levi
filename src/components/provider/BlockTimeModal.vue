@@ -9,6 +9,8 @@ const props = defineProps<{
   staffId: string;
   staffList?: Staff[];
   initialDate?: Date;
+  minTime?: string; // "HH:mm"
+  maxTime?: string; // "HH:mm"
 }>();
 
 const emit = defineEmits<{
@@ -36,8 +38,36 @@ const daysOfWeek = [
   { value: RRule.TH, label: "Thu" },
   { value: RRule.FR, label: "Fri" },
   { value: RRule.SA, label: "Sat" },
+  { value: RRule.FR, label: "Fri" },
+  { value: RRule.SA, label: "Sat" },
   { value: RRule.SU, label: "Sun" },
 ];
+
+const timeOptions = computed(() => {
+  const options = [];
+  const minTimeStr = props.minTime || "00:00";
+  const maxTimeStr = props.maxTime || "23:00";
+  
+  const startH = parseInt(minTimeStr.split(":")[0] ?? "0");
+  const endH = parseInt(maxTimeStr.split(":")[0] ?? "0");
+  
+  for (let h = startH; h <= endH; h++) {
+    for (let m = 0; m < 60; m += 15) {
+        // If it's the last hour, we might want to include it or stop at 00?
+        // Usually if endH is 17, we want 17:00, 17:15, 17:30, 17:45 available as START times? 
+        // Or strictly up to 17:00?
+        // Let's assume inclusive of the hour.
+        const time = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+        options.push(time);
+    }
+  }
+  // Add the next hour flat if needed for end time? 
+  // Typically end time can be later.
+  // Let's add one more slot for the exact end of the range?
+  // If maxTime is 17:00, allow 17:00?
+  
+  return options;
+});
 
 const staffName = computed(() => {
   if (props.staffId && props.staffId !== "all" && props.staffList) {
@@ -262,21 +292,23 @@ function handleSave() {
           <label class="block text-sm font-medium text-gray-700">{{
             $t("common.start_time")
           }}</label>
-          <input
+          <select
             v-model="form.startTime"
-            type="time"
             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          />
+          >
+            <option v-for="t in timeOptions" :key="t" :value="t">{{ t }}</option>
+          </select>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700">{{
             $t("common.end_time")
           }}</label>
-          <input
+          <select
             v-model="form.endTime"
-            type="time"
             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          />
+          >
+             <option v-for="t in timeOptions" :key="t" :value="t">{{ t }}</option>
+          </select>
         </div>
       </div>
 

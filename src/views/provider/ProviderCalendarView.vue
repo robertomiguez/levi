@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useRouter } from "vue-router";
 import { supabase } from "../../lib/supabase";
-import type { Staff, BlockedDate, Availability } from "../../types";
+import type { Staff, BlockedDate, Availability, AppointmentStatus } from "../../types";
 import {
   format,
   parseISO,
@@ -11,8 +11,13 @@ import {
   addMinutes,
   differenceInMinutes,
   getDay,
+  isBefore,
+  startOfDay,
+  addDays,
 } from "date-fns";
 import { useSettingsStore } from "../../stores/useSettingsStore";
+import { useAppointmentStore } from "../../stores/useAppointmentStore";
+import { useNotifications } from "../../composables/useNotifications";
 import AppointmentDetailsModal from "../../components/provider/AppointmentDetailsModal.vue";
 import BlockTimeModal from "../../components/provider/BlockTimeModal.vue";
 import BlockDetailsModal from "../../components/provider/BlockDetailsModal.vue";
@@ -28,6 +33,8 @@ import { rrulestr } from "rrule";
 const authStore = useAuthStore();
 const router = useRouter();
 const settingsStore = useSettingsStore();
+const appointmentStore = useAppointmentStore();
+const { showSuccess, showError } = useNotifications();
 
 const staff = ref<Staff[]>([]);
 const selectedStaffId = ref<string>("all");
@@ -100,13 +107,35 @@ const HOURS = computed(() => {
 function getEventStyle(event: any) {
   const start = event.start;
   const end = event.end;
-  const startMinutes = start.getHours() * 60 + start.getMinutes();
+  
+  // Calendar bounds in minutes from start of day
+  const gridStartMinutes = calendarStartHour.value * 60;
+  const gridEndMinutes = (calendarEndHour.value + 1) * 60; // End of the last hour
+  
+  // Event times in minutes from start of day
+  let eventStartMinutes = start.getHours() * 60 + start.getMinutes();
+  let eventEndMinutes = end.getHours() * 60 + end.getMinutes();
 
-  // Adjust relative to calendar start
-  const rangeStartMinutes = calendarStartHour.value * 60;
-  const topMinutes = startMinutes - rangeStartMinutes;
+  // Handle cross-day or full-day ending at 00:00 next day (which is 0 minutes)
+  // If end is 00:00 and date > start date, treat as 24:00 (1440 mins)
+  if (eventEndMinutes === 0 && end.getDate() !== start.getDate()) {
+      eventEndMinutes = 24 * 60;
+  }
+  
+  // Clamp values to the grid range
+  const clampedStartMinutes = Math.max(eventStartMinutes, gridStartMinutes);
+  const clampedEndMinutes = Math.min(eventEndMinutes, gridEndMinutes);
+  
+  // If event is completely outside, it might have 0 height or negative duration if logic fails,
+  // but Math.max/min should handle overlap.
+  // If clampedEnd <= clampedStart, it's not visible.
+  if (clampedEndMinutes <= clampedStartMinutes) {
+      return { display: 'none' };
+  }
 
-  const durationMinutes = differenceInMinutes(end, start);
+  // Calculate top relative to the grid start
+  const topMinutes = clampedStartMinutes - gridStartMinutes;
+  const durationMinutes = clampedEndMinutes - clampedStartMinutes;
 
   return {
     top: `${(topMinutes / 60) * PIXELS_PER_HOUR}px`,
@@ -178,6 +207,7 @@ async function refreshData() {
     fetchBlockedDates(),
     fetchAvailabilities(),
   ]);
+  expandBlockedDates();
 }
 
 async function fetchAvailabilities() {
@@ -233,11 +263,6 @@ async function fetchAppointments() {
 
 async function fetchBlockedDates() {
   if (selectedStaffId.value === "all") {
-    // For now, if 'all' is selected, maybe we fetch for all staff?
-    // Or just don't show blocks for 'all' to avoid clutter/confusion?
-    // Let's fetch for all active staff
-    // Implementation detail: availabilityService.fetchBlockedDates normally takes one ID.
-    // We might need to iterate or update service. For now let's just loop.
     const allBlocks = [];
     for (const s of staff.value) {
       const blocks = await availabilityService.fetchBlockedDates(s.id);
@@ -249,7 +274,6 @@ async function fetchBlockedDates() {
       selectedStaffId.value,
     );
   }
-  expandBlockedDates();
 }
 
 function getViewDateRange() {
@@ -279,11 +303,15 @@ function formatEventTimeRange(event: any) {
   return `${startStr} - ${formatTimeDisplay(end)}`;
 }
 
+function isPast(date: Date) {
+  return isBefore(date, startOfDay(new Date()));
+}
+
 function isDateWorkable(date: Date) {
   const dayOfWeek = getDay(date);
-
+  
+  // Check if ANY staff is available
   if (selectedStaffId.value === "all") {
-    // Check if ANY staff is available
     return availabilities.value.some(
       (a) => a.day_of_week === dayOfWeek && a.is_available,
     );
@@ -300,7 +328,7 @@ function isDateWorkable(date: Date) {
 function expandBlockedDates() {
   const { start, end } = getViewDateRange();
   const blocks: any[] = [];
-
+  
   blockedDates.value.forEach((block) => {
     // Resolve staffName
     const staffName = staff.value.find((s) => s.id === block.staff_id)?.name;
@@ -320,28 +348,18 @@ function expandBlockedDates() {
         const occurrences = rule.between(start, end, true);
 
         occurrences.forEach((date) => {
-          // Check availability
-          const dayOfWeek = getDay(date);
-          const staffId = block.staff_id;
-
-          const staffAvail = availabilities.value.filter(
-            (a) => a.staff_id === staffId && a.day_of_week === dayOfWeek,
-          );
-          const isWorkable = staffAvail.some((a) => a.is_available);
-
-          if (isWorkable) {
-            blocks.push({
-              id: block.id + "-" + date.toISOString(),
-              type: "block",
-              title: block.title || block.reason || "Blocked",
-              start: date,
-              end: addMinutes(date, duration),
-              original: block,
-              status: "blocked",
-              isRecurring: true,
-              staffName: staffName,
-            });
-          }
+          // Add block regardless of workable status
+          blocks.push({
+            id: block.id + "-" + date.toISOString(),
+            type: "block",
+            title: block.title || block.reason || "Blocked",
+            start: date,
+            end: addMinutes(date, duration),
+            original: block,
+            status: "blocked",
+            isRecurring: true,
+            staffName: staffName,
+          });
         });
       } catch (e) {
         console.error("Error parsing rrule", e);
@@ -356,27 +374,18 @@ function expandBlockedDates() {
       );
 
       if (blockStart <= end && blockEnd >= start) {
-        // Check availability for single block
-        const dayOfWeek = getDay(blockStart);
-        const staffId = block.staff_id;
-        const staffAvail = availabilities.value.filter(
-          (a) => a.staff_id === staffId && a.day_of_week === dayOfWeek,
-        );
-        const isWorkable = staffAvail.some((a) => a.is_available);
-
-        if (isWorkable) {
-          blocks.push({
-            id: block.id,
-            type: "block",
-            title: block.title || block.reason || "Blocked",
-            start: blockStart,
-            end: blockEnd,
-            original: block,
-            status: "blocked",
-            isRecurring: false,
-            staffName: staffName,
-          });
-        }
+        // Add block regardless of workable status
+        blocks.push({
+          id: block.id,
+          type: "block",
+          title: block.title || block.reason || "Blocked",
+          start: blockStart,
+          end: blockEnd,
+          original: block,
+          status: "blocked",
+          isRecurring: false,
+          staffName: staffName,
+        });
       }
     }
   });
@@ -416,9 +425,39 @@ function getEventsForDate(date: Date) {
     });
 
   // Blocked Dates
-  const blocks = expandedBlocks.value.filter((block) => {
-    return isSameDay(block.start, date);
-  });
+  const dayStart = startOfDay(date);
+  const dayEnd = addDays(dayStart, 1);
+
+  const blocks = expandedBlocks.value
+    .filter((block) => {
+      // Check overlap: block starts before day ends AND block ends after day starts
+      return block.start < dayEnd && block.end > dayStart;
+    })
+    .map((block) => {
+      // Clone and clamp visual range for this specific day
+      // so the getEventStyle function can calculate correct height/position
+      let displayStart = block.start;
+      let displayEnd = block.end;
+
+      if (displayStart < dayStart) {
+        displayStart = dayStart;
+      }
+
+      if (displayEnd > dayEnd) {
+        displayEnd = dayEnd;
+      }
+
+      return {
+        ...block,
+        start: displayStart,
+        end: displayEnd,
+        // We keep original start/end in the 'original' field if needed, 
+        // or just rely on the fact that these are transient display objects.
+        // Note: formatEventTimeRange uses displayStart/displayEnd if available,
+        // but for blocks we might want to show "All Day" or just the time?
+        // Let's leave formatEventTimeRange as is for now.
+      };
+    });
 
   // Sort by time
   return [...apts, ...blocks].sort(
@@ -499,24 +538,19 @@ async function handleBlockDelete(id: string) {
   }
 }
 
-async function updateStatus(status: string) {
+async function updateStatus(status: AppointmentStatus) {
   if (!selectedAppointment.value) return;
 
   try {
-    const { error } = await supabase
-      .from("appointments")
-      .update({ status })
-      .eq("id", selectedAppointment.value.id);
-
-    if (error) throw error;
-
+    await appointmentStore.updateAppointment(selectedAppointment.value.id, { status });
+    
+    // Update local state directly since selectedAppointment is a reference to the item in appointments array
     selectedAppointment.value.status = status;
-    // Update in list - actually refresh to keep sorted
-    await fetchAppointments();
-
     showDetailsModal.value = false;
+    showSuccess(t('provider.appointments.status_update_success') || 'Status updated');
   } catch (e) {
     console.error("Error updating status:", e);
+    showError(t('provider.appointments.status_update_error') || 'Failed to update status');
   }
 }
 
@@ -548,6 +582,11 @@ function handleTimeSlotClick(date: Date, event: MouseEvent) {
   const roundedM = Math.round(m / 15) * 15;
   clickedDate.setMinutes(roundedM);
   clickedDate.setSeconds(0);
+
+  // Prevent creating blocks in the past
+  if (isBefore(clickedDate, new Date())) {
+    return;
+  }
 
   openBlockModal(clickedDate);
 }
@@ -699,10 +738,10 @@ async function handleBlockSave(data: any) {
             <!-- Week View (Time Grid) -->
             <div
               v-if="view === 'week'"
-              class="flex flex-col h-[700px] bg-white border rounded-md"
+              class="flex flex-col bg-white border rounded-md"
             >
               <!-- Time Grid Scroll Area -->
-              <div class="flex-1 overflow-y-auto relative custom-scrollbar">
+              <div class="flex-1 relative">
                 <!-- Header (Moved Inside) -->
                 <div class="flex border-b sticky top-0 bg-white z-20 shrink-0">
                   <div class="w-16 shrink-0 border-r bg-gray-50/40"></div>
@@ -734,13 +773,16 @@ async function handleBlockSave(data: any) {
                 >
                   <!-- Time Column -->
                   <div
-                    class="w-16 shrink-0 border-r bg-gray-50/20 sticky left-0 z-10 h-full"
+                    class="w-16 shrink-0 border-r bg-gray-50/20 relative"
+                    :style="{ minHeight: HOURS.length * PIXELS_PER_HOUR + 'px' }"
                   >
                     <div
                       v-for="h in HOURS"
                       :key="h"
-                      class="relative border-b border-transparent flex items-start justify-end pr-2 text-xs text-muted-foreground font-medium -mt-2.5"
-                      :style="{ height: PIXELS_PER_HOUR + 'px' }"
+                      class="absolute right-2 text-xs text-muted-foreground font-medium flex items-center justify-end h-5"
+                      :style="{ 
+                        top: (h - calendarStartHour) * PIXELS_PER_HOUR - 10 + 'px' 
+                      }"
                     >
                       <span v-if="h !== calendarStartHour">{{
                         h > 12 ? h - 12 + " PM" : h === 12 ? "12 PM" : h + " AM"
@@ -753,8 +795,12 @@ async function handleBlockSave(data: any) {
                     <div
                       v-for="day in weekDays"
                       :key="day.toISOString()"
-                      class="relative min-h-full border-r border-gray-300 last:border-r-0 hover:bg-gray-50/20 transition-colors cursor-pointer"
-                      :class="{ 'bg-gray-50/30': !isDateWorkable(day) }"
+                      class="relative min-h-full border-r border-gray-300 last:border-r-0 hover:bg-gray-50/20 transition-colors"
+                      :class="{ 
+                        'bg-gray-100/60': !isDateWorkable(day) || isPast(day),
+                        'cursor-default': isPast(day),
+                        'cursor-pointer': !isPast(day)
+                      }"
                       @click="handleTimeSlotClick(day, $event)"
                     >
                       <!-- Hour Grid Lines -->
@@ -846,8 +892,8 @@ async function handleBlockSave(data: any) {
                 class="min-h-[120px] p-2 border-b border-r last:border-r-0 relative transition-colors hover:bg-gray-50/30"
                 :class="{
                   'bg-gray-50/50': !day.isCurrentMonth,
-                  'bg-gray-100':
-                    day.isCurrentMonth && !isDateWorkable(day.date),
+                  'bg-gray-100/60':
+                    day.isCurrentMonth && (!isDateWorkable(day.date) || isPast(day.date)),
                 }"
               >
                 <span
@@ -909,10 +955,10 @@ async function handleBlockSave(data: any) {
             <!-- Day View (Time Grid) -->
             <div
               v-else-if="view === 'day'"
-              class="flex flex-col h-[700px] bg-white border rounded-md"
+              class="flex flex-col bg-white border rounded-md"
             >
               <!-- Time Grid Scroll Area -->
-              <div class="flex-1 overflow-y-auto relative custom-scrollbar">
+              <div class="flex-1 relative">
                 <!-- Header (Day - Moved Inside) -->
                 <div class="flex border-b sticky top-0 bg-white z-20 shrink-0">
                   <div class="w-16 shrink-0 border-r bg-gray-50/40"></div>
@@ -943,13 +989,16 @@ async function handleBlockSave(data: any) {
                 >
                   <!-- Time Column -->
                   <div
-                    class="w-16 shrink-0 border-r bg-gray-50/20 sticky left-0 z-10 h-full"
+                    class="w-16 shrink-0 border-r bg-gray-50/20 relative"
+                    :style="{ minHeight: HOURS.length * PIXELS_PER_HOUR + 'px' }"
                   >
                     <div
                       v-for="h in HOURS"
                       :key="h"
-                      class="relative h-[60px] border-b border-transparent flex items-start justify-end pr-2 text-xs text-muted-foreground font-medium -mt-2.5"
-                      :style="{ height: PIXELS_PER_HOUR + 'px' }"
+                      class="absolute right-2 text-xs text-muted-foreground font-medium flex items-center justify-end h-5"
+                      :style="{ 
+                        top: (h - calendarStartHour) * PIXELS_PER_HOUR - 10 + 'px' 
+                      }"
                     >
                       <span v-if="h !== calendarStartHour">{{
                         h > 12 ? h - 12 + " PM" : h === 12 ? "12 PM" : h + " AM"
@@ -959,8 +1008,12 @@ async function handleBlockSave(data: any) {
 
                   <!-- Day Content -->
                   <div
-                    class="flex-1 relative min-h-full bg-white cursor-pointer"
-                    :class="{ 'bg-gray-50/30': !isDateWorkable(currentDate) }"
+                    class="flex-1 relative min-h-full bg-white"
+                    :class="{ 
+                      'bg-gray-100/60': !isDateWorkable(currentDate) || isPast(currentDate),
+                      'cursor-default': isPast(currentDate),
+                      'cursor-pointer': !isPast(currentDate)
+                    }"
                     @click="handleTimeSlotClick(currentDate, $event)"
                   >
                     <!-- Hour Grid Lines -->
@@ -1053,6 +1106,8 @@ async function handleBlockSave(data: any) {
       :staffId="selectedStaffId"
       :staffList="staff"
       :initialDate="blockModalDate"
+      :minTime="calendarStartHour.toString().padStart(2, '0') + ':00'"
+      :maxTime="calendarEndHour.toString().padStart(2, '0') + ':00'"
       @close="showBlockModal = false"
       @save="handleBlockSave"
     />

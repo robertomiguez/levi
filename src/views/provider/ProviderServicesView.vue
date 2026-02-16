@@ -112,6 +112,37 @@ async function handleSave(serviceData: any) {
     }
   }
 
+  // Check for conflicts if updating duration or buffers on existing service
+  if (modal.data.value && serviceData.id) {
+    // Only check if time-related fields changed
+    const durationChanged = serviceData.duration !== modal.data.value.duration
+    const bufferBeforeChanged = serviceData.buffer_before !== modal.data.value.buffer_before
+    const bufferAfterChanged = serviceData.buffer_after !== modal.data.value.buffer_after
+
+    if (durationChanged || bufferBeforeChanged || bufferAfterChanged) {
+        const foundConflicts = await appointmentStore.checkServiceUpdateConflicts(
+            serviceData.id,
+            Number(serviceData.duration),
+            Number(serviceData.buffer_before || 0),
+            Number(serviceData.buffer_after || 0)
+        )
+
+        if (foundConflicts.length > 0) {
+            conflicts.value = foundConflicts
+            // We reuse the same modal but maybe need to adjust title/message context?
+            // The existing modal uses pendingDeactivationService but we can set pendingServiceData
+            // and maybe a flag to know it's an update conflict, not deactivation.
+            // But relying on pendingDeactivationService might be confusing if we display its name.
+            // Let's set pendingDeactivationService to the current service just for the name display.
+            pendingDeactivationService.value = modal.data.value
+            pendingServiceData.value = serviceData
+            isTogglingFromList.value = false
+            showConflictModal.value = true
+            return
+        }
+    }
+  }
+
   await executeSave(serviceData)
 }
 
@@ -348,13 +379,22 @@ async function confirmDeactivation() {
     <ConfirmationModal
       :isOpen="showConflictModal"
       :title="$t('provider.services.conflict_title')"
-      :message="$t('provider.services.conflict_msg', { name: pendingDeactivationService?.name })"
-      confirmLabel="Confirm"
+      :message="isTogglingFromList || !pendingServiceData?.active ? 
+        $t('provider.services.conflict_msg', { name: pendingDeactivationService?.name }) :
+        $t('provider.services.conflict_update_msg', { name: pendingDeactivationService?.name })"
+      :confirmLabel="isTogglingFromList || !pendingServiceData?.active ? 'Deactivate' : 'Update Anyway'" 
       :isDestructive="true"
       @close="showConflictModal = false"
       @confirm="confirmDeactivation"
     >
-      <div v-if="conflicts.length > 0" class="mt-4">
+      <div class="space-y-4">
+        <p class="text-sm text-gray-500">
+          {{ isTogglingFromList || !pendingServiceData?.active ? 
+            $t('provider.services.conflict_msg', { name: pendingDeactivationService?.name }) :
+            $t('provider.services.conflict_update_msg', { name: pendingDeactivationService?.name })
+          }}
+        </p>
+        <div v-if="conflicts.length > 0">
         <div class="space-y-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
           <div v-for="group in groupedConflicts" :key="group.date" class="space-y-2">
             <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -370,9 +410,13 @@ async function confirmDeactivation() {
           </div>
         </div>
         <p class="mt-6 text-sm text-gray-500 italic">
-          {{ $t('provider.staff.conflict_notice') }}
+          {{ isTogglingFromList || !pendingServiceData?.active ? 
+            $t('provider.staff.conflict_notice') : 
+            $t('provider.services.conflict_update_notice') 
+          }}
         </p>
       </div>
+    </div>
     </ConfirmationModal>
   </div>
 </template>

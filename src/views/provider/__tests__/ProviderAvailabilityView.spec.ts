@@ -8,6 +8,23 @@ import * as staffService from "../../../services/staffService";
 import * as availabilityService from "../../../services/availabilityService";
 
 
+// Mock Supabase first
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn(),
+    })),
+    auth: {
+      signInWithPassword: vi.fn(),
+      signOut: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+  },
+}));
+
 // Mock Services
 vi.mock("@/services/staffService", () => ({
   fetchStaff: vi.fn(),

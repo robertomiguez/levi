@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
     const provider = ref<Provider | null>(null)
     const loading = ref(false)
     const error = ref<string | null>(null)
+    const isReady = ref(false)
 
     const isAuthenticated = computed(() => !!user.value)
 
@@ -77,6 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
             console.error('Error initializing auth:', e)
         } finally {
             loading.value = false
+            isReady.value = true
         }
     }
 
@@ -389,6 +391,7 @@ export const useAuthStore = defineStore('auth', () => {
         fetchCustomerProfile,
         fetchProviderProfile,
         createCustomerProfile,
+        isReady,
         signInWithOAuth
     }
 })

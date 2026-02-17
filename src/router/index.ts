@@ -164,6 +164,15 @@ const router = createRouter({
 // Navigation guards
 router.beforeEach(async (to, _from, next) => {
     const authStore = useAuthStore()
+    
+    // Ensure auth is initialized before routing
+    if (!authStore.isReady) {
+        // You might want to wait for it, or rely on App.vue's loading state.
+        // If we await here, it guarantees the guards have correct state.
+        // Since main.ts calls initialize, this should be quick if already in progress.
+        await authStore.initialize()
+    }
+
     const role = authStore.userRole
 
     // Login page - redirect if already authenticated based on role

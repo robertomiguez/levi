@@ -84,29 +84,42 @@ const hideNavigation = computed(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Trial Warning Banner -->
-    <div 
-      v-if="showTrialWarning && !hideNavigation" 
-      class="bg-orange-50 border-b border-orange-200 px-4 py-3"
-    >
-      <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <AlertTriangle class="h-5 w-5 text-orange-600 shrink-0" />
-          <p class="text-sm font-medium text-orange-800">
-            Your free trial ends in <span class="font-bold">{{ daysLeft }} days</span>. 
-            Add your payment details to avoid interruption.
-          </p>
+    <!-- Global Loading State -->
+    <div v-if="!authStore.isReady" class="fixed inset-0 bg-background flex items-center justify-center z-50">
+      <div class="flex flex-col items-center gap-4">
+        <div class="relative flex h-10 w-10">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-10 w-10 bg-primary"></span>
         </div>
-        <button 
-          @click="router.push('/provider/subscription')"
-          class="text-sm font-semibold text-orange-900 flex items-center hover:underline whitespace-nowrap"
-        >
-          Add Payment Method <ChevronRight class="h-4 w-4 ml-1" />
-        </button>
+        <p class="text-muted-foreground animate-pulse">Loading Levi...</p>
       </div>
     </div>
 
-    <NavigationBar v-if="!hideNavigation" />
-    <RouterView />
+    <template v-else>
+      <!-- Trial Warning Banner -->
+      <div 
+        v-if="showTrialWarning && !hideNavigation" 
+        class="bg-orange-50 border-b border-orange-200 px-4 py-3"
+      >
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <AlertTriangle class="h-5 w-5 text-orange-600 shrink-0" />
+            <p class="text-sm font-medium text-orange-800">
+              Your free trial ends in <span class="font-bold">{{ daysLeft }} days</span>. 
+              Add your payment details to avoid interruption.
+            </p>
+          </div>
+          <button 
+            @click="router.push('/provider/subscription')"
+            class="text-sm font-semibold text-orange-900 flex items-center hover:underline whitespace-nowrap"
+          >
+            Add Payment Method <ChevronRight class="h-4 w-4 ml-1" />
+          </button>
+        </div>
+      </div>
+
+      <NavigationBar v-if="!hideNavigation" />
+      <RouterView />
+    </template>
   </div>
 </template>

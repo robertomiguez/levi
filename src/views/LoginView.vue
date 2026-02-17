@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useRouter, useRoute } from 'vue-router'
 import LoginForm from '../components/auth/LoginForm.vue'
+import heroImage from '@/assets/images/hero_barber_service_1765116285430.png'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -63,7 +64,7 @@ function handleLoginSuccess() {
     <!-- Left Panel (Testimonial/Branding) -->
     <div 
       class="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex bg-cover bg-center"
-      style="background-image: url('/src/assets/images/hero_barber_service_1765116285430.png');"
+      :style="{ backgroundImage: `url(${heroImage})` }"
     >
       <div class="absolute inset-0 bg-black/60" />
       <div class="relative z-20 flex items-center text-lg font-medium">

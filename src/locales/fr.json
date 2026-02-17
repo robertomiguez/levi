@@ -20,7 +20,9 @@
     "start_time": "Heure de début",
     "end_time": "Heure de fin",
     "description": "Description",
-    "ok": "OK"
+    "ok": "OK",
+    "saving": "Enregistrement...",
+    "deleting": "Suppression..."
   },
   "auth": {
     "login": "Connexion",
@@ -129,6 +131,7 @@
   "dashboard": {
     "title": "Tableau de bord du prestataire",
     "welcome_back": "Ravi de vous revoir, {name} ! 👋",
+    "loading": "Chargement du tableau de bord...",
     "stats": {
       "today_appointments": "Rendez-vous du jour",
       "week_revenue": "Revenu de la semaine",
@@ -315,6 +318,7 @@
   "calendar": {
     "title": "Calendrier",
     "subtitle": "Voir et gérer les rendez-vous",
+    "loading": "Chargement du calendrier...",
     "block_time": "Bloquer l'heure",
     "event_title": "Titre de l'événement",
     "all_day": "Toute la journée",
@@ -604,5 +608,8 @@
     "provider": "Prestataire",
     "customer": "Client",
     "both": "Tous les deux"
+  },
+  "reports": {
+    "loading": "Chargement du rapport..."
   }
 }

@@ -53,8 +53,14 @@ async function handleConfirmDelete() {
     pendingDeleteId.value = null
   }
 }
-onMounted(() => {
-  serviceStore.fetchAllServices()
+const isLoading = ref(true)
+
+onMounted(async () => {
+  try {
+    await serviceStore.fetchAllServices()
+  } finally {
+    isLoading.value = false
+  }
 })
 
 function openCreateModal() {
@@ -137,7 +143,7 @@ function handleDelete(id: string) {
       </div>
 
       <!-- Loading State -->
-      <div v-if="serviceStore.loading && serviceStore.services.length === 0" class="bg-white rounded-lg shadow p-12 text-center">
+      <div v-if="(serviceStore.loading || isLoading) && serviceStore.services.length === 0" class="bg-white rounded-lg shadow p-12 text-center">
         <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent"></div>
         <p class="text-gray-500 mt-4">{{ $t('services.loading') }}</p>
       </div>

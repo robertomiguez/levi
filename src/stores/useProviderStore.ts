@@ -46,11 +46,14 @@ export const useProviderStore = defineStore('provider', () => {
     async function fetchDashboardStats(providerId: string) {
         if (!providerId) return
 
+        loading.value = true
         try {
             const statsData = await providerService.fetchDashboardStats(providerId)
             stats.value = statsData
         } catch (e) {
             console.error('Error fetching dashboard stats:', e)
+        } finally {
+            loading.value = false
         }
     }
 

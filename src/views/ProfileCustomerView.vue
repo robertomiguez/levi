@@ -125,7 +125,7 @@ async function updateProfile() {
             class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             <div v-if="loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>{{ loading ? $t('common.save') : $t('profile.save_and_continue') }}</span>
+            <span>{{ loading ? $t('common.saving') : $t('profile.save_and_continue') }}</span>
           </button>
 
           <!-- Existing User: Save & Close -->
@@ -136,7 +136,7 @@ async function updateProfile() {
               class="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               <div v-if="loading" class="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>{{ loading ? $t('common.save') : $t('common.save') }}</span>
+              <span>{{ loading ? $t('common.saving') : $t('common.save') }}</span>
             </button>
 
             <button

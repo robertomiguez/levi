@@ -13,6 +13,7 @@ import {
   DollarSign,
   TrendingUp,
 } from 'lucide-vue-next'
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -127,6 +128,9 @@ function handleExport() {
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-6 py-8 print:p-8 print:max-w-none">
       
+      <LoadingSpinner v-if="loading" :text="$t('reports.loading')" />
+
+      <template v-else>
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 print:grid-cols-3 print:gap-4">
         <div class="bg-white p-6 rounded-lg shadow border border-gray-100 print:shadow-none print:border-gray-300">
@@ -209,6 +213,7 @@ function handleExport() {
           </table>
         </div>
       </div>
+      </template>
     </div>
   </div>
 </template>

@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Check, Loader2, AlertCircle, RefreshCw, ArrowUp, ArrowLeft, Calendar, Lock } from 'lucide-vue-next'
+import { Check, AlertCircle, RefreshCw, ArrowUp, ArrowLeft, Calendar, Lock } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 import { TERMS_VERSION } from '../../constants'
 import Modal from '@/components/common/Modal.vue'
@@ -319,9 +320,7 @@ function hasDiscount(plan: Plan): boolean {
             </div>
 
             <!-- Loading State -->
-            <div v-if="loading" class="flex justify-center py-20">
-                <Loader2 class="h-8 w-8 animate-spin text-primary-600" />
-            </div>
+            <LoadingSpinner v-if="loading" size="md" color="text-primary-600" :inline="false" />
 
             <!-- Error State -->
             <!-- Error State -->
@@ -467,7 +466,7 @@ function hasDiscount(plan: Plan): boolean {
                             size="lg"
                             @click.stop="handlePlanAction(plan)"
                         >
-                            <Loader2 v-if="processing && isSelected(plan)" class="mr-2 h-4 w-4 animate-spin" />
+                            <LoadingSpinner v-if="processing && isSelected(plan)" inline size="sm" class="mr-2" color="text-white" />
                             <template v-else>
                                 <span v-if="!plan.is_active">{{ $t('pricing.coming_soon') }}</span>
                                 <span v-else-if="isChangeMode && isCurrentPlan(plan)">{{ $t('pricing.current_plan') }}</span>
@@ -600,7 +599,7 @@ function hasDiscount(plan: Plan): boolean {
                         @click="confirmPlanChange"
                         :disabled="processing"
                     >
-                        <Loader2 v-if="processing" class="mr-2 h-4 w-4 animate-spin" />
+                        <LoadingSpinner v-if="processing" inline size="sm" class="mr-2" :color="prorationPreview.isUpgrade ? 'text-white' : undefined" />
                         {{ $t('pricing.confirm_change') }}
                     </Button>
                 </div>

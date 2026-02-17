@@ -8,7 +8,8 @@ import Modal from '../../components/common/Modal.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Trash2, ImagePlus } from 'lucide-vue-next'
+import { Trash2, ImagePlus } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { supabase } from '../../lib/supabase'
 import { MAX_SERVICE_IMAGES, MAX_IMAGE_SIZE_BYTES, MAX_IMAGE_SIZE_MB, SERVICE_IMAGES_BUCKET } from '../../constants'
 
@@ -364,7 +365,7 @@ async function handleSubmit() {
           :disabled="props.loading || uploading"
           class="flex-1 sm:flex-none bg-primary-600 hover:bg-primary-700"
         >
-          <Loader2 v-if="props.loading || uploading" class="mr-2 h-4 w-4 animate-spin" />
+          <LoadingSpinner v-if="props.loading || uploading" inline size="sm" class="mr-2" color="text-white" />
           {{ props.loading || uploading ? $t('modals.service.saving') : $t('modals.service.save_button') }}
         </Button>
       </div>

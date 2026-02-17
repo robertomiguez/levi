@@ -12,7 +12,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea' // Assuming Textarea component exists or use native
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, Building, Phone, FileText } from 'lucide-vue-next'
+import { Building, Phone, FileText } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -193,7 +194,7 @@ async function handleSubmit() {
             :disabled="loading"
             class="min-w-[150px]"
           >
-            <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+            <LoadingSpinner v-if="loading" inline size="sm" class="mr-2" color="text-white" />
             {{ loading ? $t('common.loading') : $t('common.save_profile') }}
           </Button>
         </CardFooter>

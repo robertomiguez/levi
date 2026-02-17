@@ -28,6 +28,8 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
   const selectedTime = ref<string>('')
   const availableSlots = ref<TimeSlot[]>([])
   const loadingSlots = ref(false)
+  const loadingDates = ref(false)
+  const isSubmitting = ref(false)
   const notes = ref('')
   const providerInfo = ref<Provider | null>(null)
   const bookingConfirmed = ref(false)
@@ -353,6 +355,7 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
       }
     }
 
+    isSubmitting.value = true
     try {
       const timeParts = selectedTime.value.split(':')
       const hours = parseInt(timeParts[0]!)
@@ -412,6 +415,8 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
         errorCallback(t('booking.booking_failed'))
       }
       return false
+    } finally {
+      isSubmitting.value = false
     }
   }
 
@@ -531,48 +536,53 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
       const today = new Date()
       const endDate = addDays(today, 60)
       
-      await Promise.all([
-        staffStore.fetchAvailability(newId),
-        staffStore.fetchBlockedDates(newId),
-      ])
+      loadingDates.value = true
+      try {
+        await Promise.all([
+          staffStore.fetchAvailability(newId),
+          staffStore.fetchBlockedDates(newId),
+        ])
 
-      const fetchAppointments = async () => {
-        rangeAppointments.value = await appointmentStore.fetchStaffAppointments(
-          newId, 
-          format(today, 'yyyy-MM-dd'), 
-          format(endDate, 'yyyy-MM-dd')
-        )
-      }
-      await fetchAppointments()
-
-      realtimeChannel = supabase
-        .channel(`public:appointments:staff_id=eq.${newId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'appointments',
-            filter: `staff_id=eq.${newId}`
-          },
-          async () => {
-            await fetchAppointments()
-            if (selectedDate.value) {
-              await loadAvailableSlots()
-            }
-          }
-        )
-        .subscribe()
-      
-      if (!isDateAvailable(selectedDate.value)) {
-        const nextAvailable = availableDates.value.find(d => isDateAvailable(d))
-        if (nextAvailable) {
-          selectedDate.value = nextAvailable
+        const fetchAppointments = async () => {
+          rangeAppointments.value = await appointmentStore.fetchStaffAppointments(
+            newId, 
+            format(today, 'yyyy-MM-dd'), 
+            format(endDate, 'yyyy-MM-dd')
+          )
         }
-      } else {
-        // If date didn't change (so no watcher trigger), we still need to reload slots
-        // with the newly fetched data
-        await loadAvailableSlots()
+        await fetchAppointments()
+
+        realtimeChannel = supabase
+          .channel(`public:appointments:staff_id=eq.${newId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'appointments',
+              filter: `staff_id=eq.${newId}`
+            },
+            async () => {
+              await fetchAppointments()
+              if (selectedDate.value) {
+                await loadAvailableSlots()
+              }
+            }
+          )
+          .subscribe()
+        
+        if (!isDateAvailable(selectedDate.value)) {
+          const nextAvailable = availableDates.value.find(d => isDateAvailable(d))
+          if (nextAvailable) {
+            selectedDate.value = nextAvailable
+          }
+        } else {
+          // If date didn't change (so no watcher trigger), we still need to reload slots
+          // with the newly fetched data
+          await loadAvailableSlots()
+        }
+      } finally {
+        loadingDates.value = false
       }
     }
   })
@@ -596,6 +606,8 @@ export function useBookingFlow(initialProviderId?: string, initialStaffId?: stri
     selectedTime,
     availableSlots,
     loadingSlots,
+    loadingDates,
+    isSubmitting,
     notes,
     providerInfo,
     bookingConfirmed,

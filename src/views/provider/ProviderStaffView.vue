@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 import StaffFormModal from '../../components/provider/StaffFormModal.vue'
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 
 const authStore = useAuthStore()
 const staffStore = useStaffStore()
@@ -25,6 +26,7 @@ const { showSuccess, showError } = useNotifications()
 
 const staff = ref<Staff[]>([])
 const loading = ref(false)
+const saving = ref(false) // Added saving ref
 const modal = useModal<Staff>()
 
 // Provider Addresses (branches)
@@ -195,6 +197,7 @@ async function onSaveStaff(payload: {
 async function executeSave(payload: typeof pendingSavePayload.value) {
   if (!authStore.provider || !payload) return
   
+  saving.value = true // Set saving to true
   try {
     let staffId: string | undefined
     
@@ -244,6 +247,8 @@ async function executeSave(payload: typeof pendingSavePayload.value) {
   } catch (e) {
     console.error('Error saving staff:', e)
     showError(t('provider.staff.save_error') + ': ' + (e instanceof Error ? e.message : String(e)))
+  } finally {
+    saving.value = false // Set saving to false
   }
 }
 
@@ -323,10 +328,7 @@ async function confirmDeactivation() {
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-6 py-8">
       <!-- Loading State -->
-      <div v-if="loading" class="text-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">{{ $t('provider.staff.loading') }}</p>
-      </div>
+      <LoadingSpinner v-if="loading" :text="$t('provider.staff.loading')" />
 
       <!-- Empty State -->
       <div v-else-if="staff.length === 0" class="text-center py-12 bg-white rounded-lg shadow">
@@ -446,6 +448,7 @@ async function confirmDeactivation() {
       :staff="modal.data.value"
       :providerAddresses="providerAddresses"
       :initialAddressIds="selectedAddressIds"
+      :loading="saving"
       @close="modal.close()"
       @save="onSaveStaff"
     />

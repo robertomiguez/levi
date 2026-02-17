@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/useAuthStore'
-import { Loader2 } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -86,7 +86,7 @@ function handleRedirect() {
 <template>
     <div class="min-h-screen flex items-center justify-center bg-gray-50">
         <div class="text-center">
-            <Loader2 class="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <LoadingSpinner size="md" color="text-primary" class="mx-auto mb-4" :inline="true" />
             <h2 class="text-lg font-semibold text-gray-900">Verifying login...</h2>
             <p class="text-sm text-muted-foreground mt-2">Please wait while we redirect you.</p>
         </div>

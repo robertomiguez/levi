@@ -12,7 +12,8 @@ import {
   PinInputGroup,
   PinInputSlot,
 } from '@/components/ui/pin-input'
-import { Loader2, Mail, ArrowLeft, RefreshCw } from 'lucide-vue-next'
+import { Mail, ArrowLeft, RefreshCw } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
   redirect?: string
@@ -136,7 +137,7 @@ function handleGoogleSignIn() {
           </div>
           
           <Button type="submit" :disabled="authStore.loading || !email">
-            <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
+            <LoadingSpinner v-if="authStore.loading" inline size="sm" class="mr-2" color="text-white" />
             {{ authStore.loading ? $t('common.sending') : $t('auth.send_code') }}
           </Button>
         </div>
@@ -184,7 +185,7 @@ function handleGoogleSignIn() {
         :disabled="authStore.loading || otpValue.length !== 6 || otpValue.some(v => v === '')"
         class="w-full"
       >
-        <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
+        <LoadingSpinner v-if="authStore.loading" inline size="sm" class="mr-2" color="text-white" />
         {{ authStore.loading ? $t('common.verifying') : $t('auth.verify_code') }}
       </Button>
 

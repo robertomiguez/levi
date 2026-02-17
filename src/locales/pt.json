@@ -25,7 +25,9 @@
     "start_time": "Início",
     "end_time": "Fim",
     "description": "Descrição",
-    "ok": "OK"
+    "ok": "OK",
+    "saving": "Salvando...",
+    "deleting": "Excluindo..."
   },
   "auth": {
     "login": "Entrar",
@@ -134,6 +136,7 @@
   "dashboard": {
     "title": "Painel do Prestador",
     "welcome_back": "Bem-vindo de volta, {name}! 👋",
+    "loading": "Carregando painel...",
     "stats": {
       "today_appointments": "Agendamentos de Hoje",
       "week_revenue": "Receita da Semana",
@@ -327,6 +330,7 @@
   "calendar": {
     "title": "Calendário",
     "subtitle": "Veja e gerencie agendamentos",
+    "loading": "Carregando calendário...",
     "block_time": "Bloquear Horário",
     "event_title": "Título do Evento",
     "all_day": "Dia Inteiro",
@@ -617,5 +621,8 @@
     "provider": "Prestador",
     "customer": "Cliente",
     "both": "Ambos"
+  },
+  "reports": {
+    "loading": "Carregando relatório..."
   }
 }

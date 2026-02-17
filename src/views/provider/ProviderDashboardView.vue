@@ -17,6 +17,7 @@ import {
   AlertTriangle
 } from 'lucide-vue-next'
 import { useCurrency } from '@/composables/useCurrency'
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 
 const authStore = useAuthStore()
 const providerStore = useProviderStore()
@@ -90,8 +91,11 @@ function goToRevenueReport() {
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-6 py-8">
+      
+      <LoadingSpinner v-if="providerStore.loading" :text="$t('dashboard.loading')" />
+
       <!-- Stats Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <!-- Today's Appointments -->
         <div 
           @click="goToCalendar"

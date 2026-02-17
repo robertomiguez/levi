@@ -26,7 +26,9 @@
     "start_time": "Start Time",
     "end_time": "End Time",
     "description": "Description",
-    "ok": "OK"
+    "ok": "OK",
+    "saving": "Saving...",
+    "deleting": "Deleting..."
   },
   "auth": {
     "login": "Log In",
@@ -282,6 +284,7 @@
   "dashboard": {
     "title": "Provider Dashboard",
     "welcome_back": "Welcome back, {name}! 👋",
+    "loading": "Loading dashboard...",
     "stats": {
       "today_appointments": "Today's Appointments",
       "week_revenue": "This Week Revenue",
@@ -373,6 +376,7 @@
   "calendar": {
     "title": "Calendar",
     "subtitle": "View and manage appointments",
+    "loading": "Loading calendar...",
     "block_time": "Block Time",
     "event_title": "Event Title",
     "all_day": "All Day",
@@ -663,5 +667,8 @@
     "provider": "Provider",
     "customer": "Customer",
     "both": "Both"
+  },
+  "reports": {
+    "loading": "Loading report..."
   }
 }

@@ -13,6 +13,7 @@ import { useNotifications } from '../../composables/useNotifications'
 import type { Service } from '../../types'
 import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -28,6 +29,7 @@ const modal = useModal<Service>()
 const searchQuery = ref('')
 const categoryFilter = ref(t('category_pills.all'))
 const saving = ref(false)
+const isLoading = ref(true)
 
 // Conflict modal state
 const showConflictModal = ref(false)
@@ -80,14 +82,18 @@ const filteredServices = computed(() => {
 })
 
 onMounted(async () => {
-  if (!authStore.provider) {
-    router.push('/booking')
-    return
+  try {
+    if (!authStore.provider) {
+      router.push('/booking')
+      return
+    }
+    await Promise.all([
+      serviceStore.fetchAllServices(authStore.provider.id),
+      categoryStore.fetchCategories()
+    ])
+  } finally {
+    isLoading.value = false
   }
-  await Promise.all([
-    serviceStore.fetchAllServices(authStore.provider.id),
-    categoryStore.fetchCategories()
-  ])
 })
 
 function openAddModal() {
@@ -270,10 +276,7 @@ async function confirmDeactivation() {
       </div>
 
       <!-- Loading State -->
-      <div v-if="serviceStore.loading" class="text-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">{{ $t('services.loading') }}</p>
-      </div>
+      <LoadingSpinner v-if="serviceStore.loading || isLoading" :text="$t('services.loading')" />
 
       <!-- Empty State -->
       <div v-else-if="filteredServices.length === 0" class="text-center py-12 bg-white rounded-lg shadow">

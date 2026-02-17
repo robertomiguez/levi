@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../stores/useSettingsStore'
 defineProps<{
   isOpen: boolean
   appointment: any
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -70,29 +71,45 @@ function formatDate(dateStr: string) {
         <div class="flex gap-2">
           <button 
             @click="$emit('update-status', 'confirmed')"
-            class="px-3 py-1 rounded-full text-sm font-medium border"
-            :class="appointment.status === 'confirmed' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+            class="px-3 py-1 rounded-full text-sm font-medium border transition-colors"
+            :disabled="loading"
+            :class="[
+              appointment.status === 'confirmed' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+              loading ? 'opacity-50 cursor-not-allowed' : ''
+            ]"
           >
             {{ $t('status.confirmed') }}
           </button>
           <button 
             @click="$emit('update-status', 'completed')"
-            class="px-3 py-1 rounded-full text-sm font-medium border"
-            :class="appointment.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+            class="px-3 py-1 rounded-full text-sm font-medium border transition-colors"
+            :disabled="loading"
+            :class="[
+              appointment.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+               loading ? 'opacity-50 cursor-not-allowed' : ''
+            ]"
           >
             {{ $t('status.completed') }}
           </button>
           <button 
             @click="$emit('update-status', 'cancelled')"
-            class="px-3 py-1 rounded-full text-sm font-medium border"
-            :class="appointment.status === 'cancelled' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+            class="px-3 py-1 rounded-full text-sm font-medium border transition-colors"
+            :disabled="loading"
+            :class="[
+              appointment.status === 'cancelled' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+               loading ? 'opacity-50 cursor-not-allowed' : ''
+            ]"
           >
             {{ $t('status.cancelled') }}
           </button>
           <button 
             @click="$emit('update-status', 'no-show')"
-            class="px-3 py-1 rounded-full text-sm font-medium border"
-            :class="appointment.status === 'no-show' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'"
+            class="px-3 py-1 rounded-full text-sm font-medium border transition-colors"
+            :disabled="loading"
+            :class="[
+              appointment.status === 'no-show' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+               loading ? 'opacity-50 cursor-not-allowed' : ''
+            ]"
           >
             {{ $t('status.no_show') }}
           </button>

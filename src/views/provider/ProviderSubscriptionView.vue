@@ -7,9 +7,10 @@ import type { Subscription, Plan } from '../../types'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 import { 
-    Loader2, 
+ 
     CreditCard, 
     Calendar, 
     AlertTriangle,
@@ -175,7 +176,7 @@ async function handleAddPaymentMethod() {
         </div>
 
         <div v-if="loading" class="flex justify-center py-12">
-            <Loader2 class="h-8 w-8 animate-spin text-primary-600" />
+            <LoadingSpinner size="md" color="text-primary-600" :inline="false" />
         </div>
 
         <div v-else-if="!subscription" class="text-center py-12 bg-gray-50 rounded-lg">
@@ -303,7 +304,7 @@ async function handleAddPaymentMethod() {
                         @click="handleManageBilling"
                         :disabled="processing || managingBilling"
                     >
-                        <Loader2 v-if="managingBilling" class="mr-2 h-4 w-4 animate-spin" />
+                        <LoadingSpinner v-if="managingBilling" inline size="sm" class="mr-2" />
                         <ExternalLink v-else class="mr-2 h-4 w-4" />
                         {{ $t('subscription.manage_billing') }}
                     </Button>

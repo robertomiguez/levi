@@ -3,9 +3,10 @@ import { computed } from 'vue'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useStaffStore } from '@/stores/useStaffStore'
 import { Button } from '@/components/ui/button'
-import { Calendar as CalendarIcon, Clock, ArrowLeft, Loader2 } from 'lucide-vue-next'
+import { Calendar as CalendarIcon, Clock, ArrowLeft } from 'lucide-vue-next'
 import { format } from 'date-fns'
 import type { TimeSlot } from '@/types'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 interface Service {
   id: string
@@ -20,6 +21,7 @@ const props = defineProps<{
   availableSlots: TimeSlot[]
   selectedTime: string
   loadingSlots: boolean
+  loadingDates?: boolean
   isDateAvailable: (date: Date) => boolean
   getDateStatus: (date: Date) => 'Available' | 'Busy' | 'Unavailable'
 }>()
@@ -64,7 +66,12 @@ const selectedStaffName = computed(() =>
       <!-- Date Picker -->
       <div>
         <h3 class="font-medium text-gray-900 mb-3 ml-1">{{ $t('booking.choose_date') }}</h3>
-        <div class="space-y-2 h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
+        
+        <div v-if="loadingDates" class="h-80 flex items-center justify-center border rounded-md bg-gray-50">
+          <LoadingSpinner :text="$t('calendar.loading')" />
+        </div>
+
+        <div v-else class="space-y-2 h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-200">
           <button
             v-for="date in availableDates"
             :key="date.toISOString()"
@@ -102,7 +109,7 @@ const selectedStaffName = computed(() =>
         </h3>
         
         <div v-if="loadingSlots" class="flex justify-center py-12">
-          <Loader2 class="h-8 w-8 animate-spin text-primary-600" />
+          <LoadingSpinner :text="$t('booking.loading_slots')" />
         </div>
 
         <div v-else-if="availableSlots.length > 0" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-1">

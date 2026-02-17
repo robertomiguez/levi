@@ -8,6 +8,7 @@ import { useSettingsStore } from '../stores/useSettingsStore'
 import { useNotifications } from '../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
 import ConfirmationModal from '../components/common/ConfirmationModal.vue'
+import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -146,10 +147,7 @@ async function handleCancel() {
       </div>
 
       <!-- Loading State -->
-      <div v-if="appointmentStore.loading" class="text-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">{{ $t('my_bookings.loading') }}</p>
-      </div>
+      <LoadingSpinner v-if="appointmentStore.loading" :text="$t('my_bookings.loading')" />
 
       <!-- Empty State -->
       <div v-else-if="filteredAppointments.length === 0" class="text-center py-16 bg-white rounded-lg shadow-sm">

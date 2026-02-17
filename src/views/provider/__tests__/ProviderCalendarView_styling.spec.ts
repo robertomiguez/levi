@@ -56,6 +56,7 @@ vi.mock("lucide-vue-next", () => ({
   ChevronLeft: { template: "<span></span>" },
   ChevronRight: { template: "<span></span>" },
   ArrowLeft: { template: "<span></span>" },
+  Loader2: { template: "<span></span>" },
 }));
 
 vi.mock("vue-i18n", () => ({

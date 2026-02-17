@@ -3,6 +3,7 @@ import { ref, watch, computed } from "vue";
 import Modal from "../common/Modal.vue";
 import { RRule } from "rrule";
 import type { BlockedDate, Staff } from "../../types";
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -11,6 +12,7 @@ const props = defineProps<{
   initialDate?: Date;
   minTime?: string; // "HH:mm"
   maxTime?: string; // "HH:mm"
+  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -376,9 +378,12 @@ function handleSave() {
         </button>
         <button
           type="submit"
-          class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm"
+          :disabled="loading"
+          class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:text-sm items-center"
+          :class="{ 'opacity-75 cursor-not-allowed': loading }"
         >
-          {{ $t("common.save") }}
+          <LoadingSpinner v-if="loading" inline size="sm" class="mr-2" color="text-white" />
+          {{ loading ? $t('common.saving') : $t('common.save') }}
         </button>
       </div>
     </form>

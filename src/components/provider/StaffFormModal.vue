@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -167,8 +167,8 @@ function handleSubmit() {
           :disabled="loading || (providerAddresses.length > 0 && selectedAddressIds.length === 0)"
           class="flex-1 sm:flex-none bg-primary-600 hover:bg-primary-700"
         >
-          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ loading ? $t('common.loading') : $t('common.save') }}
+          <LoadingSpinner v-if="loading" inline size="sm" class="mr-2" color="text-white" />
+          {{ loading ? $t('common.saving') : $t('common.save') }}
         </Button>
       </div>
     </form>

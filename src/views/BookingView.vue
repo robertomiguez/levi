@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useServiceStore } from '@/stores/useServiceStore'
 import { useStaffStore } from '@/stores/useStaffStore'
@@ -28,82 +28,87 @@ const { errorMessage, showError, clearMessages } = useNotifications()
 
 // Initialize booking flow
 const booking = useBookingFlow()
+const isLoading = ref(true)
 
 onMounted(async () => {
-  // Check if we're returning from OAuth with pending booking state
-  const wasRestored = booking.restoreBookingState()
-  
-  const providerId = wasRestored ? booking.selectedProviderId.value : route.query.provider as string
-  const staffId = wasRestored ? booking.selectedStaffId.value : route.query.staff as string
+  try {
+    // Check if we're returning from OAuth with pending booking state
+    const wasRestored = booking.restoreBookingState()
+    
+    const providerId = wasRestored ? booking.selectedProviderId.value : route.query.provider as string
+    const staffId = wasRestored ? booking.selectedStaffId.value : route.query.staff as string
 
-  if (staffId) {
-    const staffMember = await staffStore.fetchStaffMember(staffId)
-    if (staffMember && staffMember.provider_id) {
-      booking.selectedProviderId.value = staffMember.provider_id
-      booking.selectedStaffId.value = staffMember.id
-      await booking.fetchProviderInfo(staffMember.provider_id)
+    if (staffId) {
+      const staffMember = await staffStore.fetchStaffMember(staffId)
+      if (staffMember && staffMember.provider_id) {
+        booking.selectedProviderId.value = staffMember.provider_id
+        booking.selectedStaffId.value = staffMember.id
+        await booking.fetchProviderInfo(staffMember.provider_id)
+      }
+    } else if (providerId) {
+      booking.selectedProviderId.value = providerId
+      await booking.fetchProviderInfo(providerId)
     }
-  } else if (providerId) {
-    booking.selectedProviderId.value = providerId
-    await booking.fetchProviderInfo(providerId)
-  }
-  
-  if (booking.selectedProviderId.value) {
-    await serviceStore.fetchAllServices(booking.selectedProviderId.value)
-  }
-  await staffStore.fetchStaff()
+    
+    if (booking.selectedProviderId.value) {
+      await serviceStore.fetchAllServices(booking.selectedProviderId.value)
+    }
+    await staffStore.fetchStaff()
 
-  if (authStore.isAuthenticated && !authStore.customer) {
-    await authStore.createCustomerProfile()
-  }
+    if (authStore.isAuthenticated && !authStore.customer) {
+      await authStore.createCustomerProfile()
+    }
 
-  if (staffId && !wasRestored && booking.filteredServices.value.length === 1) {
-    booking.selectService(booking.filteredServices.value[0]!.id)
-  }
+    if (staffId && !wasRestored && booking.filteredServices.value.length === 1) {
+      booking.selectService(booking.filteredServices.value[0]!.id)
+    }
 
-  // If we restored from OAuth, we need to auto-submit the booking
-  if (wasRestored) {
-    // Wait for auth store to fully load (including customer profile)
-    const completeBooking = async () => {
-      // Wait for auth to be ready - either already authenticated or wait for it
-      if (!authStore.isAuthenticated || authStore.loading) {
-        await new Promise<void>(resolve => {
-          const unwatch = authStore.$subscribe((_, state) => {
-            if (state.user && !state.loading) {
+    // If we restored from OAuth, we need to auto-submit the booking
+    if (wasRestored) {
+      // Wait for auth store to fully load (including customer profile)
+      const completeBooking = async () => {
+        // Wait for auth to be ready - either already authenticated or wait for it
+        if (!authStore.isAuthenticated || authStore.loading) {
+          await new Promise<void>(resolve => {
+            const unwatch = authStore.$subscribe((_, state) => {
+              if (state.user && !state.loading) {
+                unwatch()
+                resolve()
+              }
+            })
+            // Check immediately in case already ready
+            if (authStore.user && !authStore.loading) {
               unwatch()
               resolve()
             }
           })
-          // Check immediately in case already ready
-          if (authStore.user && !authStore.loading) {
-            unwatch()
-            resolve()
-          }
-        })
+        }
+        
+        // Ensure customer profile exists
+        if (!authStore.customer) {
+          await authStore.createCustomerProfile()
+        }
+        
+        // Wait for services to be available (retry up to 10 times with 100ms delay)
+        let retries = 0
+        while (!booking.selectedService.value && retries < 10) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          retries++
+        }
+        
+        if (!booking.selectedService.value) {
+          showError('Failed to restore booking. Please try again.')
+          return
+        }
+        
+        // Now submit the booking
+        await handleSubmit()
       }
       
-      // Ensure customer profile exists
-      if (!authStore.customer) {
-        await authStore.createCustomerProfile()
-      }
-      
-      // Wait for services to be available (retry up to 10 times with 100ms delay)
-      let retries = 0
-      while (!booking.selectedService.value && retries < 10) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        retries++
-      }
-      
-      if (!booking.selectedService.value) {
-        showError('Failed to restore booking. Please try again.')
-        return
-      }
-      
-      // Now submit the booking
-      await handleSubmit()
+      completeBooking()
     }
-    
-    completeBooking()
+  } finally {
+    isLoading.value = false
   }
 })
 
@@ -193,6 +198,7 @@ async function handleLoginSuccess() {
               v-if="booking.currentStep.value === 1"
               :services="booking.filteredServices.value"
               :selected-service-id="booking.selectedServiceId.value"
+              :loading="serviceStore.loading || isLoading"
               @select="booking.selectService"
               @confirm="booking.confirmService"
             />
@@ -229,6 +235,7 @@ async function handleLoginSuccess() {
               :available-slots="booking.availableSlots.value"
               :selected-time="booking.selectedTime.value"
               :loading-slots="booking.loadingSlots.value"
+              :loading-dates="booking.loadingDates.value"
               :is-date-available="booking.isDateAvailable"
               :get-date-status="booking.getDateStatus"
               @update:selected-date="booking.selectedDate.value = $event"
@@ -249,6 +256,7 @@ async function handleLoginSuccess() {
               :notes="booking.notes.value"
               :show-login="booking.showLogin.value"
               :error-message="errorMessage"
+              :loading="booking.isSubmitting.value"
               :format-date-display="booking.formatDateDisplay"
               :format-address="booking.formatAddress"
               :get-map-url="booking.getMapUrl"

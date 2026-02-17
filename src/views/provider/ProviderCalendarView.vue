@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-vue-next";
 import { rrulestr } from "rrule";
+import LoadingSpinner from "../../components/common/LoadingSpinner.vue";
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -45,6 +46,9 @@ const blockedDates = ref<BlockedDate[]>([]);
 const availabilities = ref<Availability[]>([]);
 const expandedBlocks = ref<any[]>([]);
 const loading = ref(false);
+const savingBlock = ref(false);
+const deletingBlock = ref(false);
+const updatingStatus = ref(false);
 
 // Calendar generation helpers
 const calendarDays = computed(() => {
@@ -529,18 +533,22 @@ function openEventDetails(event: any) {
 }
 
 async function handleBlockDelete(id: string) {
+  deletingBlock.value = true
   try {
     await availabilityService.deleteBlockedDate(id);
     showBlockDetailsModal.value = false;
     await refreshData();
   } catch (e) {
     console.error("Error deleting block", e);
+  } finally {
+    deletingBlock.value = false
   }
 }
 
 async function updateStatus(status: AppointmentStatus) {
   if (!selectedAppointment.value) return;
 
+  updatingStatus.value = true
   try {
     await appointmentStore.updateAppointment(selectedAppointment.value.id, { status });
     
@@ -551,6 +559,8 @@ async function updateStatus(status: AppointmentStatus) {
   } catch (e) {
     console.error("Error updating status:", e);
     showError(t('provider.appointments.status_update_error') || 'Failed to update status');
+  } finally {
+    updatingStatus.value = false
   }
 }
 
@@ -591,6 +601,7 @@ function handleTimeSlotClick(date: Date, event: MouseEvent) {
   openBlockModal(clickedDate);
 }
 async function handleBlockSave(data: any) {
+  savingBlock.value = true
   try {
     // Validation: Check for conflicts with existing appointments
     // Note: For recurring blocks, this primarily checks the first instance against loaded appointments.
@@ -635,6 +646,8 @@ async function handleBlockSave(data: any) {
     await refreshData();
   } catch (e) {
     console.error("Error creating block", e);
+  } finally {
+    savingBlock.value = false
   }
 }
 </script>
@@ -733,7 +746,8 @@ async function handleBlockSave(data: any) {
           </div>
         </CardHeader>
 
-        <CardContent class="p-0">
+        <CardContent class="p-0 relative">
+          <LoadingSpinner v-if="loading" :text="$t('calendar.loading')" class="absolute inset-0 z-10 bg-white/80" />
           <div class="min-h-[600px]">
             <!-- Week View (Time Grid) -->
             <div
@@ -1096,6 +1110,7 @@ async function handleBlockSave(data: any) {
     <AppointmentDetailsModal
       :isOpen="showDetailsModal"
       :appointment="selectedAppointment"
+      :loading="updatingStatus"
       @close="showDetailsModal = false"
       @update-status="updateStatus"
     />
@@ -1103,11 +1118,12 @@ async function handleBlockSave(data: any) {
     <!-- Block Time Modal -->
     <BlockTimeModal
       :isOpen="showBlockModal"
-      :staffId="selectedStaffId"
-      :staffList="staff"
-      :initialDate="blockModalDate"
-      :minTime="calendarStartHour.toString().padStart(2, '0') + ':00'"
-      :maxTime="calendarEndHour.toString().padStart(2, '0') + ':00'"
+      :staff-id="selectedStaffId"
+      :staff-list="staff"
+      :initial-date="blockModalDate"
+      :min-time="calendarStartHour.toString().padStart(2, '0') + ':00'"
+      :max-time="calendarEndHour.toString().padStart(2, '0') + ':00'"
+      :loading="savingBlock"
       @close="showBlockModal = false"
       @save="handleBlockSave"
     />
@@ -1116,6 +1132,7 @@ async function handleBlockSave(data: any) {
     <BlockDetailsModal
       :isOpen="showBlockDetailsModal"
       :block="selectedBlock"
+      :loading="deletingBlock"
       @close="showBlockDetailsModal = false"
       @delete="handleBlockDelete"
     />

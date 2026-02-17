@@ -9,6 +9,8 @@ import { useNotifications } from '../../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
+
 
 const authStore = useAuthStore()
 const addressStore = useAddressStore()
@@ -56,6 +58,8 @@ const form = ref({
   country: 'USA'
 })
 
+const saving = ref(false)
+
 onMounted(async () => {
   if (!authStore.provider) {
     router.push('/booking')
@@ -93,6 +97,7 @@ function openEditModal(address: ProviderAddress) {
 async function handleSave() {
   if (!authStore.provider) return
 
+  saving.value = true
   try {
     if (modal.data.value) {
       await addressStore.updateAddress(modal.data.value.id, form.value)
@@ -108,6 +113,8 @@ async function handleSave() {
   } catch (error) {
     console.error('Error saving address:', error)
     showError(t('provider.locations.save_error') + ': ' + (error instanceof Error ? error.message : String(error)))
+  } finally {
+    saving.value = false
   }
 }
 
@@ -157,10 +164,7 @@ async function handleSetPrimary(id: string) {
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-6 py-8">
       <!-- Loading State -->
-      <div v-if="addressStore.loading" class="text-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">{{ $t('provider.locations.loading') }}</p>
-      </div>
+      <LoadingSpinner v-if="addressStore.loading" :text="$t('provider.locations.loading')" />
 
       <!-- Empty State -->
       <div v-else-if="addressStore.addresses.length === 0" class="text-center py-12 bg-white rounded-lg shadow">
@@ -343,9 +347,12 @@ async function handleSetPrimary(id: string) {
           </button>
           <button
             type="submit"
-            class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:text-sm"
+            class="flex-1 sm:flex-none inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:text-sm items-center"
+            :disabled="saving"
+            :class="{ 'opacity-75 cursor-not-allowed': saving }"
           >
-            {{ $t('common.save') }}
+            <LoadingSpinner v-if="saving" inline size="sm" class="mr-2" color="text-white" />
+            {{ saving ? $t('common.saving') : $t('common.save') }}
           </button>
         </div>
       </form>

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ArrowLeft, CheckCircle2, Navigation } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
 import type { Provider, ProviderAddress } from '@/types'
 
@@ -30,6 +31,7 @@ defineProps<{
   notes: string
   showLogin: boolean
   errorMessage?: string | null
+  loading?: boolean
   formatDateDisplay: (date: Date) => string
   formatAddress: (provider: Provider | null) => string
   getMapUrl: (address: ProviderAddress) => string
@@ -141,7 +143,8 @@ const settingsStore = useSettingsStore()
         />
       </div>
 
-      <Button type="submit" size="lg" class="w-full font-bold">
+      <Button type="submit" size="lg" class="w-full font-bold" :disabled="loading">
+        <LoadingSpinner v-if="loading" inline size="sm" class="mr-2" color="text-white" />
         {{ $t('booking.confirm_button') }}
       </Button>
     </form>

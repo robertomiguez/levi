@@ -4,7 +4,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { Button } from '@/components/ui/button'
-import { Check, Loader2 } from 'lucide-vue-next'
+import { Check } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -36,7 +37,7 @@ function continueNow() {
         <div class="text-center max-w-md">
             <!-- Loading -->
             <div v-if="loading" class="space-y-4">
-                <Loader2 class="h-12 w-12 animate-spin text-green-600 mx-auto" />
+                <LoadingSpinner size="lg" color="text-green-600" class="mx-auto" :inline="true" />
                 <p class="text-gray-600">{{ $t('checkout.verifying') }}</p>
             </div>
 

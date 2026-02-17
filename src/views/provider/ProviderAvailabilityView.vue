@@ -11,6 +11,7 @@ import { useNotifications } from '../../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import type { Availability, Staff } from '../../types'
 
 const authStore = useAuthStore()
@@ -31,7 +32,8 @@ const staff = ref<Staff[]>([])
 const selectedStaffId = ref<string>('')
 const weeklySchedule = ref<Availability[]>([])
 const originalSchedule = ref<Availability[]>([])
-const loading = ref(false)
+const isLoading = ref(true)
+const isSaving = ref(false)
 const { successMessage, errorMessage, showSuccess, showError, clearMessages } = useNotifications()
 
 // Confirmation logic
@@ -48,7 +50,10 @@ onMounted(async () => {
 })
 
 async function fetchStaff() {
-  if (!authStore.provider?.id) return
+  if (!authStore.provider?.id) {
+    isLoading.value = false
+    return
+  }
   try {
     const data = await staffService.fetchStaff(authStore.provider.id)
     const activeStaff = data.filter(s => s.active)
@@ -59,10 +64,15 @@ async function fetchStaff() {
       if (firstStaff) {
         selectedStaffId.value = firstStaff.id
         await fetchSchedule()
+      } else {
+        isLoading.value = false
       }
+    } else {
+      isLoading.value = false
     }
   } catch (e) {
     console.error('Error fetching staff:', e)
+    isLoading.value = false
   }
 }
 
@@ -73,7 +83,7 @@ function onStaffChange() {
 
 async function fetchSchedule() {
   if (!selectedStaffId.value) return
-  loading.value = true
+  isLoading.value = true
   
   try {
     const availData = await availabilityService.fetchAvailability(selectedStaffId.value)
@@ -108,7 +118,7 @@ async function fetchSchedule() {
     console.error('Error fetching schedule:', e)
     showError(t('provider.availability.save_error'))
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
@@ -189,13 +199,13 @@ async function handleCloseModal() {
 }
 
 async function saveSchedule() {
-  loading.value = true
+  isSaving.value = true
   clearMessages()
 
   try {
     const hasConflicts = await checkForConflicts()
     if (hasConflicts) {
-        loading.value = false
+        isSaving.value = false
         return
     }
     
@@ -203,12 +213,12 @@ async function saveSchedule() {
   } catch (e) {
     console.error('Error in save flow:', e)
     showError('An error occurred')
-    loading.value = false
+    isSaving.value = false
   }
 }
 
 async function performSave() {
-  loading.value = true
+  isSaving.value = true
   try {
     const updates = weeklySchedule.value.map(slot => {
       const { id, ...data } = slot
@@ -223,7 +233,7 @@ async function performSave() {
     console.error('Error saving schedule:', e)
     showError(t('provider.availability.save_error'))
   } finally {
-    loading.value = false
+    isSaving.value = false
   }
 }
 
@@ -256,11 +266,11 @@ async function performSave() {
             </select>
             <button
               @click="saveSchedule"
-              class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-              :disabled="loading"
+              class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="isLoading || isSaving"
             >
-              <span v-if="loading">{{ $t('common.loading') }}</span>
-              <span v-else>{{ $t('common.save') }}</span>
+              <LoadingSpinner v-if="isSaving" inline size="sm" class="mr-2" color="text-white" />
+              <span>{{ isSaving ? $t('common.saving') : $t('common.save') }}</span>
             </button>
           </div>
         </div>
@@ -298,8 +308,13 @@ async function performSave() {
       </div>
 
       <div class="grid grid-cols-1 gap-8">
+        <!-- Loading -->
+        <div v-if="isLoading && weeklySchedule.length === 0" class="flex justify-center items-center py-12">
+            <LoadingSpinner :text="$t('common.loading')" />
+        </div>
+        
         <!-- Weekly Schedule -->
-        <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div v-else class="bg-white rounded-lg shadow overflow-hidden">
           <div class="p-6 border-b border-gray-200">
             <h2 class="text-lg font-bold text-gray-900">{{ $t('provider.availability.weekly_schedule') }}</h2>
             <p class="text-sm text-gray-500">{{ $t('provider.availability.set_hours') }}</p>

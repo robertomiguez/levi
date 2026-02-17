@@ -2,6 +2,7 @@
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { Button } from '@/components/ui/button'
 import { DollarSign } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 interface Service {
   id: string
@@ -16,6 +17,7 @@ interface Service {
 defineProps<{
   services: Service[]
   selectedServiceId: string
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -33,7 +35,9 @@ const settingsStore = useSettingsStore()
       {{ $t('booking.choose_service') }}
     </h2>
     
-    <div v-if="services.length === 0" class="text-center py-12 text-gray-500">
+    <LoadingSpinner v-if="loading" :text="$t('services.loading')" />
+
+    <div v-else-if="services.length === 0" class="text-center py-12 text-gray-500">
       {{ $t('booking.no_services') }}
     </div>
 

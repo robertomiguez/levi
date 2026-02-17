@@ -2,12 +2,14 @@
 import Modal from '../../components/common/Modal.vue'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { Trash2 } from 'lucide-vue-next'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 import { computed } from 'vue'
 
 const props = defineProps<{
   isOpen: boolean
   block: any
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -108,10 +110,13 @@ function handleDelete() {
          <button
           type="button"
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          :disabled="loading"
+          :class="{ 'opacity-75 cursor-not-allowed': loading }"
           @click="handleDelete"
         >
-          <Trash2 class="w-4 h-4 mr-2" />
-          {{ $t('common.delete') }}
+          <LoadingSpinner v-if="loading" inline size="sm" class="mr-2" />
+          <Trash2 v-else class="w-4 h-4 mr-2" />
+          {{ loading ? $t('common.deleting') : $t('common.delete') }}
         </button>
 
         <button

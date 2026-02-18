@@ -17,16 +17,59 @@ import heroMassage from '@/assets/images/hero_massage_service_1765116300777.png'
 import heroSpa from '@/assets/images/hero_spa_service_1765116318055.png'
 
 const router = useRouter()
-const { t } = useI18n()
-const { location: userLocation, city: userCity } = useLocation()
+const { t, locale } = useI18n()
+
+const { location: userLocation, city: userCity, latitude: userLatitude, longitude: userLongitude } = useLocation()
 
 // Computed property for display location with fallback
-const displayLocation = computed(() => userLocation.value || t('landing.your_area'))
+const displayLocation = computed(() => searchParams.value.location || userLocation.value || t('landing.your_area'))
 
 const providers = ref<(Provider & { provider_addresses?: ProviderAddress[]; categories?: string[] })[]>([])
 const categories = ref<Category[]>([])
 const selectedCategory = ref<string | null>(null)
-const searchParams = ref({ location: '', service: '', time: 'Anytime' })
+const selectedCategoryName = computed(() => {
+  const category = categories.value.find(c => c.id === selectedCategory.value)
+  return category ? category.name : ''
+})
+
+const selectedCategoryPluralName = computed(() => {
+  const name = selectedCategoryName.value
+  if (!name) return ''
+  return pluralize(name, locale.value as string)
+})
+
+function pluralize(word: string, localeCode: string): string {
+  if (!word) return ''
+  const lower = word.toLowerCase()
+  
+  if (localeCode.startsWith('pt')) {
+    // Portuguese rules
+    if (lower.endsWith('m')) return word.slice(0, -1) + 'ns'
+    if (lower.endsWith('ão')) return word.slice(0, -2) + 'ões'
+    if (lower.endsWith('r') || lower.endsWith('z') || lower.endsWith('s')) return word + 'es'
+    if (lower.endsWith('l')) {
+      if (lower.endsWith('al')) return word.slice(0, -1) + 'is'
+      if (lower.endsWith('el')) return word.slice(0, -2) + 'éis'
+      if (lower.endsWith('ol')) return word.slice(0, -2) + 'óis'
+      if (lower.endsWith('ul')) return word.slice(0, -2) + 'uis'
+    }
+  } else if (localeCode.startsWith('en')) {
+    // English rules
+    if (lower.endsWith('y') && !/[aeiou]y$/.test(lower)) return word.slice(0, -1) + 'ies'
+    if (lower.endsWith('s') || lower.endsWith('sh') || lower.endsWith('ch') || lower.endsWith('x') || lower.endsWith('z')) return word + 'es'
+  } else if (localeCode.startsWith('fr')) {
+    // French rules
+    if (lower.endsWith('al')) return word.slice(0, -1) + 'ux'
+    if (lower.endsWith('eau')) return word + 'x'
+    if (lower.endsWith('eu')) return word + 'x'
+    if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('z')) return word
+  }
+  
+  // Default for all: add 's'
+  return word + 's'
+}
+
+const searchParams = ref({ location: '', service: '' })
 const loading = ref(false)
 
 // Watch for location updates and apply to search automatically
@@ -121,6 +164,7 @@ async function fetchProviders() {
       .order('created_at', { ascending: false })
       .limit(12)
     
+
     // Process providers to extract unique categories
     providers.value = (data || []).map(provider => ({
       ...provider,
@@ -137,10 +181,30 @@ async function fetchProviders() {
   }
 }
 
-const filteredProviders = computed(() => {
-  let result = providers.value
+// Haversine formula to calculate distance in km
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371 // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1)
+  const dLon = deg2rad(lon2 - lon1)
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
 
-  // Filter by selected category
+function deg2rad(deg: number): number {
+  return deg * (Math.PI/180)
+}
+
+
+
+const bypassLocationFilter = ref(false)
+
+// 1. Get providers filtered by category (base set)
+const categoryFilteredProviders = computed(() => {
+  let result = providers.value
   if (selectedCategory.value) {
     result = result.filter(p => 
       p.categories?.includes(
@@ -148,28 +212,90 @@ const filteredProviders = computed(() => {
       )
     )
   }
+  return result
+})
 
-  // Filter by search params
+// 2. Get providers strictly matching the location context
+const localProviders = computed(() => {
+  let result = categoryFilteredProviders.value
+
+  // Text search filter
   if (searchParams.value.location) {
-    result = result.filter(p => 
+    return result.filter(p => 
       p.business_name.toLowerCase().includes(searchParams.value.location.toLowerCase()) ||
       p.provider_addresses?.some(a => 
         a.city.toLowerCase().includes(searchParams.value.location.toLowerCase()) ||
         a.state?.toLowerCase().includes(searchParams.value.location.toLowerCase())
       )
     )
-  }
-
-  if (searchParams.value.service) {
-    result = result.filter(p =>
-      p.categories?.some(c => 
-        c.toLowerCase().includes(searchParams.value.service.toLowerCase())
+  } 
+  
+  // Geolocation filter
+  if (userLatitude.value && userLongitude.value) {
+    const MAX_DISTANCE_KM = 50
+    
+    return result.map(p => {
+      const address = p.provider_addresses?.find(a => a.is_primary) || p.provider_addresses?.[0]
+      
+      if (!address || !address.latitude || !address.longitude) {
+        return { ...p, distance: Infinity }
+      }
+      
+      const distance = calculateDistance(
+        userLatitude.value!, 
+        userLongitude.value!, 
+        address.latitude, 
+        address.longitude
       )
-    )
+      
+      return { ...p, distance }
+    })
+    .filter(p => p.distance <= MAX_DISTANCE_KM)
+    .sort((a, b) => a.distance - b.distance)
   }
 
+  // No location context
   return result
 })
+
+const hasLocalProviders = computed(() => localProviders.value.length > 0)
+
+const shouldShowFunnyEmptyState = computed(() => {
+  if (bypassLocationFilter.value) return false
+  
+  // Only show funny state if we have a location context (search or geo) AND no local providers
+  const hasLocationContext = !!searchParams.value.location || (!!userLatitude.value && !!userLongitude.value)
+  return hasLocationContext && !hasLocalProviders.value
+})
+
+// 3. Determine what to actually display
+const displayedProviders = computed(() => {
+  // If bypassing location filter (user clicked See All), show everything
+  if (bypassLocationFilter.value) {
+    return categoryFilteredProviders.value
+  }
+
+  // If there are local providers, show them
+  if (hasLocalProviders.value) {
+    return localProviders.value
+  }
+
+  // If filter is active (search service) but no providers, logic handles it naturally 
+  // (categoryFilteredProviders handles service filtering via category logic if we map it, 
+  // but wait - service param is actually handled separately in original logic. 
+  // let's restore service filtering)
+  
+  // Wait, the original logic had a separate service filter at the end.
+  // We need to ensure service filtering is applied to whatever we return.
+  return categoryFilteredProviders.value
+})
+
+// Apply service filter (if strict match needed beyond category) - 
+// actually the original logic filtered by category OR service param. 
+// The prompt removed service input, but code might still rely on searchParams.service if passed?
+// Assuming searchParams.service is effectively cleared or unused now based on previous steps, 
+// but let's keep consistency with `categoryFilteredProviders`.
+
 
 const resultsSection = ref<HTMLElement | null>(null)
 
@@ -179,18 +305,26 @@ function scrollToResults() {
   }
 }
 
-function handleSearch(params: { location: string; service: string; time: string }) {
-  searchParams.value = params
+
+
+function handleSearch(params: { location: string }) {
+  searchParams.value.location = params.location
+  bypassLocationFilter.value = false // Reset bypass on new search
   scrollToResults()
 }
 
 function handleCategorySelect(categoryId: string | null) {
   selectedCategory.value = categoryId
+  // Also clear service if deselecting
+  if (!categoryId) {
+    searchParams.value.service = ''
+  }
   scrollToResults()
 }
 
 function handleSeeAll() {
   searchParams.value.location = ''
+  bypassLocationFilter.value = true
   scrollToResults()
 }
 </script>
@@ -210,7 +344,10 @@ function handleSeeAll() {
           </h1>
           
           <!-- Search Bar -->
-          <SearchBar :initial-location="searchParams.location" @search="handleSearch" />
+          <SearchBar 
+            :initial-location="searchParams.location" 
+            @search="handleSearch" 
+          />
           
           <!-- Category Pills -->
           <div class="mt-10">
@@ -218,6 +355,7 @@ function handleSeeAll() {
               :categories="categories"
               :selected-category="selectedCategory"
               @select="handleCategorySelect"
+              @select-all="handleSeeAll"
             />
           </div>
         </div>
@@ -227,9 +365,20 @@ function handleSeeAll() {
     <!-- Popular Providers Section -->
     <div ref="resultsSection" class="max-w-7xl mx-auto px-6 py-12 scroll-mt-24">
       <div class="mb-8">
+
         <h2 class="text-3xl font-bold text-gray-900 mb-2">
-          {{ $t('landing.popular_in', { location: displayLocation }) }}
+          <template v-if="bypassLocationFilter">
+             {{ $t('landing.all_providers_title') }}
+          </template>
+          <template v-else-if="shouldShowFunnyEmptyState">
+            {{ selectedCategoryName ? $t('landing.no_service_funny', { service: selectedCategoryPluralName, city: searchParams.location || displayLocation }) : $t('landing.no_providers_funny', { city: searchParams.location || displayLocation }) }}
+            <span class="block text-lg font-normal text-gray-500 mt-2">{{ $t('landing.popular_places') }}</span>
+          </template>
+          <template v-else>
+            {{ selectedCategoryName ? $t('landing.popular_service_in', { service: selectedCategoryPluralName, location: displayLocation }) : $t('landing.popular_in', { location: displayLocation }) }}
+          </template>
           <span 
+            v-if="!bypassLocationFilter"
             @click="handleSeeAll"
             class="text-base font-normal text-primary-600 hover:text-primary-700 ml-4 cursor-pointer hover:underline"
           >
@@ -245,7 +394,7 @@ function handleSeeAll() {
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="filteredProviders.length === 0" class="text-center py-12">
+      <div v-else-if="displayedProviders.length === 0" class="text-center py-12">
         <Search class="w-16 h-16 text-gray-400 mx-auto mb-4" />
         <h3 class="text-lg font-medium text-gray-900 mb-2">{{ $t('landing.no_providers_found') }}</h3>
         <p class="text-gray-600">{{ $t('landing.adjust_search') }}</p>
@@ -254,7 +403,7 @@ function handleSeeAll() {
       <!-- Provider Grid -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <ProviderCard
-          v-for="provider in filteredProviders"
+          v-for="provider in displayedProviders"
           :key="provider.id"
           :provider="provider"
           :rating="5.0"

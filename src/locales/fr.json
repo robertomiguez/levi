@@ -126,7 +126,14 @@
       "haircut": "coupe de cheveux idéale",
       "massage": "massage idéal",
       "spa": "soin spa idéal"
-    }
+    },
+    "not_in_region": "Nous ne sommes pas encore dans votre région.",
+    "showing_all_places": "Voici quelques endroits populaires ailleurs.",
+    "no_providers_funny": "Oh là là ! Aucun prestataire à {city} 😱",
+    "no_service_funny": "Oh là là ! Pas de {service} à {city} 😱",
+    "popular_places": "Voici quelques endroits populaires ailleurs.",
+    "popular_service_in": "{service} populaire à {location}",
+    "all_providers_title": "Tous les Prestataires"
   },
   "dashboard": {
     "title": "Tableau de bord du prestataire",

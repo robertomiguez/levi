@@ -81,7 +81,9 @@ describe('useLocation', () => {
       city: 'Cached City',
       region: 'Cached Region',
       country: 'Cached Country',
-      location: 'Cached City, Cached Region'
+      location: 'Cached City, Cached Region',
+      latitude: 10,
+      longitude: 20
     }
     localStorageMock.setItem('user_location', JSON.stringify({
       data: cachedData,

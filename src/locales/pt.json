@@ -126,12 +126,20 @@
       "book_title": "Reserve e Pronto",
       "book_desc": "Receba confirmação instantânea e gerencie seus agendamentos"
     },
+
     "hero_services": {
       "manicure": "manicure",
       "haircut": "corte de cabelo",
       "massage": "massagem",
       "spa": "tratamento de spa"
-    }
+    },
+    "not_in_region": "Ainda não estamos na sua região.",
+    "showing_all_places": "Aqui estão alguns lugares populares em outros locais.",
+    "no_providers_funny": "Vixe! Nenhum prestador em {city} 😱",
+    "no_service_funny": "Vixe! Sem {service} em {city} 😱",
+    "popular_places": "Aqui estão alguns lugares populares em outros locais.",
+    "popular_service_in": "{service} populares em {location}",
+    "all_providers_title": "Todos os Prestadores"
   },
   "dashboard": {
     "title": "Painel do Prestador",

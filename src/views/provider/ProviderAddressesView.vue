@@ -9,14 +9,23 @@ import { useNotifications } from '../../composables/useNotifications'
 import { useI18n } from 'vue-i18n'
 import Modal from '../../components/common/Modal.vue'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
+
+
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
+import LocationPicker from '../../components/common/LocationPicker.vue'
+import { geocodeAddress, reverseGeocode } from '../../services/geocoding'
+import { watch, nextTick } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+
 
 
 const authStore = useAuthStore()
 const addressStore = useAddressStore()
 const router = useRouter()
+
 const { t } = useI18n()
 const { showSuccess, showError } = useNotifications()
+import { useLocation } from '../../composables/useLocation'
 
 const modal = useModal<ProviderAddress>()
 
@@ -48,6 +57,10 @@ async function handleConfirmDelete() {
   }
 }
 
+
+
+const { country: userCountry } = useLocation()
+
 const form = ref({
   label: '',
   street_address: '',
@@ -55,10 +68,14 @@ const form = ref({
   city: '',
   state: '',
   postal_code: '',
-  country: 'USA'
+  country: userCountry.value || 'USA',
+  latitude: null as number | null,
+  longitude: null as number | null
 })
 
+
 const saving = ref(false)
+const isUpdatingFromMap = ref(false)
 
 onMounted(async () => {
   if (!authStore.provider) {
@@ -77,7 +94,9 @@ function openAddModal() {
     city: '',
     state: '',
     postal_code: '',
-    country: 'USA'
+    country: userCountry.value || 'USA',
+    latitude: null,
+    longitude: null
   }
 }
 
@@ -89,8 +108,147 @@ function openEditModal(address: ProviderAddress) {
     street_address_2: address.street_address_2 || '',
     city: address.city,
     state: address.state || '',
+
     postal_code: address.postal_code,
-    country: address.country
+    country: address.country,
+    latitude: address.latitude || null,
+    longitude: address.longitude || null
+  }
+}
+
+
+
+// Auto-geocode when address fields change
+
+
+// Auto-geocode when address fields change
+const autoGeocode = useDebounceFn(async () => {
+  // Relaxed validation: Geocode if we have at least a city, postal code, or street address
+  if (!form.value.street_address && !form.value.city && !form.value.postal_code) return
+
+
+  let structuredQuery: any = {
+    country: form.value.country
+  }
+
+  // If we have a street address, use everything for maximum precision
+  if (form.value.street_address) {
+    // Check if we should append street_address_2 (if it looks like a number, e.g. "60")
+    let streetParams = form.value.street_address
+    const street2 = form.value.street_address_2
+    if (street2 && street2.length < 6 && /^\d+$/.test(street2.replace(/[^\d]/g, ''))) {
+       streetParams += `, ${street2}`
+    }
+
+    structuredQuery = {
+      street: streetParams,
+      city: form.value.city,
+      state: form.value.state,
+      postal_code: form.value.postal_code,
+      country: form.value.country
+    }
+  } else if (form.value.postal_code) {
+    // If no street but we have a zip, usage ONLY zip + country to avoid Nominatim
+    // returning the city centroid (which happens if we include city/state in the query)
+    structuredQuery = {
+      postal_code: form.value.postal_code,
+      country: form.value.country
+    }
+  } else {
+    // Fallback: City/State + Country
+    structuredQuery = {
+      city: form.value.city,
+      state: form.value.state,
+      country: form.value.country
+    }
+  }
+
+  console.log('Auto-geocoding (structured):', structuredQuery)
+  const coords = await geocodeAddress(structuredQuery)
+  
+  if (coords) {
+    console.log('Geocode success:', coords)
+    form.value.latitude = coords.latitude
+    form.value.longitude = coords.longitude
+  }
+}, 500)
+
+
+
+// Watch for postal code and country changes to auto-fill city/state
+watch(
+  () => [form.value.postal_code, form.value.country],
+  async ([newPostal, newCountry]) => {
+    if (newPostal && newCountry && newPostal.length > 3) {
+      // Use structured query for higher accuracy (avoids Argentina/Brazil confusion)
+      const structuredQuery = {
+        postal_code: newPostal,
+        country: newCountry
+      }
+      console.log('Auto-filling from Zip (structured):', structuredQuery)
+      
+      const result = await geocodeAddress(structuredQuery)
+      if (result && result.address) {
+        console.log('Auto-fill result:', result)
+        
+        // Only fill if empty to avoid overwriting user input
+        if (!form.value.city && result.address.city) form.value.city = result.address.city
+        if (!form.value.state && result.address.state) form.value.state = result.address.state
+        
+        // Update coordinates if we have them
+        form.value.latitude = result.latitude
+        form.value.longitude = result.longitude
+      }
+    }
+  }
+)
+
+
+watch(
+  () => [
+    form.value.street_address, 
+    form.value.city, 
+    form.value.state, 
+    form.value.postal_code, 
+    form.value.country
+  ], 
+  () => {
+    if (!isUpdatingFromMap.value) {
+      autoGeocode()
+    }
+  }
+)
+
+async function handleLocationUpdate(loc: { latitude: number; longitude: number }) {
+  form.value.latitude = loc.latitude
+  form.value.longitude = loc.longitude
+
+  // Prevent auto-geocoding loop
+  isUpdatingFromMap.value = true
+  
+  try {
+    const result = await reverseGeocode(loc.latitude, loc.longitude)
+    if (result && result.address) {
+      console.log('Reverse geocode result:', result)
+      
+      form.value.street_address = result.address.road || ''
+      // If road is missing, maybe use suburb or neighbourhood? (handled in service)
+      
+      form.value.city = result.address.city || ''
+      form.value.state = result.address.state || ''
+      form.value.postal_code = result.address.postal_code || ''
+      form.value.country = result.address.country || ''
+      
+      // Keep streets2 (apt, etc) as is, or clear it? Keeping it.
+    }
+  } catch (err) {
+    console.error('Failed to reverse geocode:', err)
+  } finally {
+    // Wait for DOM updates/watchers to fire before re-enabling
+    await nextTick()
+    setTimeout(() => {
+      isUpdatingFromMap.value = false
+    }, 100) // Small buffer for debounce
   }
 }
 
@@ -99,11 +257,36 @@ async function handleSave() {
 
   saving.value = true
   try {
+
+    // If we still don't have coordinates (user didn't use map and auto-geocode failed/didn't run), try one last time
+    if (!form.value.latitude || !form.value.longitude) {
+       const structuredQuery = {
+        street: form.value.street_address,
+        city: form.value.city,
+        state: form.value.state,
+        postal_code: form.value.postal_code,
+        country: form.value.country
+      }
+      const coords = await geocodeAddress(structuredQuery)
+      if (coords) {
+        form.value.latitude = coords.latitude
+        form.value.longitude = coords.longitude
+      }
+    }
+
+
+    // Prepare payload with sanitized types (null -> undefined)
+    const payload = {
+      ...form.value,
+      latitude: form.value.latitude ?? undefined,
+      longitude: form.value.longitude ?? undefined
+    }
+
     if (modal.data.value) {
-      await addressStore.updateAddress(modal.data.value.id, form.value)
+      await addressStore.updateAddress(modal.data.value.id, payload)
     } else {
       await addressStore.createAddress({
-        ...form.value,
+        ...payload,
         provider_id: authStore.provider.id,
         is_primary: addressStore.addresses.length === 0
       })
@@ -269,25 +452,29 @@ async function handleSetPrimary(id: string) {
           />
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.street') }}</label>
-          <input
-            v-model="form.street_address"
-            type="text"
-            required
-            :placeholder="$t('provider.locations.form.street_placeholder')"
-            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          />
-        </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.street2') }}</label>
-          <input
-            v-model="form.street_address_2"
-            type="text"
-            :placeholder="$t('provider.locations.form.street2_placeholder')"
-            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-          />
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.country') }}</label>
+            <input
+              v-model="form.country"
+              type="text"
+              required
+              :placeholder="$t('provider.locations.form.country_placeholder')"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.postal') }}</label>
+            <input
+              v-model="form.postal_code"
+              type="text"
+              required
+              :placeholder="$t('provider.locations.form.postal_placeholder')"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            />
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
@@ -313,28 +500,38 @@ async function handleSetPrimary(id: string) {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.postal') }}</label>
-            <input
-              v-model="form.postal_code"
-              type="text"
-              required
-              :placeholder="$t('provider.locations.form.postal_placeholder')"
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.street') }}</label>
+          <input
+            v-model="form.street_address"
+            type="text"
+            required
+            :placeholder="$t('provider.locations.form.street_placeholder')"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.country') }}</label>
-            <input
-              v-model="form.country"
-              type="text"
-              required
-              :placeholder="$t('provider.locations.form.country_placeholder')"
-              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            />
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">{{ $t('provider.locations.form.street2') }}</label>
+          <input
+            v-model="form.street_address_2"
+            type="text"
+            :placeholder="$t('provider.locations.form.street2_placeholder')"
+            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+          />
+        </div>
+
+
+
+        <!-- Map Picker -->
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Location on Map</label>
+          <LocationPicker
+            :latitude="form.latitude"
+            :longitude="form.longitude"
+            @update:location="handleLocationUpdate"
+          />
+          <p class="text-xs text-gray-500 mt-1">Drag the marker to pin-point your exact location.</p>
         </div>
 
         <div class="mt-5 flex gap-3 sm:justify-end">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Search, ChevronDown, MapPin, Clock } from 'lucide-vue-next'
+import { Search, MapPin } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { useLocation } from '@/composables/useLocation'
 
@@ -10,15 +10,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  search: [{ location: string; service: string; time: string }]
+  search: [{ location: string }]
 }>()
 
 const { t } = useI18n()
 const { location: userLocation } = useLocation()
 
 const location = ref(props.initialLocation || '')
-const service = ref('')
-const time = ref(t('search.time_anytime'))
+
 
 import { watch } from 'vue'
 watch(() => props.initialLocation, (newVal) => {
@@ -27,20 +26,15 @@ watch(() => props.initialLocation, (newVal) => {
   }
 })
 
+
+
 const locationPlaceholder = computed(() => userLocation.value || t('search.location_placeholder'))
 
-const timeOptions = [
-  { value: t('search.time_anytime'), label: t('search.time_anytime') },
-  { value: t('search.time_morning'), label: t('search.time_morning') },
-  { value: t('search.time_afternoon'), label: t('search.time_afternoon') },
-  { value: t('search.time_evening'), label: t('search.time_evening') }
-]
+
 
 function handleSearch() {
   emit('search', {
-    location: location.value,
-    service: service.value,
-    time: time.value
+    location: location.value
   })
 }
 </script>
@@ -61,36 +55,9 @@ function handleSearch() {
       </div>
     </div>
 
-    <!-- Service Input -->
-    <div class="flex-1 flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
-      <Search class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
-      <div class="flex-1">
-        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.service_label') }}</label>
-        <input
-          v-model="service"
-          type="text"
-          :placeholder="$t('search.service_placeholder')"
-          class="w-full outline-none text-gray-900 placeholder-gray-400 bg-transparent text-sm font-medium"
-        />
-      </div>
-    </div>
 
-    <!-- Time Select -->
-    <div class="flex-1 flex items-center px-4 py-2 bg-white rounded-lg shadow-sm border border-transparent focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-200 transition-all">
-      <Clock class="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
-      <div class="flex-1 relative">
-        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">{{ $t('search.time_label') }}</label>
-        <select
-          v-model="time"
-          class="w-full outline-none text-gray-900 bg-transparent cursor-pointer appearance-none text-sm font-medium pr-4"
-        >
-          <option v-for="opt in timeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
-        <div class="absolute inset-y-0 right-0 flex items-center pointer-events-none">
-          <ChevronDown class="w-4 h-4 text-gray-400" />
-        </div>
-      </div>
-    </div>
+
+
 
     <!-- Search Button -->
     <div class="flex items-center">

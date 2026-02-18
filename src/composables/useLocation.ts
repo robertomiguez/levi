@@ -17,7 +17,10 @@ const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
 const city = ref<string | null>(null)
 const region = ref<string | null>(null)
 const country = ref<string | null>(null)
+
 const location = ref<string | null>(null) // Formatted "City, Region"
+const latitude = ref<number | null>(null)
+const longitude = ref<number | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const initialized = ref(false)
@@ -42,9 +45,13 @@ export function useLocation() {
 
       const { data, timestamp } = JSON.parse(cached)
       
+
       // Check if cache is still valid
       if (Date.now() - timestamp < CACHE_DURATION) {
-        return data
+        // Ensure we have coordinates (legacy cache might not have them)
+        if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+            return data
+        }
       }
       
       // Cache expired, remove it
@@ -75,8 +82,11 @@ export function useLocation() {
   function applyLocation(data: LocationData): void {
     city.value = data.city
     region.value = data.region
+
     country.value = data.country
     location.value = data.location
+    latitude.value = data.latitude
+    longitude.value = data.longitude
   }
 
   /**
@@ -216,10 +226,13 @@ export function useLocation() {
     location,
     loading,
     error,
+
     requestPreciseLocation,
     refresh: async () => {
         initialized.value = false
         await initLocation()
-    }
+    },
+    latitude,
+    longitude
   }
 }

@@ -274,12 +274,20 @@
       "book_title": "Book & Done",
       "book_desc": "Receive instant confirmation and manage your appointments"
     },
+
     "hero_services": {
       "manicure": "manicure",
       "haircut": "haircut",
       "massage": "massage",
       "spa": "spa treatment"
-    }
+    },
+    "not_in_region": "We are not in your region yet.",
+    "showing_all_places": "Here are some popular places elsewhere.",
+    "no_providers_funny": "Ohhh gosh! No provider in {city} 😱",
+    "no_service_funny": "Ohhh gosh! No {service} in {city} 😱",
+    "popular_places": "Here are some popular places in other locations.",
+    "popular_service_in": "Popular {service} in {location}",
+    "all_providers_title": "All Providers"
   },
   "dashboard": {
     "title": "Provider Dashboard",

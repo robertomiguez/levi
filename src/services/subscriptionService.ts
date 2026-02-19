@@ -356,7 +356,8 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
         .update({ 
             cancel_at_period_end: true,
             cancelled_at: new Date().toISOString(),
-            pending_downgrade_plan_id: null  // Clear pending downgrade if any
+            pending_downgrade_plan_id: null,  // Clear pending downgrade if any
+            updated_at: new Date().toISOString()
         })
         .eq('id', subscriptionId)
 
@@ -371,7 +372,8 @@ export async function resumeSubscription(subscriptionId: string): Promise<void> 
         .from('subscriptions')
         .update({ 
             cancel_at_period_end: false,
-            cancelled_at: null 
+            cancelled_at: null,
+            updated_at: new Date().toISOString()
         })
         .eq('id', subscriptionId)
 
@@ -539,7 +541,8 @@ export async function changePlan(
                 // Preserve original discount_ends_at - DO NOT recalculate
                 trial_plan_change_count: trialChangeCount + 1,
                 // Clear any pending downgrade
-                pending_downgrade_plan_id: null
+                pending_downgrade_plan_id: null,
+                updated_at: new Date().toISOString()
             })
             .eq('id', subscriptionId)
         
@@ -565,7 +568,8 @@ export async function changePlan(
                 // Clear pending downgrade if any
                 pending_downgrade_plan_id: null,
                 cancel_at_period_end: false,
-                cancelled_at: null
+                cancelled_at: null,
+                updated_at: new Date().toISOString()
             })
             .eq('id', subscriptionId)
         
@@ -598,7 +602,8 @@ export async function changePlan(
         const { error: updateError } = await supabase
             .from('subscriptions')
             .update({
-                pending_downgrade_plan_id: newPlanId
+                pending_downgrade_plan_id: newPlanId,
+                updated_at: new Date().toISOString()
             })
             .eq('id', subscriptionId)
         
@@ -621,7 +626,8 @@ export async function changePlan(
         .update({
             plan_id: newPlanId,
             locked_price: newPriceValue,
-            pending_downgrade_plan_id: null
+            pending_downgrade_plan_id: null,
+            updated_at: new Date().toISOString()
         })
         .eq('id', subscriptionId)
     
@@ -636,7 +642,10 @@ export async function changePlan(
 export async function cancelPendingDowngrade(subscriptionId: string): Promise<void> {
     const { error } = await supabase
         .from('subscriptions')
-        .update({ pending_downgrade_plan_id: null })
+        .update({ 
+            pending_downgrade_plan_id: null,
+            updated_at: new Date().toISOString()
+        })
         .eq('id', subscriptionId)
     
     if (error) throw error

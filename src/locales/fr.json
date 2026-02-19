@@ -15,6 +15,7 @@
     "select": "Sélectionner",
     "remove": "Supprimer",
     "retry": "Réessayer",
+    "continue": "Continuer",
     "date": "Date",
     "end_date": "Date de fin",
     "start_time": "Heure de début",
@@ -93,6 +94,152 @@
     "cta_title": "Prêt à développer votre entreprise ?",
     "cta_subtitle": "Rejoignez des centaines de prestataires de services qui font confiance à Levi pour gérer leurs réservations"
   },
+  "pricing": {
+    "title": "Choisissez votre forfait",
+    "subtitle": "Commencez avec 1 mois gratuit. Annulez à tout moment.",
+    "monthly": "Mensuel",
+    "yearly": "Annuel",
+    "coming_soon": "Bientôt Disponible",
+    "per_month": "/mois",
+    "per_year": "/an",
+    "start_trial": "Essai Gratuit",
+    "switch_plan": "Passer à ce Forfait",
+    "current_plan": "Forfait Actuel",
+    "confirm_change_plan": "Êtes-vous sûr de vouloir passer au forfait {plan} ? Votre facturation sera mise à jour immédiatement.",
+    "most_popular": "Le Plus Populaire",
+    "promo_badge": "50% de réduction les 3 premiers mois + 1 mois gratuit",
+    "footer_note": "Tous les forfaits incluent un accès 24/7.",
+    "contact_support": "Contacter le Support",
+    "error_title": "Impossible de charger les forfaits",
+    "error_message": "Une erreur est survenue de notre côté. Veuillez réessayer ou contacter notre équipe de support si le problème persiste.",
+    "upgrade_title": "Mettre à niveau votre forfait",
+    "downgrade_title": "Passer à un forfait inférieur",
+    "change_to": "Vous passez au forfait {plan}.",
+    "upgrade_now": "La mise à niveau prend effet immédiatement",
+    "credit_unused": "Crédit pour temps non utilisé",
+    "charge_remaining": "Frais pour le temps restant",
+    "net_charge": "Montant dû aujourd'hui",
+    "downgrade_scheduled": "Changement de forfait programmé",
+    "downgrade_date": "Votre forfait changera le {date}.",
+    "keep_features": "Vous conserverez vos fonctionnalités actuelles jusqu'à cette date.",
+    "confirm_change": "Confirmer le changement",
+    "features": {
+      "unlimited_staff": "Personnel illimité",
+      "one_staff": "1 membre du personnel",
+      "unlimited_locations": "Emplacements illimités",
+      "one_location": "1 emplacement",
+      "unlimited_services": "Services illimités",
+      "staff_count": "Jusqu'à {count} membres du personnel",
+      "location_count": "Jusqu'à {count} emplacements",
+      "service_count": "Jusqu'à {count} services",
+      "email_support": "Support par e-mail",
+      "priority_support": "Support prioritaire",
+      "team_management": "Gestion d'équipe",
+      "analytics": "Analyses",
+      "advanced_analytics": "Analyses avancées",
+      "dedicated_support": "Support dédié",
+      "white_label": "Options marque blanche"
+    },
+    "limits": {
+      "staff_msg": "Votre forfait {planName} autorise jusqu'à {count} membre(s) du personnel.",
+      "service_msg": "Votre forfait {planName} autorise jusqu'à {count} service(s).",
+      "location_msg": "Votre forfait {planName} autorise jusqu'à {count} emplacement(s).",
+      "upgrade": "Mettez à niveau pour en ajouter plus."
+    },
+    "plans": {
+      "solo": {
+        "name": "Solo",
+        "description": "Parfait pour les indépendants"
+      },
+      "solo_plus": {
+        "name": "Solo Plus",
+        "description": "Pour les professionnels en croissance"
+      },
+      "store": {
+        "name": "Store",
+        "description": "Pour les barbiers et salons établis"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "description": "Pour les chaînes et franchises"
+      }
+    }
+  },
+  "checkout": {
+    "title": "Finalisez votre achat",
+    "payment_method": "Méthode de Paiement",
+    "credit_card": "Carte de Crédit/Débit",
+    "name_on_card": "Nom sur la carte",
+    "card_number": "Numéro de carte",
+    "expiry_date": "Date d'expiration",
+    "cvc": "CVC",
+    "order_summary": "Résumé de la commande",
+    "subtotal": "Sous-total",
+    "discount": "50% de réduction (mois 2-4)",
+    "free_month": "Mois Gratuit",
+    "tax": "Taxe",
+    "total": "Total",
+    "promo_code": "Code Promo",
+    "apply": "Appliquer",
+    "terms_agree": "J'accepte les",
+    "and": "et",
+    "complete_purchase": "Finaliser l'achat",
+    "processing": "Traitement en cours...",
+    "proceed_to_stripe": "Procéder au paiement",
+    "secure_payment": "Paiement sécurisé via Stripe",
+    "trial_info_title": "Essai gratuit de 30 jours",
+    "trial_info_message": "Votre carte ne sera pas débitée avant la fin de votre essai. Annulez à tout moment.",
+    "plan_not_found": "Forfait non trouvé. Veuillez revenir en arrière et sélectionner un forfait.",
+    "error_title": "Forfait Non Trouvé",
+    "error_message": "Nous n'avons pas pu trouver ce forfait. Veuillez retourner et sélectionner un forfait.",
+    "back_to_plans": "Retour aux Forfaits",
+    "success_title": "Paiement Réussi !",
+    "success_message": "Votre abonnement est maintenant actif. Configurons votre profil professionnel.",
+    "verifying": "Vérification de votre paiement...",
+    "trial_started": "Votre essai gratuit de 30 jours a commencé !",
+    "trial_description": "Vous ne serez pas débité avant la fin de votre essai.",
+    "redirecting": "Redirection vers votre profil...",
+    "continue_manually": "Cliquez ici si vous n'êtes pas redirigé",
+    "go_to_dashboard": "Accéder au tableau de bord",
+    "cancelled_title": "Paiement annulé",
+    "cancelled_message": "Pas de soucis ! Vous pourrez réessayer quand vous serez prêt.",
+    "no_charge": "Votre carte n'a pas été débitée.",
+    "start_trial_btn": "Démarrer l'essai gratuit de 30 jours",
+    "no_card_required": "Aucune carte de crédit requise pour l'essai",
+    "due_today": "dû aujourd'hui",
+    "secure_note": "Paiement sécurisé via Stripe",
+    "discount_text": "{percent}% de réduction (mois 2-{endMonth})",
+    "applied": "Appliqué",
+    "total_first_month": "Total (premier mois)",
+    "future_price_discount": "Puis {price} €/mois pendant {duration} mois, puis {originalPrice} €/mois",
+    "future_price_standard": "Puis {price} €/mois"
+  },
+  "subscription": {
+    "title": "Mon Abonnement",
+    "subtitle": "Gérez votre forfait et les détails de facturation",
+    "no_subscription": "Vous n'avez pas d'abonnement actif.",
+    "view_plans": "Voir les Forfaits",
+    "status_cancelling": "Annulation en cours",
+    "billed_in": "Facturé en {currency}",
+    "discount_applied": "réduction appliquée",
+    "current_period": "Période Actuelle Se Termine",
+    "next_billing": "Prochaine Facturation",
+    "ends_on": "Se termine le",
+    "auto_renew": "Renouvellement automatique le",
+    "plan_includes": "Votre forfait inclut:",
+    "change_plan": "Changer de Forfait",
+    "resume_subscription": "Reprendre l'Abonnement",
+    "cancel_subscription": "Annuler l'Abonnement",
+    "cancellation_pending": "Annulation En Attente",
+    "loss_warning": "Votre abonnement restera actif jusqu'au {date}. Après cela, vous perdrez l'accès aux fonctionnalités premium.",
+    "confirm_cancel": "Êtes-vous sûr de vouloir annuler ? Vous perdrez l'accès à ces fonctionnalités à la fin de votre période de facturation.",
+    "downgrade_pending": "Changement de forfait programmé",
+    "downgrade_info": "Votre forfait passera à {plan} le {date}.",
+    "cancel_downgrade": "Annuler le changement",
+    "confirm_cancel_downgrade": "Êtes-vous sûr de vouloir annuler le changement de forfait programmé ? Vous resterez sur votre forfait actuel.",
+    "manage_billing": "Gérer la facturation"
+  },
+
   "nav": {
     "login": "Connexion",
     "logout": "Déconnexion",
@@ -171,101 +318,6 @@
       "view_details": "Voir les détails"
     }
   },
-  "pricing": {
-      "title": "Choisissez votre forfait",
-      "subtitle": "Commencez avec 1 mois gratuit. Annulez à tout moment.",
-      "monthly": "Mensuel",
-      "yearly": "Annuel",
-      "coming_soon": "Bientôt Disponible",
-      "per_month": "/mois",
-      "per_year": "/an",
-      "start_trial": "Essai Gratuit",
-      "switch_plan": "Passer à ce Forfait",
-      "current_plan": "Forfait Actuel",
-      "confirm_change_plan": "Êtes-vous sûr de vouloir passer au forfait {plan} ? Votre facturation sera mise à jour immédiatement.",
-      "most_popular": "Le Plus Populaire",
-      "promo_badge": "50% de réduction les 3 premiers mois + 1 mois gratuit",
-      "footer_note": "Tous les forfaits incluent un accès 24/7.",
-      "contact_support": "Contacter le Support",
-      "error_title": "Impossible de charger les forfaits",
-      "error_message": "Une erreur est survenue de notre côté. Veuillez réessayer ou contacter notre équipe de support si le problème persiste.",
-      "features": {
-        "unlimited_staff": "Personnel illimité",
-        "one_staff": "1 membre du personnel",
-        "staff_count": "Jusqu'à {count} membres du personnel",
-        "unlimited_locations": "Emplacements illimités",
-        "one_location": "1 emplacement",
-        "location_count": "Jusqu'à {count} emplacements",
-        "unlimited_services": "Services illimités",
-        "service_count": "Jusqu'à {count} services"
-      },
-      "plans": {
-        "solo": {
-          "name": "Solo",
-          "description": "Parfait pour les indépendants"
-        },
-        "solo_plus": {
-          "name": "Solo Plus",
-          "description": "Pour les professionnels en croissance"
-        },
-        "store": {
-          "name": "Store",
-          "description": "Pour les barbiers et salons établis"
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": "Pour les chaînes et franchises"
-        }
-      }
-    },
-    "checkout": {
-      "title": "Finalisez votre achat",
-      "payment_method": "Méthode de Paiement",
-      "credit_card": "Carte de Crédit/Débit",
-      "name_on_card": "Nom sur la carte",
-      "card_number": "Numéro de carte",
-      "expiry_date": "Date d'expiration",
-      "cvc": "CVC",
-      "order_summary": "Résumé de la commande",
-      "subtotal": "Sous-total",
-      "discount": "50% de réduction (mois 2-4)",
-      "free_month": "Mois Gratuit",
-      "tax": "Taxe",
-      "total": "Total",
-      "promo_code": "Code Promo",
-      "apply": "Appliquer",
-      "terms_agree": "J'accepte les",
-      "complete_purchase": "Finaliser l'achat",
-      "processing": "Traitement en cours...",
-      "error_title": "Forfait Non Trouvé",
-      "error_message": "Nous n'avons pas pu trouver ce forfait. Veuillez retourner et sélectionner un forfait.",
-      "back_to_plans": "Retour aux Forfaits",
-      "success_title": "Paiement Réussi !",
-      "success_message": "Votre abonnement est maintenant actif. Configurons votre profil professionnel."
-    },
-  "subscription": {
-    "title": "Mon Abonnement",
-    "subtitle": "Gérez votre forfait et les détails de facturation",
-    "no_subscription": "Vous n'avez pas d'abonnement actif.",
-    "view_plans": "Voir les Forfaits",
-    "status_cancelling": "Annulation en cours",
-    "discount_applied": "réduction appliquée",
-    "current_period": "Période Actuelle Se Termine",
-    "next_billing": "Prochaine Facturation",
-    "ends_on": "Se termine le",
-    "auto_renew": "Renouvellement automatique le",
-    "plan_includes": "Votre forfait inclut:",
-    "change_plan": "Changer de Forfait",
-    "resume_subscription": "Reprendre l'Abonnement",
-    "cancel_subscription": "Annuler l'Abonnement",
-    "cancellation_pending": "Annulation En Attente",
-    "loss_warning": "Votre abonnement restera actif jusqu'au {date}. Après cela, vous perdrez l'accès aux fonctionnalités premium.",
-    "confirm_cancel": "Êtes-vous sûr de vouloir annuler ? Vous perdrez l'accès à ces fonctionnalités à la fin de votre période de facturation."
-  },
-  "upcoming": {
-    "title": "Rendez-vous à venir",
-    "empty": "Aucun rendez-vous à venir."
-  },
   "profile": {
     "complete_title": "Complétez votre profil",
     "complete_subtitle": "Veuillez mettre à jour vos coordonnées pour continuer",
@@ -319,9 +371,9 @@
     "booking_failed": "Échec de la réservation. Veuillez réessayer.",
     "summary_title": "Résumé de la réservation",
     "closed": "Fermé",
-      "available_times_header": "Temps disponibles",
-      "get_directions": "Itinéraire"
-    },
+    "available_times_header": "Temps disponibles",
+    "get_directions": "Itinéraire"
+  },
   "calendar": {
     "title": "Calendrier",
     "subtitle": "Voir et gérer les rendez-vous",
@@ -574,14 +626,14 @@
       "duration": "Durée (min)",
       "description": "Description",
       "description_placeholder": "Décrivez le service...",
-      "images": "Images",
       "assign_staff": "Assigner du personnel",
       "no_staff": "Aucun membre du personnel actif trouvé.",
       "assign_staff_help": "Sélectionnez les membres du personnel qui peuvent effectuer ce service.",
       "buffer_before": "Tampon avant (min)",
       "buffer_after": "Tampon après (min)",
       "save_button": "Enregistrer le service",
-      "saving": "Enregistrement..."
+      "saving": "Enregistrement...",
+      "images": "Images"
     }
   },
   "search": {

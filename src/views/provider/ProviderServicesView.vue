@@ -14,6 +14,9 @@ import type { Service } from '../../types'
 import ServiceFormModal from '../../components/provider/ServiceFormModal.vue'
 import ConfirmationModal from '../../components/common/ConfirmationModal.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { AlertCircle } from 'lucide-vue-next'
+import { canAddService } from '../../services/subscriptionService'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -30,6 +33,16 @@ const searchQuery = ref('')
 const categoryFilter = ref(t('category_pills.all'))
 const saving = ref(false)
 const isLoading = ref(true)
+const canAdd = ref(false)
+const limitState = ref<{
+    allowed: boolean;
+    reason?: 'limit_reached' | 'no_subscription';
+    resource?: 'service';
+    limit?: number;
+    currentCount?: number;
+    planName?: string;
+    message?: string;
+} | null>(null)
 
 // Conflict modal state
 const showConflictModal = ref(false)
@@ -91,6 +104,11 @@ onMounted(async () => {
       serviceStore.fetchAllServices(authStore.provider.id),
       categoryStore.fetchCategories()
     ])
+    
+    // Check plan limits
+    const limitCheck = await canAddService(authStore.provider.id)
+    canAdd.value = limitCheck.allowed
+    limitState.value = limitCheck
   } finally {
     isLoading.value = false
   }
@@ -105,6 +123,16 @@ function openEditModal(service: Service) {
 }
 
 async function handleSave(serviceData: any) {
+  // Check limits if activating an inactive service
+  if (modal.data.value && !modal.data.value.active && serviceData.active) {
+    if (!authStore.provider?.id) return
+    const limitCheck = await canAddService(authStore.provider.id)
+    if (!limitCheck.allowed) {
+      showError(limitCheck.message || t('pricing.limits.upgrade'))
+      return
+    }
+  }
+
   // Check for conflicts if deactivating an existing service
   if (modal.data.value && modal.data.value.active && !serviceData.active) {
     const foundConflicts = await appointmentStore.fetchFutureAppointments(modal.data.value.id, 'service')
@@ -182,6 +210,16 @@ async function executeSave(serviceData: any) {
 }
 
 async function toggleActive(service: Service) {
+  // Check limits if activating an inactive service
+  if (!service.active) {
+    if (!authStore.provider?.id) return
+    const limitCheck = await canAddService(authStore.provider.id)
+    if (!limitCheck.allowed) {
+      showError(limitCheck.message || t('pricing.limits.upgrade'))
+      return
+    }
+  }
+
   // Check for conflicts only if deactivating
   if (service.active) {
     const foundConflicts = await appointmentStore.fetchFutureAppointments(service.id, 'service')
@@ -236,16 +274,31 @@ async function confirmDeactivation() {
             </button>
             <h1 class="text-2xl font-bold text-gray-900">{{ $t('provider.services.title') }}</h1>
           </div>
-          <button
-            @click="openAddModal"
-            class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            {{ $t('provider.services.add_button') }}
-          </button>
-        </div>
+            <div class="flex flex-col items-end">
+              <button
+                @click="openAddModal"
+                :disabled="!canAdd"
+                class="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                :title="!canAdd ? (limitState?.message || '') : ''"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                {{ $t('provider.services.add_button') }}
+              </button>
+            <div v-if="!canAdd && limitState?.reason === 'limit_reached'" class="mt-2 w-full max-w-[400px]">
+              <Alert variant="destructive">
+                <AlertCircle class="h-4 w-4" />
+                <AlertTitle>{{ $t('pricing.limits.service_msg', { planName: limitState.planName, count: limitState.limit }) }}</AlertTitle>
+                <AlertDescription>
+                  <router-link to="/provider/pricing" class="underline font-medium hover:text-red-900">
+                    {{ $t('pricing.limits.upgrade') }}
+                  </router-link>
+                </AlertDescription>
+              </Alert>
+            </div>
+          </div>
+          </div>
       </div>
     </div>
 
@@ -285,12 +338,27 @@ async function confirmDeactivation() {
         </svg>
         <h3 class="text-lg font-medium text-gray-900">{{ $t('provider.services.no_services_found') }}</h3>
         <p class="text-gray-500 mt-2">{{ $t('provider.services.no_services_desc') }}</p>
-        <button
-          @click="openAddModal"
-          class="mt-4 text-primary-600 hover:text-primary-700 font-medium"
-        >
-          {{ $t('provider.services.add_button') }} →
-        </button>
+          <div class="flex flex-col items-center">
+            <button
+              @click="openAddModal"
+              :disabled="!canAdd"
+              class="mt-4 text-primary-600 hover:text-primary-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              {{ $t('provider.services.add_button') }} →
+            </button>
+            
+            <div v-if="!canAdd && limitState?.reason === 'limit_reached'" class="mt-4 w-full max-w-[400px] text-left">
+              <Alert variant="destructive">
+                <AlertCircle class="h-4 w-4" />
+                <AlertTitle>{{ $t('pricing.limits.service_msg', { planName: limitState.planName, count: limitState.limit }) }}</AlertTitle>
+                <AlertDescription>
+                  <router-link to="/provider/pricing" class="underline font-medium hover:text-red-900">
+                    {{ $t('pricing.limits.upgrade') }}
+                  </router-link>
+                </AlertDescription>
+              </Alert>
+            </div>
+          </div>
       </div>
 
       <!-- Services Grid -->

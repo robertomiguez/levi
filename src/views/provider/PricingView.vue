@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Check, AlertCircle, RefreshCw, ArrowUp, ArrowLeft, Calendar, Lock } from 'lucide-vue-next'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Check, AlertCircle, RefreshCw, ArrowUp, ArrowLeft, Calendar, Lock, Users, MapPin, Scissors, AlertTriangle, ArrowRight } from 'lucide-vue-next'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 import { TERMS_VERSION } from '../../constants'
@@ -52,6 +53,15 @@ const prorationPreview = ref<{
 const showPreviewModal = ref(false)
 const showTermsModal = ref(false)
 const showPrivacyModal = ref(false)
+
+// Limit validation state
+const showLimitModal = ref(false)
+const limitViolation = ref<{
+    reason: 'staff_limit' | 'service_limit' | 'location_limit'
+    currentCount: number
+    limit: number
+    planName: string
+} | null>(null)
 
 const isChangeMode = computed(() => route.query.mode === 'change')
 
@@ -121,6 +131,18 @@ async function handlePlanAction(plan: Plan) {
             const preview = await previewPlanChange(currentSubscription.value!.id, plan.id)
             
             if (!preview.canChange) {
+                // Check if it's a specific resource limit issue
+                if (preview.reason) {
+                    limitViolation.value = {
+                        reason: preview.reason,
+                        currentCount: preview.currentCount || 0,
+                        limit: preview.limit || 0,
+                        planName: plan.display_name
+                    }
+                    showLimitModal.value = true
+                    return
+                }
+
                 showError(preview.message || t('common.error_occurred'))
                 return
             }
@@ -245,6 +267,23 @@ function getDiscountedPrice(plan: Plan): number {
 
 function hasDiscount(plan: Plan): boolean {
     return !!plan.discount_percent && plan.discount_percent > 0
+}
+
+function resolveLimitViolation() {
+    showLimitModal.value = false
+    if (!limitViolation.value) return
+
+    switch (limitViolation.value.reason) {
+        case 'staff_limit':
+            router.push('/provider/staff')
+            break
+        case 'service_limit':
+            router.push('/provider/services')
+            break
+        case 'location_limit':
+            router.push('/provider/addresses')
+            break
+    }
 }
 </script>
 
@@ -525,6 +564,51 @@ function hasDiscount(plan: Plan): boolean {
                 </Button>
             </div>
         </Modal>
+
+        <!-- Resource Limit Modal -->
+        <Dialog :open="showLimitModal" @update:open="showLimitModal = false">
+            <DialogContent class="sm:max-w-[425px]">
+                <DialogHeader>
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
+                        <Users v-if="limitViolation?.reason === 'staff_limit'" class="h-6 w-6 text-red-600" />
+                        <Scissors v-else-if="limitViolation?.reason === 'service_limit'" class="h-6 w-6 text-red-600" />
+                        <MapPin v-else-if="limitViolation?.reason === 'location_limit'" class="h-6 w-6 text-red-600" />
+                        <AlertTriangle v-else class="h-6 w-6 text-red-600" />
+                    </div>
+                    <DialogTitle class="text-center text-xl">
+                        {{ 
+                            limitViolation?.reason === 'staff_limit' ? 'Staff Limit Reached' :
+                            limitViolation?.reason === 'service_limit' ? 'Service Limit Reached' :
+                            limitViolation?.reason === 'location_limit' ? 'Location Limit Reached' :
+                            'Plan Limit Reached'
+                        }}
+                    </DialogTitle>
+                    <DialogDescription class="text-center pt-2">
+                        You have <span class="font-bold text-gray-900">{{ limitViolation?.currentCount }}</span> active 
+                        {{ 
+                            limitViolation?.reason === 'staff_limit' ? 'staff members' :
+                            limitViolation?.reason === 'service_limit' ? 'services' :
+                            'locations'
+                        }}, but the <span class="font-semibold">{{ limitViolation?.planName }}</span> plan allows only <span class="font-bold text-gray-900">{{ limitViolation?.limit }}</span>.
+                        <br/><br/>
+                        Please deactivate {{ (limitViolation?.currentCount || 0) - (limitViolation?.limit || 0) }} item(s) to continue with the downgrade.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="sm:justify-center mt-4">
+                    <Button variant="outline" @click="showLimitModal = false">
+                        Cancel
+                    </Button>
+                    <Button variant="default" @click="resolveLimitViolation" class="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                        <span>Manage {{ 
+                            limitViolation?.reason === 'staff_limit' ? 'Staff' :
+                            limitViolation?.reason === 'service_limit' ? 'Services' :
+                            'Locations'
+                        }}</span>
+                        <ArrowRight class="h-4 w-4" />
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <!-- Proration Preview Modal -->
         <div 

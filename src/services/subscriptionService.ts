@@ -206,11 +206,22 @@ export async function createSubscription({
 /**
  * Check if provider can add more staff based on plan limits
  */
-export async function canAddStaff(providerId: string): Promise<{ allowed: boolean; message?: string }> {
+/**
+ * Check if provider can add more staff based on plan limits, returning structured data
+ */
+export async function canAddStaff(providerId: string): Promise<{ 
+    allowed: boolean; 
+    reason?: 'limit_reached' | 'no_subscription';
+    resource?: 'staff';
+    limit?: number;
+    currentCount?: number;
+    planName?: string;
+    message?: string; // Kept for backward compatibility if needed temporarily
+}> {
     const subscription = await getProviderSubscription(providerId)
     
     if (!subscription || !subscription.plan) {
-        return { allowed: false, message: 'No active subscription' }
+        return { allowed: false, reason: 'no_subscription', message: 'No active subscription' }
     }
 
     // Unlimited staff
@@ -230,6 +241,11 @@ export async function canAddStaff(providerId: string): Promise<{ allowed: boolea
     if ((count || 0) >= (subscription.plan.max_staff ?? 0)) {
         return { 
             allowed: false, 
+            reason: 'limit_reached',
+            resource: 'staff',
+            limit: subscription.plan.max_staff,
+            currentCount: count || 0,
+            planName: subscription.plan.display_name,
             message: `Your ${subscription.plan.display_name} plan allows up to ${subscription.plan.max_staff} staff member(s). Upgrade to add more.` 
         }
     }
@@ -240,11 +256,19 @@ export async function canAddStaff(providerId: string): Promise<{ allowed: boolea
 /**
  * Check if provider can add more services based on plan limits
  */
-export async function canAddService(providerId: string): Promise<{ allowed: boolean; message?: string }> {
+export async function canAddService(providerId: string): Promise<{ 
+    allowed: boolean; 
+    reason?: 'limit_reached' | 'no_subscription';
+    resource?: 'service';
+    limit?: number;
+    currentCount?: number;
+    planName?: string;
+    message?: string;
+}> {
     const subscription = await getProviderSubscription(providerId)
     
     if (!subscription || !subscription.plan) {
-        return { allowed: false, message: 'No active subscription' }
+        return { allowed: false, reason: 'no_subscription', message: 'No active subscription' }
     }
 
     // Unlimited services
@@ -264,6 +288,11 @@ export async function canAddService(providerId: string): Promise<{ allowed: bool
     if ((count || 0) >= (subscription.plan.max_services ?? 0)) {
         return { 
             allowed: false, 
+            reason: 'limit_reached',
+            resource: 'service',
+            limit: subscription.plan.max_services,
+            currentCount: count || 0,
+            planName: subscription.plan.display_name,
             message: `Your ${subscription.plan.display_name} plan allows up to ${subscription.plan.max_services} service(s). Upgrade to add more.` 
         }
     }
@@ -274,11 +303,19 @@ export async function canAddService(providerId: string): Promise<{ allowed: bool
 /**
  * Check if provider can add more locations based on plan limits
  */
-export async function canAddLocation(providerId: string): Promise<{ allowed: boolean; message?: string }> {
+export async function canAddLocation(providerId: string): Promise<{ 
+    allowed: boolean; 
+    reason?: 'limit_reached' | 'no_subscription';
+    resource?: 'location';
+    limit?: number;
+    currentCount?: number;
+    planName?: string;
+    message?: string;
+}> {
     const subscription = await getProviderSubscription(providerId)
     
     if (!subscription || !subscription.plan) {
-        return { allowed: false, message: 'No active subscription' }
+        return { allowed: false, reason: 'no_subscription', message: 'No active subscription' }
     }
 
     // Unlimited locations
@@ -297,6 +334,11 @@ export async function canAddLocation(providerId: string): Promise<{ allowed: boo
     if ((count || 0) >= (subscription.plan.max_locations ?? 0)) {
         return { 
             allowed: false, 
+            reason: 'limit_reached',
+            resource: 'location',
+            limit: subscription.plan.max_locations,
+            currentCount: count || 0,
+            planName: subscription.plan.display_name,
             message: `Your ${subscription.plan.display_name} plan allows up to ${subscription.plan.max_locations} location(s). Upgrade to add more.` 
         }
     }
@@ -336,16 +378,94 @@ export async function resumeSubscription(subscriptionId: string): Promise<void> 
     if (error) throw error
 }
 
+
 /**
  * Helper to resolve plan price based on currency
  */
 function getPlanPrice(plan: Plan, currency: string = 'usd'): number {
     const cur = currency.toLowerCase()
     if (cur !== 'usd' && plan.prices && plan.prices[cur]) {
-        return plan.prices[cur]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (plan.prices as any)[cur]
     }
     return plan.price_monthly
 }
+
+/**
+ * Check if provider's current usage fits within a target plan's limits
+ */
+async function checkResourceLimits(providerId: string, plan: Plan): Promise<{ 
+    allowed: boolean; 
+    message?: string;
+    reason?: 'staff_limit' | 'service_limit' | 'location_limit';
+    currentCount?: number;
+    limit?: number;
+}> {
+    // 1. Check Staff
+    if (plan.max_staff != null) {
+        const { count, error } = await supabase
+            .from('staff')
+            .select('*', { count: 'exact', head: true })
+            .eq('provider_id', providerId)
+            .eq('active', true)
+
+        if (error) throw error
+        
+        if ((count || 0) > plan.max_staff) {
+            return {
+                allowed: false,
+                reason: 'staff_limit',
+                currentCount: count || 0,
+                limit: plan.max_staff,
+                message: `Cannot change plan. You have ${count} active staff members, but the ${plan.display_name} plan allows only ${plan.max_staff}. Please deactivate ${count! - plan.max_staff} staff member(s) first.`
+            }
+        }
+    }
+
+    // 2. Check Services
+    if (plan.max_services != null) {
+        const { count, error } = await supabase
+            .from('services')
+            .select('*', { count: 'exact', head: true })
+            .eq('provider_id', providerId)
+            .eq('active', true)
+
+        if (error) throw error
+
+        if ((count || 0) > plan.max_services) {
+            return {
+                allowed: false,
+                reason: 'service_limit',
+                currentCount: count || 0,
+                limit: plan.max_services,
+                message: `Cannot change plan. You have ${count} active services, but the ${plan.display_name} plan allows only ${plan.max_services}. Please deactivate ${count! - plan.max_services} service(s) first.`
+            }
+        }
+    }
+
+    // 3. Check Locations
+    if (plan.max_locations != null) {
+        const { count, error } = await supabase
+            .from('provider_addresses')
+            .select('*', { count: 'exact', head: true })
+            .eq('provider_id', providerId)
+
+        if (error) throw error
+
+        if ((count || 0) > plan.max_locations) {
+            return {
+                allowed: false,
+                reason: 'location_limit',
+                currentCount: count || 0,
+                limit: plan.max_locations,
+                message: `Cannot change plan. You have ${count} locations, but the ${plan.display_name} plan allows only ${plan.max_locations}. Please remove ${count! - plan.max_locations} location(s) first.`
+            }
+        }
+    }
+
+    return { allowed: true }
+}
+
 
 /**
  * Change subscription plan with proper proration and business rules
@@ -382,6 +502,13 @@ export async function changePlan(
     // Same plan check
     if (currentSub.plan_id === newPlanId) {
         return { success: false, message: 'Already on this plan' }
+    }
+
+    // --- RESOURCE LIMIT CHECK ---
+    // Check if user has too many resources (active staff, services, etc) for the new plan
+    const { allowed, message } = await checkResourceLimits(currentSub.provider_id, newPlan)
+    if (!allowed) {
+        return { success: false, message }
     }
     
     const currency = currentSub.currency || 'usd'
@@ -584,6 +711,9 @@ export async function previewPlanChange(
     scheduledDate?: string
     canChange: boolean
     message?: string
+    reason?: 'staff_limit' | 'service_limit' | 'location_limit'
+    currentCount?: number
+    limit?: number
 }> {
     // Fetch current subscription
     const { data: currentSub, error: subError } = await supabase
@@ -599,6 +729,23 @@ export async function previewPlanChange(
     
     const oldPlan = currentSub.plan
     if (!oldPlan) throw new Error('Current plan not found')
+
+    // Check usage limits for the new plan *before* even checking prices/trial rules
+    const { allowed, message: limitMessage, reason, currentCount, limit } = await checkResourceLimits(currentSub.provider_id, newPlan)
+    if (!allowed) {
+         return {
+            isUpgrade: false,
+            isDowngrade: false, // It might be a downgrade, but we block it here
+            credit: 0,
+            charge: 0,
+            netCharge: 0,
+            canChange: false,
+            message: limitMessage,
+            reason,
+            currentCount,
+            limit
+        }
+    }
     
     const currency = currentSub.currency || 'usd'
     const newPriceValue = getPlanPrice(newPlan, currency)

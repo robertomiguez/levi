@@ -145,6 +145,12 @@
       "dedicated_support": "Dedicated support",
       "white_label": "White-label options"
     },
+    "limits": {
+      "staff_msg": "Your {planName} plan allows up to {count} staff member(s).",
+      "service_msg": "Your {planName} plan allows up to {count} service(s).",
+      "location_msg": "Your {planName} plan allows up to {count} location(s).",
+      "upgrade": "Upgrade to add more."
+    },
     "plans": {
       "solo": {
         "name": "Solo",
@@ -238,14 +244,7 @@
     "confirm_cancel_downgrade": "Are you sure you want to cancel the scheduled downgrade? You will remain on your current plan.",
     "manage_billing": "Manage Billing"
   },
-  "upcoming": {
-    "title": "Upcoming Appointments",
-    "empty": "No upcoming appointments.",
-    "error_title": "We couldn't find this plan. Please go back and select a plan.",
-    "back_to_plans": "Back to Plans",
-    "success_title": "Payment Successful!",
-    "success_message": "Your subscription is now active. Let's set up your business profile."
-  },
+
   "nav": {
     "login": "Login",
     "logout": "Logout",

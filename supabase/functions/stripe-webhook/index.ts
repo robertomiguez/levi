@@ -329,23 +329,41 @@ async function handleSubscriptionUpdate(
     return;
   }
 
-  const currentPeriodStart = new Date(subscription.current_period_start * 1000);
-  const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
-  const trialEndsAt = subscription.trial_end
-    ? new Date(subscription.trial_end * 1000)
-    : null;
+  // Safe date parser to avoid "Invalid time value" crashes
+  const safeIsoDate = (ts: any) => {
+    if (ts === undefined) return undefined;
+    if (ts === null) return null;
+    
+    // If it's already a valid ISO or date string
+    if (typeof ts === 'string' && !isNaN(Date.parse(ts))) {
+      return new Date(ts).toISOString();
+    }
+    
+    // If it's a number (unix timestamp in seconds)
+    if (typeof ts === 'number') {
+      const date = new Date(ts * 1000);
+      return isNaN(date.getTime()) ? undefined : date.toISOString();
+    }
+
+    // Fallback: try to cast string to number
+    const num = Number(ts);
+    if (!isNaN(num)) {
+       const date = new Date(num * 1000);
+       return isNaN(date.getTime()) ? undefined : date.toISOString();
+    }
+    
+    return undefined;
+  };
 
   const { error: updateError } = await supabase
     .from("subscriptions")
     .update({
       status: mapStripeStatus(subscription.status),
-      current_period_start: currentPeriodStart.toISOString(),
-      current_period_end: currentPeriodEnd.toISOString(),
-      trial_ends_at: trialEndsAt?.toISOString(),
+      current_period_start: safeIsoDate(subscription.current_period_start),
+      current_period_end: safeIsoDate(subscription.current_period_end),
+      trial_ends_at: safeIsoDate(subscription.trial_end),
       cancel_at_period_end: subscription.cancel_at_period_end,
-      cancelled_at: subscription.canceled_at
-        ? new Date(subscription.canceled_at * 1000).toISOString()
-        : null,
+      cancelled_at: safeIsoDate(subscription.canceled_at),
       updated_at: new Date().toISOString(),
     })
     .eq("id", existingSub.id);

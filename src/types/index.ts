@@ -171,7 +171,7 @@ export interface Plan {
     max_locations?: number          // null = unlimited
     max_services?: number           // null = unlimited
     features: string[]
-    is_active: boolean
+    status: 'active' | 'coming_soon' | 'legacy' | 'archived'
     sort_order: number
     created_at?: string
     updated_at?: string

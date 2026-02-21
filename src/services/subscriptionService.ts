@@ -84,7 +84,7 @@ export async function getPlans(): Promise<Plan[]> {
     const { data, error } = await supabase
         .from('plans')
         .select('*')
-        .eq('is_active', true)
+        .eq('status', 'active')
         .order('sort_order')
 
     if (error) throw error
@@ -522,16 +522,37 @@ export async function changePlan(
     const isTrialing = currentSub.status === 'trialing'
     const trialChangeCount = currentSub.trial_plan_change_count || 0
     
-    // --- TRIAL LOGIC ---
-    if (isTrialing) {
-        // Check cap: After first change, only upgrades allowed
-        if (trialChangeCount >= 1 && isDowngrade) {
-            return { 
-                success: false, 
-                message: 'Downgrades not allowed after first plan change during trial. You can upgrade to a higher plan.' 
-            }
+    // --- TRIAL CAP LOGIC ---
+    if (isTrialing && trialChangeCount >= 1 && isDowngrade) {
+        return { 
+            success: false, 
+            message: 'Downgrades not allowed after first plan change during trial. You can upgrade to a higher plan.' 
         }
-        
+    }
+
+    // --- STRIPE SYNCHRONIZATION ---
+    // Synchronize the plan change with Stripe via Edge Function
+    try {
+        const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('update-subscription', {
+            body: {
+                subscriptionId: subscriptionId,
+                newPlanId: newPlanId,
+                isDowngrade: isDowngrade
+            }
+        })
+
+        if (edgeError) throw edgeError
+        if (edgeResult && edgeResult.error) throw new Error(edgeResult.error)
+    } catch (err: any) {
+        console.error('Failed to sync plan change with billing provider:', err)
+        return {
+            success: false,
+            message: 'Failed to synchronize plan change with billing provider. Please try again.'
+        }
+    }
+    
+    // --- LOCAL DATABASE UPDATES ---
+    if (isTrialing) {
         // Free switch during trial - update immediately, no billing
         const { error: updateError } = await supabase
             .from('subscriptions')

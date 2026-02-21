@@ -121,6 +121,13 @@ const currentPriceFormatted = computed(() => {
     return formatPrice(currentPrice.value, subscription.value?.currency || undefined)
 })
 
+const formattedPeriodEnd = computed(() => {
+    if (!subscription.value?.current_period_end) {
+        return '...';
+    }
+    const date = new Date(subscription.value.current_period_end);
+    return isNaN(date.getTime()) ? '...' : date.toLocaleDateString();
+})
 
 // Removed cancel/resume handlers - managed via Stripe Portal
 
@@ -231,7 +238,7 @@ async function handleAddPaymentMethod() {
                             <div>
                                 <p class="text-sm font-medium text-gray-500">{{ $t('subscription.current_period') }}</p>
                                 <p class="text-sm text-gray-900">
-                                    {{ new Date(subscription.current_period_end!).toLocaleDateString() }}
+                                    {{ formattedPeriodEnd }}
                                 </p>
                             </div>
                         </div>
@@ -242,10 +249,10 @@ async function handleAddPaymentMethod() {
                             <div>
                                 <p class="text-sm font-medium text-gray-500">{{ $t('subscription.next_billing') }}</p>
                                 <p v-if="isCancelled" class="text-sm text-red-600 font-medium">
-                                    {{ $t('subscription.ends_on') }} {{ new Date(subscription.current_period_end!).toLocaleDateString() }}
+                                    {{ $t('subscription.ends_on') }} {{ formattedPeriodEnd }}
                                 </p>
                                 <p v-else class="text-sm text-gray-900">
-                                    {{ $t('subscription.auto_renew') }} {{ new Date(subscription.current_period_end!).toLocaleDateString() }}
+                                    {{ $t('subscription.auto_renew') }} {{ formattedPeriodEnd }}
                                 </p>
                             </div>
                         </div>
@@ -317,7 +324,7 @@ async function handleAddPaymentMethod() {
                 <div>
                     <h4 class="text-sm font-medium text-yellow-800">{{ $t('subscription.cancellation_pending') }}</h4>
                     <p class="text-sm text-yellow-700 mt-1">
-                        {{ $t('subscription.loss_warning', { date: new Date(subscription.current_period_end!).toLocaleDateString() }) }}
+                        {{ $t('subscription.loss_warning', { date: formattedPeriodEnd }) }}
                     </p>
                     <div class="mt-2">
                         <Button 
@@ -339,7 +346,7 @@ async function handleAddPaymentMethod() {
                     <p class="text-sm text-amber-700 mt-1">
                         {{ $t('subscription.downgrade_info', { 
                             plan: pendingDowngradePlan?.display_name || $t('common.loading'),
-                            date: new Date(subscription.current_period_end!).toLocaleDateString() 
+                            date: formattedPeriodEnd
                         }) }}
                     </p>
                     <div class="mt-2">

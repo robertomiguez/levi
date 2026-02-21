@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
           .from("plans")
           .select("*")
           .eq("name", planName)
-          .eq("is_active", true)
+          .eq("status", "active")
           .single();
         
         plan = planData;

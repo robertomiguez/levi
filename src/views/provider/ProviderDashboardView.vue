@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useProviderStore } from '../../stores/useProviderStore'
 import { useRouter } from 'vue-router'
@@ -39,7 +39,10 @@ function formatCurrency(amount: number) {
   return formatPrice(amount)
 }
 
+const hasStaff = computed(() => providerStore.stats.totalStaff > 0)
+
 function goToServices() {
+  if (!hasStaff.value) return
   router.push('/provider/services')
 }
 
@@ -52,11 +55,13 @@ function goToAddresses() {
 }
 
 function goToCalendar() {
+  if (!hasStaff.value) return
   router.push('/provider/calendar')
 }
 
 
 function goToAvailability() {
+  if (!hasStaff.value) return
   router.push('/provider/availability')
 }
 
@@ -99,7 +104,8 @@ function goToRevenueReport() {
         <!-- Today's Appointments -->
         <div 
           @click="goToCalendar"
-          class="bg-white rounded-lg shadow p-6 border-l-4 border-primary-600 cursor-pointer hover:shadow-md transition-all"
+          class="bg-white rounded-lg shadow p-6 border-l-4 border-primary-600 transition-all"
+          :class="hasStaff ? 'cursor-pointer hover:shadow-md' : 'opacity-75 cursor-not-allowed'"
         >
           <div class="flex items-center justify-between">
             <div>
@@ -132,7 +138,8 @@ function goToRevenueReport() {
         <!-- Active Services -->
         <div 
           @click="goToServices"
-          class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600 cursor-pointer hover:shadow-md transition-all"
+          class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600 transition-all"
+          :class="hasStaff ? 'cursor-pointer hover:shadow-md' : 'opacity-75 cursor-not-allowed'"
         >
           <div class="flex items-center justify-between">
             <div>
@@ -195,7 +202,9 @@ function goToRevenueReport() {
 
           <button
             @click="goToAvailability"
-            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+            :disabled="!hasStaff"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="hasStaff ? 'hover:border-blue-500 hover:bg-blue-50' : ''"
           >
             <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <Clock class="w-6 h-6 text-blue-600" />
@@ -208,7 +217,9 @@ function goToRevenueReport() {
 
           <button
             @click="goToServices"
-            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
+            :disabled="!hasStaff"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="hasStaff ? 'hover:border-primary-500 hover:bg-primary-50' : ''"
           >
             <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
               <Plus class="w-6 h-6 text-primary-600" />
@@ -221,7 +232,9 @@ function goToRevenueReport() {
 
           <button
             @click="goToCalendar"
-            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all"
+            :disabled="!hasStaff"
+            class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="hasStaff ? 'hover:border-green-500 hover:bg-green-50' : ''"
           >
             <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <Calendar class="w-6 h-6 text-green-600" />
@@ -256,13 +269,13 @@ function goToRevenueReport() {
         <div v-if="providerStore.stats.todayAppointments === 0" class="text-center py-12">
           <Calendar class="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p class="text-gray-600">{{ $t('dashboard.upcoming.no_appointments') }}</p>
-          <Button variant="link" @click="goToCalendar" class="mt-4 text-primary-600 hover:text-primary-700">
+          <Button v-if="hasStaff" variant="link" @click="goToCalendar" class="mt-4 text-primary-600 hover:text-primary-700">
             {{ $t('dashboard.upcoming.view_full_calendar') }} →
           </Button>
         </div>
         <div v-else class="space-y-3">
           <p class="text-gray-600">{{ $t('dashboard.upcoming.appointments_count', { count: providerStore.stats.todayAppointments }) }}</p>
-          <Button variant="link" @click="goToCalendar" class="text-primary-600 hover:text-primary-700 p-0">
+          <Button v-if="hasStaff" variant="link" @click="goToCalendar" class="text-primary-600 hover:text-primary-700 p-0">
             {{ $t('dashboard.upcoming.view_details') }} →
           </Button>
         </div>

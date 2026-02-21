@@ -84,7 +84,7 @@ export async function getPlans(): Promise<Plan[]> {
     const { data, error } = await supabase
         .from('plans')
         .select('*')
-        .eq('is_active', true)
+        .eq('status', 'active')
         .order('sort_order')
 
     if (error) throw error
@@ -356,7 +356,8 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
         .update({ 
             cancel_at_period_end: true,
             cancelled_at: new Date().toISOString(),
-            pending_downgrade_plan_id: null  // Clear pending downgrade if any
+            pending_downgrade_plan_id: null,  // Clear pending downgrade if any
+            updated_at: new Date().toISOString()
         })
         .eq('id', subscriptionId)
 
@@ -371,7 +372,8 @@ export async function resumeSubscription(subscriptionId: string): Promise<void> 
         .from('subscriptions')
         .update({ 
             cancel_at_period_end: false,
-            cancelled_at: null 
+            cancelled_at: null,
+            updated_at: new Date().toISOString()
         })
         .eq('id', subscriptionId)
 
@@ -520,16 +522,37 @@ export async function changePlan(
     const isTrialing = currentSub.status === 'trialing'
     const trialChangeCount = currentSub.trial_plan_change_count || 0
     
-    // --- TRIAL LOGIC ---
-    if (isTrialing) {
-        // Check cap: After first change, only upgrades allowed
-        if (trialChangeCount >= 1 && isDowngrade) {
-            return { 
-                success: false, 
-                message: 'Downgrades not allowed after first plan change during trial. You can upgrade to a higher plan.' 
-            }
+    // --- TRIAL CAP LOGIC ---
+    if (isTrialing && trialChangeCount >= 1 && isDowngrade) {
+        return { 
+            success: false, 
+            message: 'Downgrades not allowed after first plan change during trial. You can upgrade to a higher plan.' 
         }
-        
+    }
+
+    // --- STRIPE SYNCHRONIZATION ---
+    // Synchronize the plan change with Stripe via Edge Function
+    try {
+        const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('update-subscription', {
+            body: {
+                subscriptionId: subscriptionId,
+                newPlanId: newPlanId,
+                isDowngrade: isDowngrade
+            }
+        })
+
+        if (edgeError) throw edgeError
+        if (edgeResult && edgeResult.error) throw new Error(edgeResult.error)
+    } catch (err: any) {
+        console.error('Failed to sync plan change with billing provider:', err)
+        return {
+            success: false,
+            message: 'Failed to synchronize plan change with billing provider. Please try again.'
+        }
+    }
+    
+    // --- LOCAL DATABASE UPDATES ---
+    if (isTrialing) {
         // Free switch during trial - update immediately, no billing
         const { error: updateError } = await supabase
             .from('subscriptions')
@@ -539,7 +562,8 @@ export async function changePlan(
                 // Preserve original discount_ends_at - DO NOT recalculate
                 trial_plan_change_count: trialChangeCount + 1,
                 // Clear any pending downgrade
-                pending_downgrade_plan_id: null
+                pending_downgrade_plan_id: null,
+                updated_at: new Date().toISOString()
             })
             .eq('id', subscriptionId)
         
@@ -565,7 +589,8 @@ export async function changePlan(
                 // Clear pending downgrade if any
                 pending_downgrade_plan_id: null,
                 cancel_at_period_end: false,
-                cancelled_at: null
+                cancelled_at: null,
+                updated_at: new Date().toISOString()
             })
             .eq('id', subscriptionId)
         
@@ -598,7 +623,8 @@ export async function changePlan(
         const { error: updateError } = await supabase
             .from('subscriptions')
             .update({
-                pending_downgrade_plan_id: newPlanId
+                pending_downgrade_plan_id: newPlanId,
+                updated_at: new Date().toISOString()
             })
             .eq('id', subscriptionId)
         
@@ -621,7 +647,8 @@ export async function changePlan(
         .update({
             plan_id: newPlanId,
             locked_price: newPriceValue,
-            pending_downgrade_plan_id: null
+            pending_downgrade_plan_id: null,
+            updated_at: new Date().toISOString()
         })
         .eq('id', subscriptionId)
     
@@ -636,7 +663,10 @@ export async function changePlan(
 export async function cancelPendingDowngrade(subscriptionId: string): Promise<void> {
     const { error } = await supabase
         .from('subscriptions')
-        .update({ pending_downgrade_plan_id: null })
+        .update({ 
+            pending_downgrade_plan_id: null,
+            updated_at: new Date().toISOString()
+        })
         .eq('id', subscriptionId)
     
     if (error) throw error

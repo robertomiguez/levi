@@ -90,7 +90,12 @@ async function loadPlans() {
             authStore.provider ? getProviderSubscription(authStore.provider.id) : Promise.resolve(null)
         ])
         
-        plans.value = plansData
+        // Filter out inactive/archived plans
+        plans.value = plansData.filter(plan => {
+            if (plan.status === 'active' || plan.status === 'coming_soon') return true;
+            if (plan.status === 'legacy' && plan.id === subData?.plan_id) return true;
+            return false;
+        })
         currentSubscription.value = subData
         
         if (plans.value.length === 0) {
@@ -105,7 +110,7 @@ async function loadPlans() {
 }
 
 function selectPlan(plan: Plan) {
-    if (!plan.is_active) return
+    if (plan.status !== 'active') return
     selectedPlan.value = plan.name
 }
 
@@ -120,7 +125,7 @@ function isCurrentPlan(plan: Plan): boolean {
 }
 
 async function handlePlanAction(plan: Plan) {
-    if (!plan.is_active) return
+    if (plan.status !== 'active') return
 
     if (isChangeMode.value) {
         if (isCurrentPlan(plan)) return
@@ -385,7 +390,15 @@ function resolveLimitViolation() {
             </div>
 
             <!-- Pricing Cards -->
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+            <div v-else :class="[
+                'grid gap-6 lg:gap-8 mx-auto w-full',
+                {
+                    'max-w-md': plans.length === 1,
+                    'grid-cols-1 md:grid-cols-2 max-w-3xl': plans.length === 2,
+                    'grid-cols-1 md:grid-cols-3 max-w-5xl': plans.length === 3,
+                    'grid-cols-1 md:grid-cols-2 lg:grid-cols-4 max-w-7xl': plans.length >= 4
+                }
+            ]">
                 <Card 
                     v-for="plan in plans" 
                     :key="plan.id"
@@ -393,7 +406,7 @@ function resolveLimitViolation() {
                         'relative transition-all duration-200 hover:shadow-lg flex flex-col h-full',
                         isSelected(plan) ? 'border-2 border-green-500 shadow-lg ring-2 ring-green-100' : 
                             isPopular(plan) ? 'border-2 border-violet-200 shadow-md' : 'border border-gray-200',
-                        !plan.is_active ? 'opacity-75' : 'cursor-pointer'
+                        plan.status !== 'active' ? 'opacity-75' : 'cursor-pointer'
                     ]"
                     @click="selectPlan(plan)"
                 >
@@ -417,13 +430,13 @@ function resolveLimitViolation() {
                         </Badge>
                     </div>
 
-                    <!-- Coming Soon Badge -->
+                    <!-- Status Badge -->
                     <div 
-                        v-if="!plan.is_active" 
+                        v-if="plan.status === 'coming_soon' || plan.status === 'legacy'" 
                         class="absolute -top-3 left-1/2 -translate-x-1/2"
                     >
                         <Badge variant="secondary" class="px-3 py-1">
-                            {{ $t('pricing.coming_soon') }}
+                            {{ plan.status === 'legacy' ? 'Legacy Plan' : $t('pricing.coming_soon') }}
                         </Badge>
                     </div>
 
@@ -439,7 +452,7 @@ function resolveLimitViolation() {
                     <CardContent class="text-center">
                         <!-- Price -->
                         <div class="mb-6">
-                            <template v-if="plan.is_active">
+                            <template v-if="plan.status === 'active' || plan.status === 'legacy'">
                                 <div class="flex flex-col items-center justify-center min-h-[5rem]">
                                     <template v-if="hasDiscount(plan)">
                                         <!-- Original Price -->
@@ -497,7 +510,7 @@ function resolveLimitViolation() {
                     <CardFooter class="mt-auto">
                         <Button 
                             variant="outline"
-                            :disabled="!plan.is_active || (isChangeMode && isCurrentPlan(plan)) || processing"
+                            :disabled="plan.status !== 'active' || (isChangeMode && isCurrentPlan(plan)) || processing"
                             :class="[
                                 'w-full',
                                 isSelected(plan) ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''
@@ -507,7 +520,8 @@ function resolveLimitViolation() {
                         >
                             <LoadingSpinner v-if="processing && isSelected(plan)" inline size="sm" class="mr-2" color="text-white" />
                             <template v-else>
-                                <span v-if="!plan.is_active">{{ $t('pricing.coming_soon') }}</span>
+                                <span v-if="plan.status === 'coming_soon'">{{ $t('pricing.coming_soon') }}</span>
+                                <span v-else-if="plan.status === 'legacy'">Legacy Plan</span>
                                 <span v-else-if="isChangeMode && isCurrentPlan(plan)">{{ $t('pricing.current_plan') }}</span>
                                 <span v-else-if="isChangeMode">{{ $t('pricing.switch_plan') }}</span>
                                 <span v-else>{{ $t('pricing.start_trial') }}</span>
